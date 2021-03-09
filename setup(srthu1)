@@ -1,6 +1,0 @@
-#!/bin/sh
-source /home/srthu1/.bashrc
-cd /home/srthu1/anaconda2/bin
-source activate wwf
-cd /home/srthu1/wangwf/
-ln -snf /usr/share/fonts /home/srthu1/anaconda2/envs/wwf/lib/fonts
