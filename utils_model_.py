@@ -72,6 +72,14 @@ def get_cons_func(method):
 
 get_constraint_func = get_cons_func
 
+def get_loss_func(loss_func_str):
+    if loss_func_str in ['MSE', 'mse']:
+        return torch.nn.MSELoss()
+    elif loss_func_str in ['CEL', 'cel']:
+        return torch.nn.CrossEntropyLoss()
+    else:
+        raise Exception('Invalid main loss: %s'%loss_func_str)
+
 def get_act_func(act_func_des):
     if isinstance(act_func_des, list):
         act_func_name = act_func_des[0]
@@ -195,3 +203,18 @@ def get_last_model(model_prefix, base_dir=None, is_dir=True):
         return base_dir + model_prefix + str(max_epoch) + '/'
     else:
         return 'error'
+
+def cal_acc_from_label(output, label):
+    # output: [batch_size, num_class]; label: [batch_size], label[i] is the index of correct category of i_th batch.
+    correct_num = (torch.max(output, dim=1)[1]==label).sum().item()
+    sample_num = label.size(0)
+    #return {'correct_num':correct_num, 'data_num':label_num} 
+    return correct_num, sample_num
+
+def scatter_label(label, num_class=None, device=None): # label: must be torch.LongTensor, shape: [batch_size], label[i] is the index of correct category of i_th batch.
+    if num_class is None:
+        #print(torch.max(label).__class__)
+        num_class = torch.max(label).item() + 1
+    scattered_label = torch.zeros((label.size(0), num_class), device=device).to(label.device).scatter_(1, torch.unsqueeze(label, 1), 1)
+    #return scattered_label.long() # [batch_size, num_class]
+    return scattered_label # [batch_size, num_class]

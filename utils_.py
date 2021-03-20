@@ -8,6 +8,8 @@ import time
 import math
 import cmath
 import warnings
+import pickle
+from pynvml.nvml import nvmlDeviceOnSameBoard
 
 import timeout_decorator
 import numpy as np
@@ -29,7 +31,7 @@ def contain(list_, elements):
     return sig
 
 def get_ax(axes, row_index, col_index, row_num, col_num):
-    if row_num==1: # deal with special cases where col_num or row_num is 1.
+    if row_num==1: # deal with degraded cases where col_num or row_num is 1.
         if col_num>1:
             ax = axes[col_index]
         else:
@@ -244,17 +246,7 @@ def print_torch_info(): # print info about training environment, global variable
     torch.pytorch_info()
     print('device='+str(device))
 
-def cal_acc_from_label(output, label): #output:[batch_size, num_class]; label:[batch_size], label[i] is the index of correct category of i_th batch.
-    correct_num = (torch.max(output, dim=1)[1]==label).sum().item()
-    sample_num = label.size(0)
-    #return {'correct_num':correct_num, 'data_num':label_num} 
-    return correct_num, sample_num
 
-def scatter_label(label, num_class=10, device=None): # label: must be torch.LongTensor, shape: [batch_size], label[i] is the index of correct category of i_th batch.
-    if num_class is None:
-        num_class = torch.max(label)
-    scattered_label = torch.zeros((label.size(0), num_class), device=device).scatter_(1, torch.unsqueeze(label, 1), 1)
-    return scattered_label.long() # [batch_size, num_classs]
 
 def get_act_func_module(act_func_info):
     name=get_name(act_func_info)
@@ -301,37 +293,37 @@ def plot_train_curve(stat_dir, loss_only=False):
     except Exception:
         print('exception when printing training curve.')
 
-def plot_train_curve_0(train_loss_list, train_acc_list, val_loss_list, val_acc_list):
+def plot_train_curve_0(train_loss_list, train_acc_list, val_loss_list, val_acc_list, fontsize=40):
     print('plotting training curve.')
     x = range(epoch_start, epoch_num)
     plt.subplot(2, 1, 1)
     plt.plot(x, train_loss_list, '-', label='train', color='r')
     plt.plot(x, val_loss_list, '-', label='test', color='b')
-    plt.title('Loss', fontsize=large_fontsize)
-    plt.ylabel('loss', fontsize=large_fontsize)
-    plt.xlabel('epoch', fontsize=large_fontsize)
+    plt.title('Loss', fontsize=fontsize)
+    plt.ylabel('loss', fontsize=fontsize)
+    plt.xlabel('epoch', fontsize=fontsize)
     plt.legend(loc='best')
     plt.subplot(2, 1, 2)
     plt.plot(x, train_acc_list, '-', label='train', color='r')
     plt.plot(x, val_acc_list, '-', label='test', color='b')
-    plt.title('Accuracy', fontsize=large_fontsize)
-    plt.ylabel('acc', fontsize=large_fontsize)
-    plt.xlabel('epoch', fontsize=large_fontsize)
+    plt.title('Accuracy', fontsize=fontsize)
+    plt.ylabel('acc', fontsize=fontsize)
+    plt.xlabel('epoch', fontsize=fontsize)
     plt.legend(loc='best')
     plt.tight_layout(pad=0.4, w_pad=2.0, h_pad=2.0)
-    plt.savefig(save_dir_anal+'training_curve.jpg')
+    plt.savefig(save_path_anal+'training_curve.jpg')
     plt.close()
 
-def plot_train_curve_1(train_loss_list, val_loss_list):
+def plot_train_curve_1(train_loss_list, val_loss_list, fontsize=40):
     print('plotting training curve.')
     fig = plt.figure()
     x = range(len(train_loss_list))
     plt.plot(x, train_loss_list, '-', label='train', color='r')
     x = range(len(val_loss_list))
     plt.plot(x, val_loss_list, '-', label='test', color='b')
-    plt.title('Loss - epoch', fontsize=large_fontsize)
-    plt.ylabel('loss', fontsize=large_fontsize)
-    plt.xlabel('epoch', fontsize=large_fontsize)
+    plt.title('Loss - epoch', fontsize=fontsize)
+    plt.ylabel('loss', fontsize=fontsize)
+    plt.xlabel('epoch', fontsize=fontsize)
     plt.legend(loc='best')
     plt.close()
 
@@ -343,40 +335,40 @@ def xy2polar(x, y):
 def xy2polar_np(points): # [point_num, (x, y)]
     return np.arctan2(points[:, 1], points[:, 0])
 
-def set_instance_attr(self, dict_, keys=None, exceptions=[]):
+def set_instance_attr(self, dict_, keys=None, exception=[]):
     if keys is None: # set all keys as instance variables.
         for key, value in dict_.items(): # In python 3, use dict_.items(). In python 2, use dict_.iteritems()
-            if key not in exceptions:
+            if key not in exception:
                 setattr(self, key, value)
     else: # set values of designated keys as instance variables.
         for key, value in dict_.items(): # In python 3, use dict_.items(). In python 2, use dict_.iteritems()
             if key in keys:
-                if key not in exceptions:
+                if key not in exception:
                     setattr(self, key, value)
 
 set_instance_variable = set_instance_attr
 
-def set_dict_variable(dict_1, dict_0, keys=None, exceptions=['self']): # dict_1: target. dict_0: source.
+def set_dict_variable(dict_1, dict_0, keys=None, exception=['self']): # dict_1: target. dict_0: source.
     if keys is None: # set all keys as instance variables.
         for key, value in dict_0.items(): # In python 3, use dict_.items(). In python 2, use dict_.iteritems()
-            if key not in exceptions:
+            if key not in exception:
                 dict_1[key] = value
     else: # set values of designated keys as instance variables.
         for key, value in dict_0.items(): # In python 3, use dict_.items(). In python 2, use dict_.iteritems()
             if key in keys:
-                if key not in exceptions:
+                if key not in exception:
                     dict_1[key] = value
         
-def set_instance_variable_and_dict(self, dict_1, dict_0, keys=None, exceptions=['self']): # dict_0: source. dict_1: target dict. self: target class object.
+def set_instance_variable_and_dict(self, dict_1, dict_0, keys=None, exception=['self']): # dict_0: source. dict_1: target dict. self: target class object.
     if keys is None: # set all keys as instance variables.
         for key, value in dict_0.items(): # In python 3, use dict_.items(). In python 2, use dict_.iteritems()
-            if key not in exceptions:
+            if key not in exception:
                 dict_1[key] = value
                 setattr(self, key, value)
     else: # set values of designated keys as instance variables.
         for key, value in dict_0.items(): # In python 3, use dict_.items(). In python 2, use dict_.iteritems()
             if key in keys:
-                if key not in exceptions:
+                if key not in exception:
                     dict_1[key] = value
                     setattr(self, key, value)
                 
@@ -388,12 +380,12 @@ set_dict_and_instance_variable = set_class_variable_and_dict = set_instance_vari
 
 class Param:
     pass
-def load_param(dict_, exceptions=[], default_exceptions=['kw', 'param', 'key', 'item'], use_default_exceptions=True):
+def load_param(dict_, exception=[], default_exception=['kw', 'param', 'key', 'item'], use_default_exception=True):
     param = Param()
     for key, item in dict_.items():
-        if key not in exceptions:
-            if use_default_exceptions:
-                if key not in default_exceptions:
+        if key not in exception:
+            if use_default_exception:
+                if key not in default_exception:
                     setattr(param, key, item)
             else:
                 setattr(param, key, item)
@@ -424,7 +416,7 @@ def get_last_model(model_prefix, base_dir='./', is_dir=True):
                 else:
                     if(max_epoch < epoch_num):
                         max_epoch = epoch_num
-    if(max_epoch is not None):
+    if max_epoch is not None:
         return base_dir + model_prefix + str(max_epoch) + '/'
     else:
         return 'error'
@@ -436,7 +428,6 @@ def standardize_suffix(suffix):
         raise Exception('check_suffix: %s is illegal suffix.'%suffix)
     else:
         suffix = result.group(1)
-    
     return suffix
 
 def check_suffix(name, suffix=None, is_path=True):
@@ -500,11 +491,13 @@ def remove_suffix(name, suffix='.py', must_match=False):
     else:
         return result.group(1)
 
-def scan_files(path, pattern, ignore_folder=True, raise_not_found_folder=False):
+def scan_files(path, pattern, ignore_folder=True, raise_not_found_error=False):
     if not path.endswith('/'):
         path.append('/')
     files_path = os.listdir(path)
     matched_files = []
+    if isinstance(pattern, str):
+        pattern = re.compile(pattern)
     for file_name in files_path:
         #print(file_name)
         if pattern.match(file_name) is not None:
@@ -516,35 +509,55 @@ def scan_files(path, pattern, ignore_folder=True, raise_not_found_folder=False):
             else:
                 matched_files.append(file_name)
     
-    if raise_not_found_folder:
+    if raise_not_found_error:
         if len(matched_files)==0:
-            raise Exception('')
+            raise Exception('scan_files: cannot find any files that match pattern %s'%pattern)
 
     return matched_files
 
-def copy_files(file_list, path, sys_type='linux', subpath=None):
-    ensure_path(path)
-    if not path.endswith('/'):
-        path += '/'
+def copy_files(file_list, path_from='./', path_to=None, sys_type='linux'):
+    if not path_from.endswith('/'):
+        path_from += '/'
 
+    if not path_to.endswith('/'):
+        path_to += '/'
+
+    ensure_path(path_to)
+
+    '''
     if subpath is not None:
-        if not subpath.endswith('./'):
+        if not subpath.endswith('/'):
              subpath += '/'
         path += subpath
+    ensure_path(path)
+    '''
 
     if sys_type in ['linux']:
         for file in file_list:
+            file = file.lstrip('./')
+            file = file.lstrip('/')
+            #print(path)
+            #print(file)
             #shutil.copy2(file, dest + file)
-            if os.path.exists(path + file):
-                os.system('rm -r %s'%(path + file))
-            os.system('cp -r %s %s'%(file, path + file))
+            if os.path.exists(path_to + file):
+                os.system('rm -r %s'%(path_to + file))
+            #print('cp -r %s %s'%(file_path + file, path + file))
+            os.system('cp -r %s %s'%(path_from + file, path_to + file))
     elif sys_type in ['windows']:
         # to be implemented 
         pass
     else:
         raise Exception('copy_files: Invalid sys_type: '%str(sys_type))
 
-def select_file(name, candidate_files, default_file=None, match_prefix='', match_suffix='.py', file_type='', raise_no_match_error=False):
+def path_to_module(path):
+    path = path.lstrip('./')
+    path = path.lstrip('/')
+    if not path.endswith('/'):
+        path += '/'
+    path =  path.replace('/','.')
+    return path
+
+def select_file(name, candidate_files, default_file=None, match_prefix='', match_suffix='.py', file_type='', raise_no_match_error=True):
     use_default_file = False
     perfect_match = False
     if name is None:
@@ -552,6 +565,7 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
     else:
         matched_count = 0
         matched_files = []
+        perfect_match_name = None
         if match_prefix + name + match_suffix in candidate_files: # perfect match. return this file directly
             perfect_match_name = match_prefix + name + match_suffix
             perfect_match = True
@@ -559,8 +573,10 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
             matched_count += 1
         for file_name in candidate_files:
             if name in file_name:
-                matched_files.append(file_name)
-                matched_count += 1
+                if file_name!=perfect_match_name:
+                    matched_files.append(file_name)
+                    matched_count += 1
+        #print(matched_files)
         if matched_count==1: # only one matched file
             return matched_files[0]
         elif matched_count>1: # multiple files matched
@@ -578,9 +594,8 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
         else:
             warnings.warn('No file matched name: %s. Trying using default %s file.'%(str(name), file_type))
             use_default_file = True
-
     if use_default_file:
-        if default_file is None:
+        if default_file is not None:
             if default_file in candidate_files:
                 print('Using default %s file: %s'%(str(file_type), default_file))
                 return default_file
@@ -596,3 +611,81 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
                 return None
     else:
         return None
+
+import hashlib
+def get_md5(path, md5=None):
+    if md5 is None:
+        md5 = hashlib.md5()
+    if os.path.isfile(path):
+        with open(path, 'rb') as f:
+            bytes = f.read()
+        md5.update(bytes)
+        md5_str = md5.hexdigest()
+        #print(md5_str.__class__)
+        return md5_str
+    else:
+        warnings.warn('%s is not a file. '%path)
+        return None
+
+def visit_path(args=None, func=None, recur=False, path=None):
+    if func is None:
+        func = args.func   
+    if path is None:
+        path = args.path
+    else:
+        func=None
+        warnings.warn('visit_dir: func is None.')
+    filepaths=[]
+    abspath = os.path.abspath(path) # relative path also works well
+    for name in os.listdir(abspath):
+        file_path = os.path.join(abspath, name)
+        if os.path.isdir(file_path):
+            if recur:
+                visit_path(args=args, func=func, recur=True)
+        else:
+            func(args=args, file_path=file_path)
+    return filepaths
+
+visit_dir = visit_path
+
+
+def copy_folder(path_from, path_to):
+    '''
+    if args.path is not None:
+        path = args.path
+    else:
+        path = '/data4/wangweifan/backup/'
+    '''
+    ensure_path(path_from)
+    ensure_path(path_to)
+    
+    if not path_from.endswith('/'):
+        path_from += '/'
+    if not path_to.endswith('/'):
+        path_to += '/'
+    subpath = ''
+    copy_folder_recur(path_from, path_to, subpath='')
+
+def copy_folder_recur(path_from, path_to, subpath=''):
+    ensure_path(path_from + subpath)
+    ensure_path(path_to + subpath)
+    items = os.listdir(path_from + subpath)
+    for item in items:
+        #print(path_to + subpath + item)
+        if os.path.isfile(path_from + subpath + item):
+            if os.path.exists(path_to + subpath + item):
+                md5_source = get_md5(path_from + subpath + item)
+                md5_target = get_md5(path_to + subpath + item)
+                if md5_target==md5_source: # same file
+                    #print('same file')
+                    continue
+                else:
+                    #print('different file')
+                    os.system('rm -r "%s"'%(path_to + subpath + item))
+                    os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))     
+            else:
+                os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))
+        elif os.path.isdir(path_from + subpath + item):
+            copy_folder_recur(path_from, path_to, subpath + item + '/')
+        else:
+            warnings.warn('%s is neither a file nor a path.')
