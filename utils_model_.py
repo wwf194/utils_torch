@@ -5,8 +5,8 @@ import torch.nn.functional as F
 
 from utils import get_args, get_name, get_name_args, get_from_dict, search_dict
 
-def init_weight(weight, args, weight_name='unnamed', cons_method=None):
-    dim_num = len(list(weight.size()))
+def init_weight(weight, init_info, cons_method=None):
+    num_dim = len(list(weight.size()))
     name, args = get_name_args(args)
     #print('weight:%s init_method:%s'%(weight_name, str(name)))
     coeff = args
@@ -15,36 +15,55 @@ def init_weight(weight, args, weight_name='unnamed', cons_method=None):
             cons_method = args.setdefault('cons_method', 'abs')
         else:
             cons_method = 'abs'
-
     sig = False
-    if dim_num==1:
+    if num_dim==1: # 1d tensor
         divider = weight.size(0)
         sig = True
-    elif dim_num==2:
-        if name in ['output']:
-            divider = weight.size(1)
-            sig = True
-        elif name in ['input']:
-            divider = weight.size(0)
-            sig = True
-        elif name in ['ortho', 'orthogonal']:
-            weight_ = weight.detach().clone()
-            torch.nn.init.orthogonal_(weight_, gain=1.0) # init input weight to be orthogonal.
-            with torch.no_grad():  # avoid gradient calculation error during in-place operation.
-                weight.copy_( weight_ * coeff )
-            return
-        elif name in ['glorot', 'glorot_uniform', 'xavier', 'xavier_uniform']:
-            weight_ = weight.detach().clone()
-            torch.nn.init.xavier_uniform_(weight_, gain=1.0)
-            with torch.no_grad():
-                weight.copy_( weight_ * coeff )
-            return
+    elif num_dim==2: # 2d tensor
+        init_weight_2d(weight, init_info, cons_method)
+    else:
+        raise Exception('init_weight: %dd tensor is not supported.'%num_dim)
+    
     if sig:
         lim = coeff / divider
         if cons_method in ['force']:
             torch.nn.init.uniform_(weight, 0.0, lim)
         else:
             torch.nn.init.uniform_(weight, -lim, lim)
+def init_weight_1d():
+    return
+def init_weight_2d(weight, init_info, cons_method=None):
+    name, args = get_name_args(init_info)
+    coeff = 1.0
+    if isinstance(args, float):
+        coeff = args
+    if name in ['output']:
+        divider = weight.size(1)
+        sig = True
+    elif name in ['input']:
+        divider = weight.size(0)
+        sig = True
+    elif name in ['ortho', 'orthogonal']:
+        weight_ = weight.detach().clone()
+        torch.nn.init.orthogonal_(weight_, gain=1.0) # init input weight to be orthogonal.
+        with torch.no_grad():  # avoid gradient calculation error during in-place operation.
+            weight.copy_( weight_ * coeff )
+        return
+    elif name in ['glorot', 'glorot_uniform', 'xavier', 'xavier_uniform']:
+        weight_ = weight.detach().clone()
+        torch.nn.init.xavier_uniform_(weight_, gain=1.0)
+        with torch.no_grad():
+            weight.copy_( weight_ * coeff )
+        return
+    else:
+        raise Exception('Unsupported init method: %s'%name)
+
+    if sig:
+        lim = coeff / divider
+        if cons_method in ['force']:
+            torch.nn.init.uniform_(weight, 0.0, lim)
+        else:
+            torch.nn.init.uniform_(weight, -lim, lim)   
 
 def get_ei_mask(E_num, N_num, device=None):
     if device is None:
@@ -80,30 +99,34 @@ def get_loss_func(loss_func_str):
     else:
         raise Exception('Invalid main loss: %s'%loss_func_str)
 
-def get_act_func(act_func_des):
-    if isinstance(act_func_des, list):
-        act_func_name = act_func_des[0]
-        act_func_param = act_func_des[1]
-    elif isinstance(act_func_des, str):
-        act_func_name = act_func_des
-        act_func_param = 'default'
-    elif isinstance(act_func_des, dict):
-        act_func_name = act_func_des['name']
-        act_func_param = act_func_des['param']
-    return get_act_func_from_name(act_func_name, act_func_param)
+def get_act_func(act_func_info):
+    if isinstance(act_func_info, list):
+        act_func_name = act_func_info[0]
+        act_func_param = act_func_info[1]
+    elif isinstance(act_func_info, str):
+        act_func_name = act_func_info
+        act_func_param = None
+    elif isinstance(act_func_info, dict):
+        act_func_name = act_func_info['name']
+        act_func_param = act_func_info['param']
+    else:
+        raise Exception('Invalid act_func_info type: %s'%type(act_func_info))
+    return get_act_func_from_str(act_func_name, act_func_param)
 
-def get_act_func_module(act_func_des):
-    name = act_func_des
-    if name in ['relu']:
+def get_act_func_module(act_func_str):
+    name = act_func_str
+    if act_func_str in ['relu']:
         return nn.ReLU()
-    elif name in ['tanh', 'Tanh']:
+    elif act_func_str in ['tanh', 'Tanh']:
         return nn.Tanh()
-    elif name in ['softplus', 'SoftPlus']:
+    elif act_func_str in ['softplus', 'SoftPlus']:
         return nn.Softplus()
-    elif name in ['sigmoid', 'Sigmoid']:
+    elif act_func_str in ['sigmoid', 'Sigmoid']:
         return nn.Sigmoid()
-
-def get_act_func_from_name(name='relu', param='default'):
+    else:
+        raise Exception('Invalid act func str: %s'%act_func_str)
+        
+def get_act_func_from_str(name='relu', param=None):
     if name in ['none']:
         return lambda x:x
     elif name in ['relu']:
@@ -121,35 +144,18 @@ def get_act_func_from_name(name='relu', param='default'):
             return lambda x:F.relu(torch.tanh(x))
         else:
             return lambda x:param * F.relu(torch.tanh(x))
-
-def build_mlp(dict_, load=False):
-    act_func = get_act_func_module(dict_['act_func'])
-    use_bias = dict_['bias']
-    layers = []
-    layer_dicts = []
-    unit_nums = dict_['unit_nums'] #input_num, hidden_layer1_unit_num, hidden_layer2_unit_numm ... output_num
-    layer_num = len(unit_nums) - 1
-    act_func_on_last_layer = get_from_dict(dict_, 'act_func_on_last_layer', default=True, write_default=True)
-    for layer_index in range(layer_num):
-        layer_current = nn.Linear(unit_nums[layer_index], unit_nums[layer_index+1], bias=use_bias)
-        if load:
-            layer_current.load_state_dict(dict_['layer_dicts'][layer_index])
-        layers.append(layer_current)
-        layer_dicts.append(layer_current.state_dict())
-        if not (act_func_on_last_layer and layer_index==layer_num-1):
-            layers.append(act_func)
-    return torch.nn.Sequential(*layers)
-
+    else:
+        raise Exception('Invalid act func name: %s'%name)
 
 '''
 def build_mlp(dict_):
     act_func = get_act_func_module(dict_['act_func'])
     layers = []
     layer_dicts = []
-    unit_nums = dict_['unit_nums'] #input_num, hidden_layer1_unit_num, hidden_layer2_unit_numm ... output_num
-    layer_num = len(unit_nums) - 1
+    N_nums = dict_['N_nums'] #input_num, hidden_layer1_unit_num, hidden_layer2_unit_numm ... output_num
+    layer_num = len(N_nums) - 1
     for layer_index in range(layer_num):
-        current_layer = nn.Linear(unit_nums[layer_index], unit_nums[layer_index+1], bias=dict['bias'])
+        current_layer = nn.Linear(N_nums[layer_index], N_nums[layer_index+1], bias=dict['bias'])
         layers.append(current_layer)
         layer_dicts.append(current_layer.state_dict())
         if not (dict_['act_func_on_last_layer'] and layer_index==layer_num-1):
@@ -157,7 +163,6 @@ def build_mlp(dict_):
     dict['layer_dicts'] = layer_dicts
     return torch.nn.Sequential(*layers)
 '''
-
 
 def build_optimizer(dict_, model, load=False):
     type_ = get_from_dict(dict_, 'type', default='sgd', write_default=True)
@@ -218,3 +223,59 @@ def scatter_label(label, num_class=None, device=None): # label: must be torch.Lo
     scattered_label = torch.zeros((label.size(0), num_class), device=device).to(label.device).scatter_(1, torch.unsqueeze(label, 1), 1)
     #return scattered_label.long() # [batch_size, num_class]
     return scattered_label # [batch_size, num_class]
+
+class MLP(nn.Module):
+    def __init__(self, dict_, load=False):#input_num is neuron_num.
+        super(MLP, self).__init__()
+        self.dict = dict_
+        self.act_func_on_last_layer = self.dict.setdefault('act_func_on_last_layer', False)
+        self.bias = self.dict.setdefault('bias', False)
+        self.bias_on_last_layer = self.dict.setdefault('bias_on_last_layer', False)
+        self.N_nums = self.dict['N_nums']
+        self.layer_num = self.dict['layer_num'] = len(self.N_nums) - 1
+
+        if load:
+            self.weights = self.dict['weights']
+            self.bias = self
+        else:
+            self.weights.append
+            for layer_index in range(self.layer_num):
+                weight = torch.
+
+        self.act_func = get_act_func
+
+        self.mlp = build_mlp_sequential(dict_=self.dict, load=load)
+        print(self.mlp.parameters)
+        print(self.mlp.parameters())
+        
+
+    def forward(self, x):
+        for layer_index in self.layer_num:
+            x = torch.mm(x, self.weights[layer_index]) + self.bias[layer_index] 
+            
+        if self.act_func_on_last_layer:
+            x = self.act_func(x)
+
+        return x
+    def anal_weight_change():
+        
+def build_mlp(dict_, load=False):
+    return MLP(dict_, load=load)
+
+def build_mlp_sequential(dict_, load=False):
+    act_func = get_act_func_module(dict_['act_func'])
+    use_bias = dict_['bias']
+    layers = []
+    layer_dicts = []
+    N_nums = dict_['N_nums'] #input_num, hidden_layer1_unit_num, hidden_layer2_unit_numm ... output_num
+    layer_num = len(N_nums) - 1
+    act_func_on_last_layer = get_from_dict(dict_, 'act_func_on_last_layer', default=True, write_default=True)
+    for layer_index in range(layer_num):
+        layer_current = nn.Linear(N_nums[layer_index], N_nums[layer_index+1], bias=use_bias)
+        if load:
+            layer_current.load_state_dict(dict_['layer_dicts'][layer_index])
+        layers.append(layer_current)
+        layer_dicts.append(layer_current.state_dict())
+        if not (act_func_on_last_layer and layer_index==layer_num-1):
+            layers.append(act_func)
+    return torch.nn.Sequential(*layers)
