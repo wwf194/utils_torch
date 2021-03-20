@@ -3,7 +3,7 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import get_args, get_name, get_name_args, get_from_dict, search_dict
+from utils import get_args, get_name, get_name_args, get_from_dict, search_dict, contain
 
 def init_weight(weight, init_info, cons_method=None):
     num_dim = len(list(weight.size()))
@@ -32,16 +32,47 @@ def init_weight(weight, init_info, cons_method=None):
             torch.nn.init.uniform_(weight, -lim, lim)
 def init_weight_1d():
     return
-def init_weight_2d(weight, init_info, cons_method=None):
+def init_weight_2d(weight, init_info, cons_method=None): # weight: [input_num, output_num]
     name, args = get_name_args(init_info)
     coeff = 1.0
+    init_method = None
     if isinstance(args, float):
         coeff = args
+    if isinstance(name, list):
+        if contain(name, 'input') and contain(name, 'output'):
+            # to be implemented
+            pass
+        elif contain(name, 'input'):
+            if cons_method is None:
+                lim_l = - coeff * 1.0 / weight.size(0)
+                lim_r = - lim_l
+            elif cons_method in ['abs']:
+                lim_l = 0.0
+                lim_r = 2 * coeff / weight.size(0)
+            else:
+                raise Exception('Invalid')            
+            if contain(name, 'uniform'):
+                init_method = 'uniform'
+            elif contain(name, 'gaussian', 'normal'):
+                init_method = 'normal'
+            else:
+                init_method = 'uniform' # default distribution
+
+        elif contain(name, 'output'):
+        else:
+            
+    if init_method is not None:
+        if init_method in ['']:
+        elif init_method in ['']:
+
+        else:
+
+
     if name in ['output']:
         divider = weight.size(1)
         sig = True
     elif name in ['input']:
-        divider = weight.size(0)
+        1 / weight.size(0)
         sig = True
     elif name in ['ortho', 'orthogonal']:
         weight_ = weight.detach().clone()

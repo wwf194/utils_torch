@@ -1,4 +1,5 @@
 import os
+from typing import Iterable
 import pynvml
 import re
 import sys
@@ -22,13 +23,19 @@ from matplotlib import pyplot as plt
 def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
-def contain(list_, elements):
-    sig = False
-    for element in elements:
-        if element in list_:
-            sig = True
-            break
-    return sig
+def contain(list_, items):
+    if isinstance(items, Iterable): # items is a list
+        sig = False
+        for item in items:
+            if item in list_:
+                sig = True
+                break
+        return sig
+    else: # items is uniterable object
+        if items in list_:
+            return True
+        else:
+            return False
 
 def get_ax(axes, row_index, col_index, row_num, col_num):
     if row_num==1: # deal with degraded cases where col_num or row_num is 1.
