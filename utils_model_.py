@@ -2,6 +2,9 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
+import numpy as np
+import matplotlib as mpl
+import matplotlib.pyplot as plt
 
 from utils import get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all
 
@@ -239,14 +242,15 @@ class MLP(nn.Module):
             self.biases = self.dict['biases']
         else:
             if self.dict.get('init_weight') is None:
-                self.dict['init_weight'] = ['input', '']
-            else:
+                self.dict['init_weight'] = [['input', 'uniform'], 1.0]
+            self.init_weight = self.dict['init_weight']
 
-
-            self.weights.append
             for layer_index in range(self.layer_num):
-                weight = torch.zeros
-                init_weight(weight, )
+                weight = torch.nn.Parameter(torch.zeros(self.N_nums[layer_index], self.N_nums[layer_index + 1]))
+                init_weight(weight, self.init_weight)
+                self.weights.append(weight)
+                if self.bias:
+                    bias = torch.zeros()
 
         self.act_func = get_act_func
         #self.mlp = build_mlp_sequential(dict_=self.dict, load=load)
@@ -262,13 +266,17 @@ class MLP(nn.Module):
     def anal_weight_change(self, verbose=True):
         result = ''
         for layer_index in range(self.layer_num):
-            weight, bias = self.weights[layer_index], self.biases[layer_index]
+            weight = self.weights[layer_index].detach().cpu().numpy()
+            bias = self.biases[layer_index]
+            if isinstance(bias, float):
+                
             r_1 = self.get_r().detach().cpu().numpy()
             if self.cache.get('r') is not None:
                 r_0 = self.cache['r']
                 r_change_rate = np.sum(abs(r_1 - r_0)) / np.sum(np.abs(r_0))
                 result += 'r_change_rate: %.3f '%r_change_rate
-            self.cache['r'] = r_1
+            self.cache['w_%d'%layer_index] = r_1
+                
         if verbose:
             print(result)
         return result
