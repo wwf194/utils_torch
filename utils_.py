@@ -53,6 +53,23 @@ def contain_all(list_, items):
         else:
             return False    
 
+def get_row_col(tot_num, row_num=None, col_num=None):
+    if row_num is None and col_num is not None:
+        row_num = tot_num // col_num
+        if tot_num % col_num > 0:
+            row_num += 1
+        return row_num, col_num
+    elif row_num is not None and col_num is None:
+        col_num = tot_num // row_num
+        if tot_num % row_num > 0:
+            col_num += 1
+        return row_num, col_num
+    else:
+        if tot_num != row_num * col_num:
+            raise Exception('get_row_col: cannot simultaneouly fit row_num %d and col_num %d'%(row_num, col_num))
+        else:
+            return row_num, col_num
+
 def get_ax(axes, row_index, col_index, row_num, col_num):
     if row_num==1: # deal with degraded cases where col_num or row_num is 1.
         if col_num>1:
@@ -61,7 +78,6 @@ def get_ax(axes, row_index, col_index, row_num, col_num):
             ax = axes
     else:
         ax = axes[row_index, col_index]
-    
     return ax
 
 #@timeout_decorator.timeout(15)

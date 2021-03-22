@@ -42,7 +42,7 @@ def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_
     else:
         print("invalid epochs type.")
 
-    if(evaluate_before_train==True):
+    if evaluate_before_train:
         with torch.no_grad():
             val_loss, val_acc = evaluate(net, testloader, criterion, scheduler, augment, device)
             note2 = ' val_loss:%.4f val_acc:%.4f'%(val_loss, val_acc)
@@ -321,21 +321,8 @@ class model(nn.Module):
         return x
 '''
 
-def prepare_fashion():        
-    transform = transforms.Compose(
-    [transforms.ToTensor()])
-
-    trainset = torchvision.datasets.FashionMNIST(root='./data/fashion_MNIST', transform=transform, train=True, download=True)
-    testset = torchvision.datasets.FashionMNIST(root='./data/fashion_MNIST', transform=transform, train=False, download=True)
-
-    trainloader = DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True, num_workers=16)
-    testloader = DataLoader(dataset=testset, batch_size=batch_size_test, shuffle=False, num_workers=16)
-
-    return trainloader, testloader
-
-
-def prepare_net(batch_size=64, load=False, model_name=''):
-    if(load==False):   
+def prep_net(batch_size=64, load=False, model_name=''):
+    if not load:
         model=model()
     else:
         net=torch.load(model_name)

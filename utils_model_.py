@@ -6,7 +6,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from utils import get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all
+from utils import get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col
 
 def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
     name, args = get_name_args(init_info)
@@ -228,10 +228,14 @@ def scatter_label(label, num_class=None, device=None): # label: must be torch.Lo
     #return scattered_label.long() # [batch_size, num_class]
     return scattered_label # [batch_size, num_class]
 
+def build_mlp(dict_, load=False):
+    return MLP(dict_, load=load)
+
 class MLP(nn.Module):
     def __init__(self, dict_, load=False):#input_num is neuron_num.
         super(MLP, self).__init__()
         self.dict = dict_
+        self.device = self.dict.setdefault('device', 'cpu')
         self.act_func_on_last_layer = self.dict.setdefault('act_func_on_last_layer', False)
         self.bias = self.dict.setdefault('bias', False)
         self.bias_on_last_layer = self.dict.setdefault('bias_on_last_layer', False)
@@ -244,45 +248,66 @@ class MLP(nn.Module):
             if self.dict.get('init_weight') is None:
                 self.dict['init_weight'] = [['input', 'uniform'], 1.0]
             self.init_weight = self.dict['init_weight']
-
             for layer_index in range(self.layer_num):
-                weight = torch.nn.Parameter(torch.zeros(self.N_nums[layer_index], self.N_nums[layer_index + 1]))
+                weight = nn.Parameter(torch.zeros(self.N_nums[layer_index], self.N_nums[layer_index + 1], device=self.device))
                 init_weight(weight, self.init_weight)
                 self.weights.append(weight)
                 if self.bias:
-                    bias = torch.zeros()
-
-        self.act_func = get_act_func
+                    bias = nn.Parameter(torch.zeros(self.N_nums[layer_index], device=self.device))
+                else:
+                    bias = 0.0
+                self.biases.append(bias)
+            if self.bias_on_last_layer:
+                self.biases.append(nn.Parameter(torch.zeros(self.N_nums[-1], device=self.device)))
+        
+        self.act_func = get_act_func(self.dict['act_func'])
         #self.mlp = build_mlp_sequential(dict_=self.dict, load=load)
-        print(self.mlp.parameters)
-        print(self.mlp.parameters())
-
+        #print(self.parameters())
     def forward(self, x):
+        x = x.to(self.device)
         for layer_index in self.layer_num:
             x = torch.mm(x, self.weights[layer_index]) + self.biases[layer_index]     
         if self.act_func_on_last_layer:
             x = self.act_func(x)
+        if self.bias_on_last_layer:
+            x += self.biases[-1]
         return x
     def anal_weight_change(self, verbose=True):
         result = ''
-        for layer_index in range(self.layer_num):
-            weight = self.weights[layer_index].detach().cpu().numpy()
-            bias = self.biases[layer_index]
-            if isinstance(bias, float):
-                
-            r_1 = self.get_r().detach().cpu().numpy()
-            if self.cache.get('r') is not None:
-                r_0 = self.cache['r']
-                r_change_rate = np.sum(abs(r_1 - r_0)) / np.sum(np.abs(r_0))
-                result += 'r_change_rate: %.3f '%r_change_rate
-            self.cache['w_%d'%layer_index] = r_1
-                
+        # analyze weight change
+        for index, weight in enumerate(self.weights):
+            name = 'w%d'%index
+            w_1 = weight.detach().cpu().numpy()
+            if self.cache.get(name) is not None:
+                w_0 = self.cache[name]
+                w_change_rate = np.sum(abs(w_1 - w_0)) / np.sum(np.abs(w_0))
+                result += '%s_change_rate: %.3f '%(name, w_change_rate)
+            self.cache[name] = w_1
+        # analyze bias change
+        for index, bias in enumerate(self.biases):
+            if isinstance(bias, torch.Tensor):
+                name = 'b%d'%index
+            name = 'w%d'%index
+            w_1 = weight.detach().cpu().numpy()
+            if self.cache.get(name) is not None:
+                w_0 = self.cache[name]
+                w_change_rate = np.sum(abs(w_1 - w_0)) / np.sum(np.abs(w_0))
+                result += '%s_change_rate: %.3f '%(name, w_change_rate)
+                self.cache[name] = w_1
         if verbose:
             print(result)
         return result
+    
+    def plot_weight(self, axes=None, save=False, save_path='./', save_name='mlp_weight_plot.png'):
+        
+        
+        row_num, col_num = get_row_col()
+        if axes is None:
+            fig, axes = plt.subplots(nrows=row_num, ncols=col_num, figsize=(5*col_num, 5*row_num))
 
-def build_mlp(dict_, load=False):
-    return MLP(dict_, load=load)
+        return
+
+
 
 def build_mlp_sequential(dict_, load=False):
     act_func = get_act_func_module(dict_['act_func'])
