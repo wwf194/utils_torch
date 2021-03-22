@@ -37,6 +37,22 @@ def contain(list_, items):
         else:
             return False
 
+def contain_all(list_, items):
+    if isinstance(items, Iterable): # items is a list
+        sig = True
+        for item in items:
+            if item in list_:
+                continue
+            else:
+                sig = False
+                break
+        return sig
+    else: # items is uniterable object
+        if items in list_:
+            return True
+        else:
+            return False    
+
 def get_ax(axes, row_index, col_index, row_num, col_num):
     if row_num==1: # deal with degraded cases where col_num or row_num is 1.
         if col_num>1:

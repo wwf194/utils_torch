@@ -3,98 +3,68 @@ import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils import get_args, get_name, get_name_args, get_from_dict, search_dict, contain
+from utils import get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all
 
-def init_weight(weight, init_info, cons_method=None):
-    num_dim = len(list(weight.size()))
-    name, args = get_name_args(args)
-    #print('weight:%s init_method:%s'%(weight_name, str(name)))
-    coeff = args
-    if cons_method is None:
-        if isinstance(args, dict):
-            cons_method = args.setdefault('cons_method', 'abs')
-        else:
-            cons_method = 'abs'
-    sig = False
-    if num_dim==1: # 1d tensor
-        divider = weight.size(0)
-        sig = True
-    elif num_dim==2: # 2d tensor
-        init_weight_2d(weight, init_info, cons_method)
-    else:
-        raise Exception('init_weight: %dd tensor is not supported.'%num_dim)
-    
-    if sig:
-        lim = coeff / divider
-        if cons_method in ['force']:
-            torch.nn.init.uniform_(weight, 0.0, lim)
-        else:
-            torch.nn.init.uniform_(weight, -lim, lim)
-def init_weight_1d():
-    return
-def init_weight_2d(weight, init_info, cons_method=None): # weight: [input_num, output_num]
+def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
     name, args = get_name_args(init_info)
     coeff = 1.0
     init_method = None
     if isinstance(args, float):
         coeff = args
-    if isinstance(name, list):
-        if contain(name, 'input') and contain(name, 'output'):
+    if isinstance(name, str):
+        name = [name]
+
+    if contain(name, ['ortho', 'orthogonal']):
+        init_method = 'ortho'
+    elif contain(name, ['glorot', 'glorot_uniform', 'xavier', 'xavier_uniform']):
+        init_method = 'glorot'
+    elif contain(name, 'uniform'):
+        init_method = 'uniform'
+    elif contain(name, ['gaussian', 'normal']):
+        init_method = 'normal'
+    else:
+        init_method = 'uniform' # default distribution
+    if init_method in ['normal', 'uniform']: # init method that has input/output mode.
+        if contain(name, ['input_output', 'output_input', 'in_out', 'out_in']):
             # to be implemented
             pass
         elif contain(name, 'input'):
-            if cons_method is None:
-                lim_l = - coeff * 1.0 / weight.size(0)
+            if cons_method is None or cons_method in ['abs']:
+                lim_l = - coeff / weight.size(0)
                 lim_r = - lim_l
-            elif cons_method in ['abs']:
+            elif cons_method in ['force']:
                 lim_l = 0.0
                 lim_r = 2 * coeff / weight.size(0)
             else:
                 raise Exception('Invalid')            
-            if contain(name, 'uniform'):
-                init_method = 'uniform'
-            elif contain(name, 'gaussian', 'normal'):
-                init_method = 'normal'
-            else:
-                init_method = 'uniform' # default distribution
-
         elif contain(name, 'output'):
+            if cons_method is None or cons_method in ['abs']:
+                lim_l = - coeff / weight.size(1)
+                lim_r = - lim_l
+            elif cons_method in ['force']:
+                lim_l = 0.0
+                lim_r = 2 * coeff / weight.size(1)
+            else:
+                raise Exception('Invalid cons_method: %s'%cons_method)
         else:
-            
+            raise Exception('Invalid init weight mode: %s'%str(name))  
     if init_method is not None:
-        if init_method in ['']:
-        elif init_method in ['']:
-
+        if init_method in ['uniform']:
+            torch.nn.init.uniform_(weight, lim_l, lim_r)  
+        elif init_method in ['normal']:
+            torch.nn.init.normal_(weight, mean=(lim_l+lim_r)/2, std=(lim_r+lim_l)/2)  
+        elif init_method in ['ortho']:
+            weight_ = weight.detach().clone()
+            torch.nn.init.orthogonal_(weight_, gain=1.0) # init input weight to be orthogonal.
+            with torch.no_grad():  # avoid gradient calculation error during in-place operation.
+                weight.copy_( weight_ * coeff )        
+        elif init_method in ['glorot']:
+            weight_ = weight.detach().clone()
+            torch.nn.init.xavier_uniform_(weight_, gain=1.0)
+            with torch.no_grad():
+                weight.copy_( weight_ * coeff )
         else:
-
-
-    if name in ['output']:
-        divider = weight.size(1)
-        sig = True
-    elif name in ['input']:
-        1 / weight.size(0)
-        sig = True
-    elif name in ['ortho', 'orthogonal']:
-        weight_ = weight.detach().clone()
-        torch.nn.init.orthogonal_(weight_, gain=1.0) # init input weight to be orthogonal.
-        with torch.no_grad():  # avoid gradient calculation error during in-place operation.
-            weight.copy_( weight_ * coeff )
-        return
-    elif name in ['glorot', 'glorot_uniform', 'xavier', 'xavier_uniform']:
-        weight_ = weight.detach().clone()
-        torch.nn.init.xavier_uniform_(weight_, gain=1.0)
-        with torch.no_grad():
-            weight.copy_( weight_ * coeff )
-        return
-    else:
-        raise Exception('Unsupported init method: %s'%name)
-
-    if sig:
-        lim = coeff / divider
-        if cons_method in ['force']:
-            torch.nn.init.uniform_(weight, 0.0, lim)
-        else:
-            torch.nn.init.uniform_(weight, -lim, lim)   
+            raise Exception('Invalid init method: %s'%init_method)
 
 def get_ei_mask(E_num, N_num, device=None):
     if device is None:
@@ -264,32 +234,45 @@ class MLP(nn.Module):
         self.bias_on_last_layer = self.dict.setdefault('bias_on_last_layer', False)
         self.N_nums = self.dict['N_nums']
         self.layer_num = self.dict['layer_num'] = len(self.N_nums) - 1
-
         if load:
             self.weights = self.dict['weights']
-            self.bias = self
+            self.biases = self.dict['biases']
         else:
+            if self.dict.get('init_weight') is None:
+                self.dict['init_weight'] = ['input', '']
+            else:
+
+
             self.weights.append
             for layer_index in range(self.layer_num):
-                weight = torch.
+                weight = torch.zeros
+                init_weight(weight, )
 
         self.act_func = get_act_func
-
-        self.mlp = build_mlp_sequential(dict_=self.dict, load=load)
+        #self.mlp = build_mlp_sequential(dict_=self.dict, load=load)
         print(self.mlp.parameters)
         print(self.mlp.parameters())
-        
 
     def forward(self, x):
         for layer_index in self.layer_num:
-            x = torch.mm(x, self.weights[layer_index]) + self.bias[layer_index] 
-            
+            x = torch.mm(x, self.weights[layer_index]) + self.biases[layer_index]     
         if self.act_func_on_last_layer:
             x = self.act_func(x)
-
         return x
-    def anal_weight_change():
-        
+    def anal_weight_change(self, verbose=True):
+        result = ''
+        for layer_index in range(self.layer_num):
+            weight, bias = self.weights[layer_index], self.biases[layer_index]
+            r_1 = self.get_r().detach().cpu().numpy()
+            if self.cache.get('r') is not None:
+                r_0 = self.cache['r']
+                r_change_rate = np.sum(abs(r_1 - r_0)) / np.sum(np.abs(r_0))
+                result += 'r_change_rate: %.3f '%r_change_rate
+            self.cache['r'] = r_1
+        if verbose:
+            print(result)
+        return result
+
 def build_mlp(dict_, load=False):
     return MLP(dict_, load=load)
 
