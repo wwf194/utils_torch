@@ -24,7 +24,7 @@ def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
 
 def contain(list_, items):
-    if isinstance(items, Iterable): # items is a list
+    if isinstance(items, Iterable) and not isinstance(items, str): # items is a list
         sig = False
         for item in items:
             if item in list_:
@@ -728,3 +728,15 @@ def copy_folder_recur(path_from, path_to, subpath=''):
             copy_folder_recur(path_from, path_to, subpath + item + '/')
         else:
             warnings.warn('%s is neither a file nor a path.')
+
+def prep_title(title):
+    if title is None:
+        title = ''
+    else:
+        if title.endswith(':'):
+            title += ' '
+        elif title.endswith(': '):
+            pass
+        else:
+            title += ': '
+    return title
