@@ -109,6 +109,8 @@ def get_loss_func(loss_func_str, truth_is_label=False, num_class=None):
         raise Exception('Invalid main loss: %s'%loss_func_str)
 
 def get_act_func(act_func_info):
+    act_func_name, act_func_param = get_name_args(act_func_info)
+    '''
     if isinstance(act_func_info, list):
         act_func_name = act_func_info[0]
         act_func_param = act_func_info[1]
@@ -120,6 +122,7 @@ def get_act_func(act_func_info):
         act_func_param = act_func_info['param']
     else:
         raise Exception('Invalid act_func_info type: %s'%type(act_func_info))
+    '''
     return get_act_func_from_str(act_func_name, act_func_param)
 
 def get_act_func_module(act_func_str):
@@ -136,13 +139,16 @@ def get_act_func_module(act_func_str):
         raise Exception('Invalid act func str: %s'%act_func_str)
         
 def get_act_func_from_str(name='relu', param=None):
+    if param is None:
+        param = 'default'
     if name in ['none']:
         return lambda x:x
     elif name in ['relu']:
+        #print(param)
         if param in ['default']:
-            return lambda x:F.relu(x)
+            return lambda x: F.relu(x)
         else:
-            return lambda x:param * F.relu(x)
+            return lambda x: param * F.relu(x)
     elif name in ['tanh']:
         if param in ['default']:
             return lambda x:torch.tanh(x)
@@ -220,10 +226,10 @@ def scatter_label(label, num_class=None, device=None): # label: must be torch.Lo
     #return scattered_label.long() # [batch_size, num_class]
     #print(label.type())
     #print(scattered_label.type())
-    #print('bbb')
     return scattered_label # [batch_size, num_class]
 
 def build_mlp(dict_, load=False, device=None):
+    print(dict_)
     return MLP(dict_, load=load, device=device)
 
 class MLP(nn.Module):
@@ -233,13 +239,15 @@ class MLP(nn.Module):
         if device is None:
             self.device = self.dict.setdefault('device', 'cpu')
         else:
-            self.device = self.dict['device'] = device
+            self.device = device
+            self.dict['device'] = device
         self.act_func_on_last_layer = self.dict.setdefault('act_func_on_last_layer', False)
         self.use_bias = self.dict.setdefault('bias', False)
         self.bias_on_last_layer = self.dict.setdefault('bias_on_last_layer', True)
         self.N_nums = self.dict['N_nums']
         self.layer_num = self.dict['layer_num'] = len(self.N_nums) - 1
-        print('use_bias: %s'%self.use_bias)
+        #print('use_bias: %s'%self.use_bias)
+        self.params = {}
         if load:
             self.weights = self.dict['weights']
             self.biases = self.dict['biases']
@@ -275,14 +283,20 @@ class MLP(nn.Module):
                 self.biases.append(0.0)
             
         for index, weight in enumerate(self.weights):
-            self.register_parameter(name='w%d'%index, param=weight)
+            name = 'w%d'%index
+            self.register_parameter(name=name, param=weight)
+            self.params[name] = weight
 
         if self.use_bias:
             for index, bias in enumerate(self.biases):
+                name = 'b%d'%index
                 if isinstance(bias, torch.Tensor):
-                    self.register_parameter('b%d'%index, bias)
+                    self.register_parameter(name, bias)
+                self.params[name] = bias
+        
+        if not (self.layer_num == 1 and not self.dict['act_func_on_last_layer']):
+            self.act_func = get_act_func(self.dict['act_func'])
 
-        self.act_func = get_act_func(self.dict['act_func'])
         self.alt_weight_scale = self.dict.setdefault('alt_weight_scale', False)
         
         if self.alt_weight_scale:
@@ -304,7 +318,7 @@ class MLP(nn.Module):
         #self.mlp = build_mlp_sequential(dict_=self.dict, load=load)
         #print(self.parameters())
 
-        #print_model_params(self)
+        #print_model_param(self)
         #input()
     def forward_alt_weight_scale(self, x, **kw):
         out = self.forward(x)
@@ -408,6 +422,7 @@ class MLP(nn.Module):
         if verbose:
             print(result)
         return result
+
 '''
 def build_mlp(dict_):
     act_func = get_act_func_module(dict_['act_func'])
@@ -443,13 +458,14 @@ def build_mlp_sequential(dict_, load=False):
             layers.append(act_func)
     return torch.nn.Sequential(*layers)
 
-def print_model_params(model):
+def print_model_param(model):
     for name, param in model.named_parameters():
         print(param)
         print('This is my %s. size:%s is_leaf:%s device:%s requires_grad:%s'%
             (name, list(param.size()), param.is_leaf, param.device, param.requires_grad))
 
 def get_tensor_info(tensor, name='', verbose=True, complete=True):
+    print(tensor.device)
     report = '%s...\033[0;31;40mVALUE\033[0m\n'%str(tensor)
     if complete:
         report += '%s...\033[0;31;40mGRADIENT\033[0m\n'%str(tensor.grad)

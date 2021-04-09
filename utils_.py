@@ -1,6 +1,4 @@
 import os
-from typing import Iterable
-import pynvml
 import re
 import sys
 import functools
@@ -10,8 +8,10 @@ import math
 import cmath
 import warnings
 import pickle
+import importlib
 from pynvml.nvml import nvmlDeviceOnSameBoard
-
+from typing import Iterable
+import pynvml
 import timeout_decorator
 import numpy as np
 import torch
@@ -186,6 +186,34 @@ def ensure_path(path_, is_folder=False): # check if given path_ exists. if not, 
 
 ensure_dir = ensure_path # sometimes we don't distinguish between dir(ectory) and path.
 
+def import_file(file_path=None, start_path=None, main_path=None):
+    main_path = os.path.abspath(sys.path[0])
+    if main_path is None:
+        main_path = sys.path[0]
+    if start_path is not None:
+        start_path = os.path.abspath(start_path)
+        if os.path.isfile(start_path):
+            start_path = os.path.dirname(start_path)
+        start_path_rel = os.path.relpath(start_path, start=main_path)
+        file_name = os.path.basename(file_path)
+        file_path = os.path.dirname(file_path)
+        file_path = os.path.abspath(os.path.join(start_path, file_path))
+        #file_path_rel_start_path = os.path.relpath(file_path, start=start_path)
+        file_path_rel_main_path = os.path.relpath(file_path, start=main_path)
+        '''
+        print(main_path)
+        print(start_path)
+        print('start_path_rel: %s'%start_path_rel)
+        print(file_name)
+        print('file_path: %s'%file_path)
+        #print('file_path_rel_start_path: %s'%file_path_rel_start_path)
+        print('file_path_rel_main_path: %s'%file_path_rel_main_path)
+        print(path_to_module(file_path_rel_main_path))
+        '''
+        return importlib.import_module(path_to_module(file_path_rel_main_path) + remove_suffix(file_name))
+    else:
+        # to be implemented
+        pass
 def get_sys_type():
     if re.match(r'win',sys.platform) is not None:
         sys_type = 'windows'
@@ -207,6 +235,8 @@ def get_name(param): # a mechanism supporting name and args given in different t
         raise Exception('Invalid param type:' +str(type(param)))
 
 def get_args(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
+    #print(type(param))
+    #print(param)
     if isinstance(param, dict):
         args = param.get('args')
         if args is not None:
@@ -226,10 +256,27 @@ def get_name_args(param):
 
 get_arg = get_args
 
+def get_items_from_dict(dict_, keys):
+    items = []
+    for name in keys:
+        items.append(dict_[name])
+    if len(items) == 1:
+        return items[0]
+    else:
+        return tuple(items)   
+
 def get_from_dict(dict_, key, default=None, write_default=False, throw_keyerror=True):
     # try getting dict[key]. 
     # if key exists, return dict[key].
     # if no such key, return default, and set dict[key]=default if write_default==True.
+    '''
+    if isinstance(key, list):
+        items = []
+        for name in key:
+            items.append(dict_[name])
+        return tuple(items)
+    else:
+    '''
     if dict_.get(key) is None:
         if write_default:
             dict_[key] = default
@@ -249,7 +296,6 @@ def search_dict(dict_, keys, default=None, write_default=False, write_default_ke
         value = dict_.get(key)
         if value is not None:
             values.append(value)
-    
     if len(values)>1:
         if throw_multi_error:
             raise Exception('search_dict: found multiple keys.')
@@ -283,12 +329,10 @@ def write_dict_info(dict_, save_path='./', save_name='dict info.txt'): # write r
 
 def print_torch_info(): # print info about training environment, global variables, etc.
     torch.pytorch_info()
-    print('device='+str(device))
-
-
+    #print('device='+str(device))
 
 def get_act_func_module(act_func_info):
-    name=get_name(act_func_info)
+    name = get_name(act_func_info)
     if name in ['relu']:
         return nn.ReLU()
     elif name in ['tanh']:
@@ -639,10 +683,17 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
                 print('Using default %s file: %s'%(str(file_type), default_file))
                 return default_file
             else:
-                if raise_no_match_error:
-                    raise Exception('Did not find default %s file: %s'%(file_type, str(default_file)))
-                else:
-                    return None
+                sig = True
+                for candidate_file in candidate_files:
+                    if default_file in candidate_file:
+                        print('Using default %s file: %s'%(str(file_type), candidate_file))
+                        sig = False
+                        return candidate_file
+                if not sig:
+                    if raise_no_match_error:
+                        raise Exception('Did not find default %s file: %s'%(file_type, str(default_file)))
+                    else:
+                        return None
         else:
             if raise_no_match_error:
                 raise Exception('Plan to use default %s file. But default %s file is not given.'%(file_type, file_type))
@@ -672,7 +723,7 @@ def visit_path(args=None, func=None, recur=False, path=None):
     if path is None:
         path = args.path
     else:
-        func=None
+        func = None
         warnings.warn('visit_dir: func is None.')
     filepaths=[]
     abspath = os.path.abspath(path) # relative path also works well
@@ -688,44 +739,66 @@ def visit_path(args=None, func=None, recur=False, path=None):
 visit_dir = visit_path
 
 
-def copy_folder(path_from, path_to):
+def copy_folder(path_from, path_to, exceptions=[], verbose=True):
     '''
     if args.path is not None:
         path = args.path
     else:
         path = '/data4/wangweifan/backup/'
     '''
-    ensure_path(path_from)
+    #ensure_path(path_from)
     ensure_path(path_to)
     
+    for i in range(len(exceptions)):
+        exceptions[i] = os.path.abspath(exceptions[i])
+        if os.path.isdir(exceptions[i]):
+            exceptions[i] += '/'
+
+    path_from = os.path.abspath(path_from)
+    path_to = os.path.abspath(path_to)
+
     if not path_from.endswith('/'):
         path_from += '/'
     if not path_to.endswith('/'):
         path_to += '/'
-    subpath = ''
-    copy_folder_recur(path_from, path_to, subpath='')
 
-def copy_folder_recur(path_from, path_to, subpath=''):
-    ensure_path(path_from + subpath)
+    if verbose:
+        print('Copying folder from %s to %s. Exceptions: %s'%(path_from, path_to, exceptions))
+
+    copy_folder_recur(path_from, path_to, subpath='', exceptions=exceptions)
+
+def copy_folder_recur(path_from, path_to, subpath='', exceptions=[], verbose=True):
+    #ensure_path(path_from + subpath)
     ensure_path(path_to + subpath)
+    if path_from + subpath in exceptions:
+        print('')
     items = os.listdir(path_from + subpath)
     for item in items:
         #print(path_to + subpath + item)
-        if os.path.isfile(path_from + subpath + item):
-            if os.path.exists(path_to + subpath + item):
-                md5_source = get_md5(path_from + subpath + item)
-                md5_target = get_md5(path_to + subpath + item)
-                if md5_target==md5_source: # same file
-                    #print('same file')
-                    continue
-                else:
-                    #print('different file')
-                    os.system('rm -r "%s"'%(path_to + subpath + item))
-                    os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))     
+        path_ = path_from + subpath + item
+        if os.path.isfile(path_): # is a file
+            if path_ + '/' in exceptions:
+                if verbose:
+                    print('neglected file: %s'%path_)
             else:
-                os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))
-        elif os.path.isdir(path_from + subpath + item):
-            copy_folder_recur(path_from, path_to, subpath + item + '/')
+                if os.path.exists(path_to + subpath + item):
+                    md5_source = get_md5(path_from + subpath + item)
+                    md5_target = get_md5(path_to + subpath + item)
+                    if md5_target==md5_source: # same file
+                        #print('same file')
+                        continue
+                    else:
+                        #print('different file')
+                        os.system('rm -r "%s"'%(path_to + subpath + item))
+                        os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))     
+                else:
+                    os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))
+        elif os.path.isdir(path_): # is a folder.
+            if path_ + '/' in exceptions:
+                if verbose:
+                    print('neglected folder: %s'%(path_ + '/'))
+            else:
+                copy_folder_recur(path_from, path_to, subpath + item + '/', verbose=verbose)
         else:
             warnings.warn('%s is neither a file nor a path.')
 
