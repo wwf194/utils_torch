@@ -9,9 +9,9 @@ import cmath
 import warnings
 import pickle
 import importlib
-from pynvml.nvml import nvmlDeviceOnSameBoard
 from typing import Iterable
-import pynvml
+#import pynvml
+#from pynvml.nvml import nvmlDeviceOnSameBoard
 import timeout_decorator
 import numpy as np
 import torch
@@ -104,6 +104,7 @@ def get_best_gpu(timeout=15, default_device='cuda:0'):
         return dict_['device']
 
 def get_best_gpu_(dict_={}): # return torch.device with largest available gpu memory.
+    '''
     pynvml.nvmlInit()
     deviceCount = pynvml.nvmlDeviceGetCount()
     deviceMemory = []
@@ -118,8 +119,9 @@ def get_best_gpu_(dict_={}): # return torch.device with largest available gpu me
     deviceMemory = np.array(deviceMemory, dtype=np.int64)
     best_device_index = np.argmax(deviceMemory)    
     dict_['device'] = 'cuda:%d'%(best_device_index)
+    '''
     return dict_
-
+    
 def split_batch(data, batch_size): #data:(batch_size, image_size)
     sample_num = data.size(0)
     batch_sizes = [batch_size for _ in range(sample_num // batch_size)]
@@ -186,34 +188,57 @@ def ensure_path(path_, is_folder=False): # check if given path_ exists. if not, 
 
 ensure_dir = ensure_path # sometimes we don't distinguish between dir(ectory) and path.
 
-def import_file(file_path=None, start_path=None, main_path=None):
-    main_path = os.path.abspath(sys.path[0])
-    if main_path is None:
-        main_path = sys.path[0]
-    if start_path is not None:
-        start_path = os.path.abspath(start_path)
-        if os.path.isfile(start_path):
-            start_path = os.path.dirname(start_path)
-        start_path_rel = os.path.relpath(start_path, start=main_path)
-        file_name = os.path.basename(file_path)
-        file_path = os.path.dirname(file_path)
-        file_path = os.path.abspath(os.path.join(start_path, file_path))
-        #file_path_rel_start_path = os.path.relpath(file_path, start=start_path)
-        file_path_rel_main_path = os.path.relpath(file_path, start=main_path)
-        '''
-        print(main_path)
-        print(start_path)
-        print('start_path_rel: %s'%start_path_rel)
-        print(file_name)
-        print('file_path: %s'%file_path)
-        #print('file_path_rel_start_path: %s'%file_path_rel_start_path)
-        print('file_path_rel_main_path: %s'%file_path_rel_main_path)
-        print(path_to_module(file_path_rel_main_path))
-        '''
-        return importlib.import_module(path_to_module(file_path_rel_main_path) + remove_suffix(file_name))
-    else:
-        # to be implemented
-        pass
+def cal_path_rel_main(path_rel=None, path_start=None, path_main=None):
+    # path_rel: file path relevant to path_start
+    if path_main is None:
+        path_main = sys.path[0]
+    if path_start is None:
+        path_start = path_main
+        warnings.warn('cal_path_rel_main: path_start is None. using default: %s'%path_main)
+    path_start = os.path.abspath(path_start)
+    path_main = os.path.abspath(path_main)
+    if os.path.isfile(path_main):
+        path_main = os.path.dirname(path_main)
+    if not path_main.endswith('/'):
+        path_main += '/' # necessary for os.path.relpath to calculate correctly
+    if os.path.isfile(path_start):
+        path_start = os.path.dirname(path_start)
+    #path_start_rel = os.path.relpath(path_start, start=path_main)
+
+    if path_rel.startswith('./'):
+        path_rel.lstrip('./')
+    elif path_rel.startswith('/'):
+        raise Exception('path_rel: %s is a absolute path.'%path_rel)
+    
+    path_abs = os.path.abspath(os.path.join(path_start, path_rel))
+    #file_path_rel_path_start = os.path.relpath(path_rel, start=path_start)
+    
+    path_rel_main = os.path.relpath(path_abs, start=path_main)
+
+    #print('path_abs: %s path_main: %s path_rel_main: %s'%(path_abs, path_main, path_rel_main))
+    '''
+    print(main_path)
+    print(path_start)
+    print('path_start_rel: %s'%path_start_rel)
+    print(file_name)
+    print('file_path: %s'%file_path)
+    #print('file_path_rel_path_start: %s'%file_path_rel_path_start)
+    print('file_path_rel_main_path: %s'%file_path_rel_main_path)
+    print(path_to_module(file_path_rel_main_path))
+    '''
+    #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
+    return path_rel_main
+
+def import_file(path_rel_main=None, path_rel=None, path_start=None, path_main=None):
+    if path_rel_main is None:
+        path_rel_main = cal_path_rel_main(path_rel, path_start, path_main)
+    file_name = os.path.basename(path_rel_main)
+    path_folder_rel = os.path.dirname(path_rel_main)
+    #print('file_name: %s'%file_name)
+    #print('path_folder_rel: %s'%path_folder_rel)
+    #print(path_to_module(path_folder_rel) + remove_suffix(file_name))
+    return importlib.import_module(path_to_module(path_folder_rel) + remove_suffix(file_name))
+
 def get_sys_type():
     if re.match(r'win',sys.platform) is not None:
         sys_type = 'windows'
@@ -614,7 +639,7 @@ def copy_files(file_list, path_from='./', path_to=None, sys_type='linux'):
         path += subpath
     ensure_path(path)
     '''
-
+    #print(path_to)
     if sys_type in ['linux']:
         for file in file_list:
             file = file.lstrip('./')
@@ -622,6 +647,9 @@ def copy_files(file_list, path_from='./', path_to=None, sys_type='linux'):
             #print(path)
             #print(file)
             #shutil.copy2(file, dest + file)
+            #print(path_from + file)
+            #print(path_to + file)
+            ensure_path(os.path.dirname(path_to + file))
             if os.path.exists(path_to + file):
                 os.system('rm -r %s'%(path_to + file))
             #print('cp -r %s %s'%(file_path + file, path + file))
@@ -632,6 +660,14 @@ def copy_files(file_list, path_from='./', path_to=None, sys_type='linux'):
     else:
         raise Exception('copy_files: Invalid sys_type: '%str(sys_type))
 
+def join_path(path_0, path_1):
+    if not path_0.endswith('/'):
+        path_0 += '/'
+    if path_1.startswith('./'):
+        path_1 = path_1.lstrip('./')
+    if path_1.startswith('/'):
+        raise Exception('join_path: path_1 is a absolute path: %s'%path_1)
+    return path_0 + path_1
 def path_to_module(path):
     path = path.lstrip('./')
     path = path.lstrip('/')
@@ -765,13 +801,16 @@ def copy_folder(path_from, path_to, exceptions=[], verbose=True):
     if verbose:
         print('Copying folder from %s to %s. Exceptions: %s'%(path_from, path_to, exceptions))
 
-    copy_folder_recur(path_from, path_to, subpath='', exceptions=exceptions)
+    if path_from + '/' in exceptions:
+        warnings.warn('copy_folder: neglected the entire root path. nothing will be copied')
+        if verbose:
+            print('neglected')
+    else:
+        copy_folder_recur(path_from, path_to, subpath='', exceptions=exceptions)
 
 def copy_folder_recur(path_from, path_to, subpath='', exceptions=[], verbose=True):
     #ensure_path(path_from + subpath)
     ensure_path(path_to + subpath)
-    if path_from + subpath in exceptions:
-        print('')
     items = os.listdir(path_from + subpath)
     for item in items:
         #print(path_to + subpath + item)

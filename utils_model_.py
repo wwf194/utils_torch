@@ -7,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from utils_ import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
+from LRSchedulers import LinearLR
 
 def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
     name, args = get_name_args(init_info)
@@ -162,16 +163,25 @@ def get_act_func_from_str(name='relu', param=None):
     else:
         raise Exception('Invalid act func name: %s'%name)
 
-def build_optimizer(dict_, model, load=False):
+def build_optimizer(dict_, params=None, model=None, load=False):
     type_ = get_from_dict(dict_, 'type', default='sgd', write_default=True)
     #func = dict_['func'] #forward ; rec, output, input
     #lr = get_from_dict(dict_, 'lr', default=1.0e-3, write_default=True)
     lr = dict_['lr']
     weight_decay = get_from_dict(dict_, 'weight_decay', default=0.0, write_default=True)
-    params = model.parameters()
+    if params is not None:
+        pass
+    elif model is not None:
+        if hasattr(model, 'get_param_to_train'):
+            params = model.get_param_to_train()
+        else:
+            params = model.parameters()
+    else:
+        raise Exception('build_optimizer: Both params and model are None.')
+    
     if type_ in ['adam', 'ADAM']:
         optimizer = optim.Adam(params, lr=lr, weight_decay=weight_decay)
-    elif type_ in ['rmsprop']:
+    elif type_ in ['rmsprop', 'RMSProp']:
         optimizer = optim.RMSprop(params, lr=lr, weight_decay=weight_decay)
     elif type_ in ['sgd', 'SGD']:
         momentum = dict_.setdefault('momentum', 0.9)
@@ -185,6 +195,31 @@ def build_optimizer(dict_, model, load=False):
         dict_['state_dict'] = optimizer.state_dict()
     return optimizer
 
+def build_scheduler(dict_, optimizer, load=False, verbose=True):
+    #lr_decay = dict['lr_decay']
+    scheduler_dict = dict_['scheduler']
+    scheduler_type = search_dict(scheduler_dict, ['type', 'method'], default='None', write_default=True)
+    if verbose:
+        print('build_scheduler: scheduler_type: %s'%scheduler_type)
+    if scheduler_type is None or scheduler_type in ['None', 'none']:
+        scheduler = None
+        #update_lr = update_lr_none
+    elif scheduler_type in ['exp']:
+        decay = search_dict(scheduler_dict, ['decay', 'coeff'], default=0.98, write_default=True, write_default_dict='decay')
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=decay)
+        #update_lr = update_lr_
+    elif scheduler_type in ['stepLR', 'exp_interval']:
+        decay = search_dict(scheduler_dict, ['decay', 'coeff'], default=0.98, write_default=True, write_default_key='decay')
+        step_size = search_dict(scheduler_dict, ['interval', 'step_size'], default=0.98, write_default=True, write_default_key='decay')
+        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, step_size=step_size, gamma=decay)
+        #update_lr = update_lr_
+    elif scheduler_type in ['Linear', 'linear']:
+        milestones = search_dict(scheduler_dict, ['milestones'], throw_none_error=True)
+        scheduler = LinearLR(optimizer, milestones=milestones, epoch_num=dict_['epoch_num'])
+        #update_lr = update_lr_
+    else:
+        raise Exception('build_scheduler: Invalid lr decay method: '+str(scheduler_type))
+    return scheduler
 
 # search for directory or file of most recently saved models(model with biggest epoch index)
 def get_last_model(model_prefix, base_dir=None, is_dir=True):
