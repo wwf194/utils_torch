@@ -6,8 +6,8 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-from utils_ import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
-from LRSchedulers import LinearLR
+from utils_pytorch.utils import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
+from utils_pytorch.LRSchedulers import LinearLR
 
 def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
     name, args = get_name_args(init_info)
@@ -509,6 +509,15 @@ def get_tensor_info(tensor, name='', verbose=True, complete=True):
     if verbose:
         print(report)
     return report
+
+def get_tensor_stat(tensor, verbose=False):
+    return {
+        "min": torch.min(tensor),
+        "max": torch.max(tensor),
+        "mean": torch.mean(tensor),
+        "std": torch.std(tensor),
+        "var": torch.var(tensor)
+    }
 
 def print_optimizer_params(optimizer):
     dict_ = optimizer.state_dict()

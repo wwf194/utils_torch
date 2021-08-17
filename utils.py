@@ -7,11 +7,15 @@ import time
 import math
 import cmath
 import warnings
+import json
+import jsons
+import json5
 import pickle
 import importlib
 from typing import Iterable
 #import pynvml
 #from pynvml.nvml import nvmlDeviceOnSameBoard
+from types import SimpleNamespace
 import timeout_decorator
 import numpy as np
 import torch
@@ -19,6 +23,12 @@ import torch.nn as nn
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
+
+def get_time(format="%Y-%m-%d %H:%M:%S", verbose=False):
+    time_str = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
+    if verbose:
+        print(time_str)
+    return time_str
 
 def compose(*functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
@@ -385,6 +395,16 @@ def update_key(dict_0, dict_1, prefix='', strip=False, strip_only=True, exempt=[
                     dict_0[trunc_key]=dict_1[key]
             else:
                 dict_0[trunc_key]=dict_1[key]
+
+def get_np_stat(data, verbose=False):
+    return {
+        "min": np.min(data),
+        "max": np.max(data),
+        "mean": np.mean(data),
+        "std": np.std(data),
+        "var": np.var(data)
+    }
+
 
 def plot_train_curve(stat_dir, loss_only=False):
     try:
@@ -852,3 +872,186 @@ def prep_title(title):
         else:
             title += ': '
     return title
+
+def new_empty_object():
+    return type('test', (), {})()
+
+def set_attrs(obj, attrs, *args, **kw):
+    if kw.get("value") is None:
+        raise Exception("set_attrs: named parameter value must be given.")
+    else:
+        default = kw["value"]
+    kw["write_default"] = True
+    ensure_attrs(obj, attrs, *args)
+
+def ensure_attrs(obj, attrs, *args, **kw):
+    if kw.get("default") is None:
+        default = None
+    else:
+        default = kw["default"]
+    attrs = _parse_attrs(attrs, *args)
+    obj_root = obj
+    count = 0
+    for attr in attrs:
+        if count < len(attr) - 1:
+            if hasattr(obj, attr):
+                obj = getattr(obj, attr)
+            else:
+                obj_empty = new_empty_object()
+                setattr(obj, attr, obj_empty)
+                obj = obj_empty
+        else:
+            if hasattr(obj, attr):
+                if kw.get("write_default")==True:
+                    setattr(obj, attr, default)
+                else:
+                    pass
+            else:
+                setattr(obj, attr, default)
+
+import jsonpickle
+
+class PyJSON(object):
+    def __init__(self, d=None):
+        if d is not None:
+            if type(d) is str:
+                d = json.loads(d)
+            self.from_dict(d)
+    def from_dict(self, d):
+        self.__dict__ = {}
+        for key, value in d.items():
+            if type(value) is dict:
+                value = PyJSON(value)
+            self.__dict__[key] = value
+    def to_dict(self):
+        d = {}
+        for key, value in self.__dict__.items():
+            if type(value) is PyJSON:
+                value = value.to_dict()
+            d[key] = value
+        return d
+    def __repr__(self):
+        return str(self.to_dict())
+    def __setitem__(self, key, value):
+        self.__dict__[key] = value
+    def __getitem__(self, key):
+        return self.__dict__[key]
+
+def json_obj_to_object(json_obj):
+    obj = PyJSON()
+    obj.from_dict(json_obj)
+    return obj
+    #return jsonpickle.decode(json_obj_to_json_str(json_obj))
+    #return json.loads(json.dumps(dict), object_hook=lambda d: SimpleNamespace(**d))
+def json_obj_to_json_str(json_obj):
+    return json.dumps(json_obj)
+
+def object_to_json_obj(obj):
+    return json.loads(object_to_json_str(obj))
+
+def object_to_json_str(obj):
+    # return json.dumps(obj.__dict__, cls=change_type,indent=4)
+    # why default=lambda o: o.__dict__?
+    return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
+
+def json_str_to_json_obj(json_str):
+    return json.loads(json_str)
+
+def json_str_to_object(json_str):
+    json_obj = json_str_to_json_obj(json_str)
+    return json_obj_to_object(json_obj)
+    # return json.loads(json_str, object_hook=lambda d: SimpleNamespace(**d))
+
+def new_json_file(json_str, path):
+    with open(path, "w") as f:
+        f.write(json_str)
+
+def parse_json_obj(obj): # obj can either be dict or list.
+    json_obj = obj
+    obj = json_obj_to_object(json_obj)
+    parse_obj(obj)
+    return object_to_json_obj(obj)
+
+def parse_obj(obj):
+    _parse_obj(obj, root=obj, attrs=[], parent=None)
+    return object_to_json_obj(obj)
+
+def _parse_obj(obj, root, attrs, parent):
+    if isinstance(obj, list):
+        for index, item in enumerate(obj):
+            _parse_obj(item, root, attrs + [index], obj)
+    elif isinstance(obj, dict):
+        for key, value in obj.items():
+            _parse_obj(value, root, attrs + [key], obj)
+    elif isinstance(obj, str):
+        if obj!="" and obj[0]=="$":
+            parent[attrs[-1]] = eval("root."+obj[1:])
+    elif isinstance(obj, object) and hasattr(obj, "__dict__"):
+        for attr, value in obj.__dict__.items():
+            _parse_obj(value, root, attrs + [attr], obj) 
+    else:
+        #raise Exception("_parse_json_obj: Invalid type: %s"%type(obj))
+        pass
+    return obj
+
+''' Deprecated. No longer used by parse_json_obj
+def _parse_json_obj(obj, root, attrs, parent):
+    if isinstance(obj, list):
+        for index, item in enumerate(obj):
+            _parse_json_obj(item, root, attrs + [index], obj)
+    elif isinstance(obj, dict):
+        for key, value in obj.items():
+            _parse_json_obj(value, root, attrs + [key], obj)
+    elif isinstance(obj, str):
+        if obj[0]=="$":
+            parent[attrs[-1]] = get_attrs(root, obj[1:])
+    else:
+        #raise Exception("_parse_json_obj: Invalid type: %s"%type(obj))
+        pass
+    return obj
+'''
+def has_attrs(obj, attrs, *args):
+    attrs = _parse_attrs(attrs, *args)
+    for attr in attrs:
+        if hasattr(obj, attr):
+            obj = getattr(obj, attr)
+        else:
+            return False
+    return True
+
+def get_attrs(obj, attrs, *args):
+    attrs = _parse_attrs(attrs, *args)
+    attrs_reached = []
+    for attr in attrs:
+        attrs_reached.append(attr)
+        if isinstance(obj, dict):
+            obj = obj[attr]
+        elif isinstance(attr, int): # obj is a list
+            obj = obj[attr]
+        elif isinstance(attr, object):
+            if isinstance(attr, str): # obj is an object
+                if hasattr(obj, attr):
+                    obj = getattr(obj, attr)
+                else:
+                    raise Exception("get_attrs: non-existent attr: %s"%(".".join(attrs_reached)))
+        else:
+            raise Exception("get_attrs: invalid attr type: %s"%(".".join(attrs_reached)))
+    return obj
+
+def _parse_attrs(attrs, *args):
+    if len(args)>0:
+        attrs_origin = [attrs, *args]
+    else:
+        attrs_origin = attrs
+    if isinstance(attrs, str):
+        attrs = attrs.split(".")
+    elif isinstance(attrs, list):  
+        attrs = []
+        for attr in attrs_origin:
+            if isinstance(attr, str):
+                attrs += attr.split(".")
+            elif isinstance(attr, int):
+                attrs += attr
+    else:
+        raise Exception("set_attrs: invalid attrs type: %s"%type(attrs))
+    return attrs

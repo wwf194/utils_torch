@@ -43,5 +43,5 @@ def get_data_stat():
     print('mean:%.9f'%(mean/(count*1.0)))
 
 def plot_weight():
-
+    return
 
