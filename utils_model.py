@@ -1,3 +1,4 @@
+from utils import ensure_attrs, has_attrs
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -7,7 +8,69 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 from utils_pytorch.utils import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
+from utils_pytorch.utils import get_attrs, compose_func, match_attrs, compose_function
 from utils_pytorch.LRSchedulers import LinearLR
+
+def build_module(module):
+    if module.type in ["SingleLayer"]:
+        return SingleLayer(module)
+
+def create_self_connection_mask(size):
+    return torch.from_numpy(np.ones(size, size) - np.eye(size))
+
+def create_excitatory_inhibitory_mask(input_num, output_num, excitatory_num, inhibitory_num=None):
+    if inhibitory_num is None:
+        inhibitory_num = input_num - excitatory_num
+    else:
+        if input_num != excitatory_num + inhibitory_num:
+            raise Exception("create_excitatory_inhibitory_mask: input_num==excitatory_num + inhibitory_num must be satisfied.")
+
+    excitatory_mask = np.ones(excitatory_num, output_num)
+    inhibitory_mask = np.ones(inhibitory_num, output_num)
+    excitatory_inhibitory_mask = np.concatenate([excitatory_mask, inhibitory_mask], axis=0)
+    return excitatory_inhibitory_mask
+
+def create_constraint_function(method):
+    if method in ['abs']:
+        return lambda x:torch.abs(x)
+    elif method in ['square']:
+        return lambda x:x ** 2
+    elif method in ['force']:
+        return lambda x:x
+
+class SingleLayer(nn.Module):
+    def __init__(self, param):
+        super(SingleLayer, self).__init__()
+        ensure_attrs(param, "subtype", default="f(Wx+b)")
+        self.param = param
+        param.weight = param.weight
+        get_weight_function = [lambda :self.weight]
+        if match_attrs(param.weight, "isExcitatoryInhibitory", value=True):
+            self.ExcitatoryInhibitoryMask = create_excitatory_inhibitory_mask(*param.weight.size, param.weight.excitatory.num, param.weight.inhibitory.num)
+            get_weight_function.append(lambda weight:weight * self.ExcitatoryInhibitoryMask)
+            ensure_attrs(param.weight, "ConstraintMethod", value="AbsoluteValue")
+            self.WeightConstraintMethod = get_constraint_func(param.weight.ConstraintMethod)
+            get_weight_function.append(self.WeightConstraintMethod)
+        if match_attrs(param.weight, "NoSelfConnection", value=True):
+            if param.weight.size[0] != param.weight.size[1]:
+                raise Exception("NoSelfConnection requires weight to be square matrix.")
+            self.SelfConnectionMask = create_self_connection_mask(param.weight.size[0])            
+            get_weight_function.append(lambda weight:weight * self.SelfConnectionMask)
+        self.get_weight = compose_function(get_weight_function)
+
+        if match_attrs(param.bias, value=True):
+            
+        self.bias = 0.0
+
+        if has_attrs(param, "bias", "isExcitatoryInhibitory"):
+            return False
+        if param.subtype in ["f(Wx+b)"]:
+            self.forward = lambda x:self.NonLinear(torch.mm(x, self.weight) + self.bias)
+        elif param.subtype in ["f(Wx)+b"]:
+            self.forward = lambda x:self.NonLinear(torch.mm(x, self.weight)) + self.bias
+        else:
+            raise Exception("SingleLayer: Invalid subtype: %s"%param.subtype)
+
 
 def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
     name, args = get_name_args(init_info)
@@ -86,13 +149,7 @@ def get_mask(N_num, output_num, device=None):
     mask = torch.ones((N_num, output_num), device=device, requires_grad=False)
     return mask
 
-def get_cons_func(method):
-    if method in ['abs']:
-        return lambda x:torch.abs(x)
-    elif method in ['square']:
-        return lambda x:x ** 2
-    elif method in ['force']:
-        return lambda x:x
+
 
 get_constraint_func = get_cons_func
 

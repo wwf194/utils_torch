@@ -10,6 +10,7 @@ import warnings
 import json
 import jsons
 import json5
+import jsonpickle
 import pickle
 import importlib
 from typing import Iterable
@@ -30,19 +31,19 @@ def get_time(format="%Y-%m-%d %H:%M:%S", verbose=False):
         print(time_str)
     return time_str
 
-def compose(*functions):
-    return functools.reduce(lambda f, g: lambda x: f(g(x)), functions, lambda x: x)
+def compose_function(*function):
+    return functools.reduce(lambda f, g: lambda x: f(g(x)), function, lambda x: x)
 
-def contain(list_, items):
+def contain(list, items):
     if isinstance(items, Iterable) and not isinstance(items, str): # items is a list
         sig = False
         for item in items:
-            if item in list_:
+            if item in list:
                 sig = True
                 break
         return sig
     else: # items is uniterable object
-        if items in list_:
+        if items in list:
             return True
         else:
             return False
@@ -884,6 +885,18 @@ def set_attrs(obj, attrs, *args, **kw):
     kw["write_default"] = True
     ensure_attrs(obj, attrs, *args)
 
+def match_attrs(obj, attrs=None, *args, **kw):
+    if kw.get("value") is None and len(args)==0:
+        raise Exception("match_attrs: named parameter value must be given.")
+    # return True if and only if obj.attrs exists and equals to value
+    if attrs is None:
+        return obj==kw["value"]
+    else:
+        if has_attrs(obj, attrs, *args, **kw):
+            if get_attrs(obj, attrs, *args, **kw)==kw["value"]:
+                return True
+        return False
+
 def ensure_attrs(obj, attrs, *args, **kw):
     if kw.get("default") is None:
         default = None
@@ -908,8 +921,6 @@ def ensure_attrs(obj, attrs, *args, **kw):
                     pass
             else:
                 setattr(obj, attr, default)
-
-import jsonpickle
 
 class PyJSON(object):
     def __init__(self, d=None):
@@ -984,8 +995,9 @@ def _parse_obj(obj, root, attrs, parent):
         for key, value in obj.items():
             _parse_obj(value, root, attrs + [key], obj)
     elif isinstance(obj, str):
-        if obj!="" and obj[0]=="$":
-            parent[attrs[-1]] = eval("root."+obj[1:])
+        #if obj!="" and obj[0]=="$":
+        if "$" in obj:
+            parent[attrs[-1]] = eval("root."+obj.replace("$", ""))
     elif isinstance(obj, object) and hasattr(obj, "__dict__"):
         for attr, value in obj.__dict__.items():
             _parse_obj(value, root, attrs + [attr], obj) 
@@ -1018,6 +1030,9 @@ def has_attrs(obj, attrs, *args):
         else:
             return False
     return True
+
+def list_attrs(obj):
+    return [(attr, value) for attr, value in obj.__dict__.items()]
 
 def get_attrs(obj, attrs, *args):
     attrs = _parse_attrs(attrs, *args)
