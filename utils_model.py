@@ -1,4 +1,4 @@
-from utils import ensure_attrs, has_attrs
+from utils import PyJSON, ensure_attrs, has_attrs
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -23,20 +23,70 @@ def create_excitatory_inhibitory_mask(input_num, output_num, excitatory_num, inh
         inhibitory_num = input_num - excitatory_num
     else:
         if input_num != excitatory_num + inhibitory_num:
-            raise Exception("create_excitatory_inhibitory_mask: input_num==excitatory_num + inhibitory_num must be satisfied.")
+            raise Exception("get_excitatory_inhibitory_mask: input_num==excitatory_num + inhibitory_num must be satisfied.")
 
     excitatory_mask = np.ones(excitatory_num, output_num)
     inhibitory_mask = np.ones(inhibitory_num, output_num)
     excitatory_inhibitory_mask = np.concatenate([excitatory_mask, inhibitory_mask], axis=0)
     return excitatory_inhibitory_mask
 
-def create_constraint_function(method):
-    if method in ['abs']:
+def create_mask(N_num, output_num, device=None):
+    if device is None:
+        device = torch.device('cpu')
+    mask = torch.ones((N_num, output_num), device=device, requires_grad=False)
+    return mask
+
+def get_constraint_function(method):
+    if method in ["AbsoluteValue", "abs"]:
         return lambda x:torch.abs(x)
-    elif method in ['square']:
+    elif method in ["Square", "square"]:
         return lambda x:x ** 2
-    elif method in ['force']:
+    elif method in ["CheckAfterUpdate", "force"]:
         return lambda x:x
+    else:
+        raise Exception("get_constraint_function: Invalid consraint method: %s"%method)
+
+def get_non_linear_function(description):
+    param = parse_non_linear_function_description(description)
+    if param.type in ["relu"]:
+        if param.coefficient==1.0:
+            return F.relu
+        else:
+            return lambda x:param.coefficient * F.relu(x)
+    elif param.type in ["tanh"]:
+        if param.coefficient==1.0:
+            return F.tanh
+        else:
+            return lambda x:param.coefficient * F.tanh(x)       
+    elif param.type in ["sigmoid"]:
+        if param.coefficient==1.0:
+            return F.tanh
+        else:
+            return lambda x:param.coefficient * F.tanh(x)         
+    else:
+        raise Exception("get_non_linear_function: Invalid nonlinear function description: %s"%description)
+
+get_activation_function = get_non_linear_function
+
+def parse_non_linear_function_description(description):
+    if isinstance(description, str):
+        return PyJSON({
+            "type":description,
+            "coefficient": 1.0
+        })
+    elif isinstance(description, list):
+        if len(description)==2:
+            return PyJSON({
+                "type": description[0],
+                "coefficient": description[1]
+            })
+        else:
+            # to be implemented
+            pass
+    elif isinstance(description, object):
+        return description
+    else:
+        raise Exception("parse_non_linear_function_description: invalid description type: %s"%type(description))
 
 class SingleLayer(nn.Module):
     def __init__(self, param):
@@ -44,12 +94,16 @@ class SingleLayer(nn.Module):
         ensure_attrs(param, "subtype", default="f(Wx+b)")
         self.param = param
         param.weight = param.weight
+    
+        self.weight = create_2D_weight(param.weight)
+        self.register_parameter("weight", self.weight)
+        
         get_weight_function = [lambda :self.weight]
         if match_attrs(param.weight, "isExcitatoryInhibitory", value=True):
             self.ExcitatoryInhibitoryMask = create_excitatory_inhibitory_mask(*param.weight.size, param.weight.excitatory.num, param.weight.inhibitory.num)
             get_weight_function.append(lambda weight:weight * self.ExcitatoryInhibitoryMask)
             ensure_attrs(param.weight, "ConstraintMethod", value="AbsoluteValue")
-            self.WeightConstraintMethod = get_constraint_func(param.weight.ConstraintMethod)
+            self.WeightConstraintMethod = get_constraint_function(param.weight.ConstraintMethod)
             get_weight_function.append(self.WeightConstraintMethod)
         if match_attrs(param.weight, "NoSelfConnection", value=True):
             if param.weight.size[0] != param.weight.size[1]:
@@ -58,12 +112,17 @@ class SingleLayer(nn.Module):
             get_weight_function.append(lambda weight:weight * self.SelfConnectionMask)
         self.get_weight = compose_function(get_weight_function)
 
-        if match_attrs(param.bias, value=True):
-            
-        self.bias = 0.0
+        if match_attrs(param.bias, value=False):
+            self.bias = 0.0
+        elif match_attrs(param.bias, value=True):
+            self.bias = torch.zeros(param.weight.size[1])
+            self.register_parameter("bias", self.bias)
+        else:
+            # to be implemented
+            pass
 
-        if has_attrs(param, "bias", "isExcitatoryInhibitory"):
-            return False
+        self.NonLinear = get_non_linear_function()
+
         if param.subtype in ["f(Wx+b)"]:
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.weight) + self.bias)
         elif param.subtype in ["f(Wx)+b"]:
@@ -71,6 +130,40 @@ class SingleLayer(nn.Module):
         else:
             raise Exception("SingleLayer: Invalid subtype: %s"%param.subtype)
 
+def create_2D_weight(param):
+    if param.method in ["kaiming", "he"]:
+        param.method = "kaiming"
+        ensure_attrs(param, "mode", default="in")
+        ensure_attrs(param, "distribution", default="uniform")
+        ensure_attrs(param, "coefficient", default=1.0)
+        if param.mode in ["in"]:
+            if param.distribution in ["uniform"]:
+                range = [
+                    - param.coefficient * 6 ** 0.5 / param.size[0] ** 0.5,
+                    param.coefficient * 6 ** 0.5 / param.size[0] ** 0.5
+                ]
+                weight = np.random.uniform(*range, tuple(param.size))
+            elif param.distribution in ["uniform+"]:
+                range = [
+                    0.0,
+                    2.0 * param.coefficient * 6 ** 0.5 / param.size[0] ** 0.5
+                ]
+                weight = np.random.uniform(*range, tuple(param.size))
+            else:
+                # to be implemented
+                raise Exception()
+        else:
+            raise Exception()
+            # to be implemented
+    
+    elif param.method in ["xaiver", "glorot"]:
+        param.method = "xaiver"
+
+    else:
+        raise Exception()
+        # to be implemented
+
+    return torch.from_numpy(weight)
 
 def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
     name, args = get_name_args(init_info)
@@ -143,15 +236,7 @@ def get_ei_mask(E_num, N_num, device=None):
         ei_mask[i][i] = -1.0
     return ei_mask
 
-def get_mask(N_num, output_num, device=None):
-    if device is None:
-        device = torch.device('cpu')
-    mask = torch.ones((N_num, output_num), device=device, requires_grad=False)
-    return mask
 
-
-
-get_constraint_func = get_cons_func
 
 def get_loss_func(loss_func_str, truth_is_label=False, num_class=None):
     if loss_func_str in ['MSE', 'mse']:
@@ -166,22 +251,6 @@ def get_loss_func(loss_func_str, truth_is_label=False, num_class=None):
     else:
         raise Exception('Invalid main loss: %s'%loss_func_str)
 
-def get_act_func(act_func_info):
-    act_func_name, act_func_param = get_name_args(act_func_info)
-    '''
-    if isinstance(act_func_info, list):
-        act_func_name = act_func_info[0]
-        act_func_param = act_func_info[1]
-    elif isinstance(act_func_info, str):
-        act_func_name = act_func_info
-        act_func_param = None
-    elif isinstance(act_func_info, dict):
-        act_func_name = act_func_info['name']
-        act_func_param = act_func_info['param']
-    else:
-        raise Exception('Invalid act_func_info type: %s'%type(act_func_info))
-    '''
-    return get_act_func_from_str(act_func_name, act_func_param)
 
 def get_act_func_module(act_func_str):
     name = act_func_str
