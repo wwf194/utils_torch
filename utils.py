@@ -877,50 +877,7 @@ def prep_title(title):
 def new_empty_object():
     return type('test', (), {})()
 
-def set_attrs(obj, attrs, *args, **kw):
-    if kw.get("value") is None:
-        raise Exception("set_attrs: named parameter value must be given.")
-    else:
-        default = kw["value"]
-    kw["write_default"] = True
-    ensure_attrs(obj, attrs, *args)
 
-def match_attrs(obj, attrs=None, *args, **kw):
-    if kw.get("value") is None and len(args)==0:
-        raise Exception("match_attrs: named parameter value must be given.")
-    # return True if and only if obj.attrs exists and equals to value
-    if attrs is None:
-        return obj==kw["value"]
-    else:
-        if has_attrs(obj, attrs, *args, **kw):
-            if get_attrs(obj, attrs, *args, **kw)==kw["value"]:
-                return True
-        return False
-
-def ensure_attrs(obj, attrs, *args, **kw):
-    if kw.get("default") is None:
-        default = None
-    else:
-        default = kw["default"]
-    attrs = _parse_attrs(attrs, *args)
-    obj_root = obj
-    count = 0
-    for attr in attrs:
-        if count < len(attr) - 1:
-            if hasattr(obj, attr):
-                obj = getattr(obj, attr)
-            else:
-                obj_empty = new_empty_object()
-                setattr(obj, attr, obj_empty)
-                obj = obj_empty
-        else:
-            if hasattr(obj, attr):
-                if kw.get("write_default")==True:
-                    setattr(obj, attr, default)
-                else:
-                    pass
-            else:
-                setattr(obj, attr, default)
 
 class PyJSON(object):
     def __init__(self, d=None):
@@ -1022,6 +979,79 @@ def _parse_json_obj(obj, root, attrs, parent):
         pass
     return obj
 '''
+def set_attrs(obj, attrs, *args, **kw):
+    if kw.get("value") is None:
+        raise Exception("set_attrs: named parameter value must be given.")
+    else:
+        default = kw["value"]
+    kw["write_default"] = True
+    ensure_attrs(obj, attrs, *args)
+
+def remove_attrs(obj, attrs, *args):
+    attrs = _parse_attrs(attrs, *args)
+    if not has_attrs(obj, attrs, *args):
+        return False
+    else:
+        count = 0
+        for attr in attrs:
+            if count < len(attrs) - 1:
+                if isinstance(obj, dict) or isinstance(obj, list):
+                    obj = obj[attr]
+                elif isinstance(obj, object):
+                    obj = getattr(obj, attr)
+                else:
+                    raise Exception() # to be implemented
+            else:
+                if isinstance(obj, dict):
+                    obj.pop(attr)
+                elif isinstance(obj, list):
+                    del obj[attr]
+                elif isinstance(obj, object):
+                    delattr(obj, attr)
+                else:
+                    raise Exception() # to be implemented
+            count += 1
+
+def match_attrs(obj, attrs=None, *args, **kw):
+    if kw.get("value") is None and len(args)==0:
+        raise Exception("match_attrs: named parameter value must be given.")
+    # return True if and only if obj.attrs exists and equals to value
+    if attrs is None:
+        return obj==kw["value"]
+    else:
+        if has_attrs(obj, attrs, *args):
+            if get_attrs(obj, attrs, *args, **kw)==kw["value"]:
+                return True
+        return False
+
+def ensure_attrs(obj, attrs, *args, **kw):
+    if kw.get("default") is None:
+        default = None
+    else:
+        default = kw["default"]
+
+    attrs = _parse_attrs(attrs, *args)
+    obj_root = obj
+    count = 0
+    for attr in attrs:
+        if count < len(attrs) - 1:
+            if hasattr(obj, attr):
+                obj = getattr(obj, attr)
+            else:
+                obj_empty = new_empty_object()
+                setattr(obj, attr, obj_empty)
+                obj = obj_empty
+        else:
+            if hasattr(obj, attr):
+                if kw.get("write_default")==True:
+                    setattr(obj, attr, default)
+                else:
+                    pass
+            else:
+                setattr(obj, attr, default)
+                print("aaa", obj, attr, default)
+        count += 1
+
 def has_attrs(obj, attrs, *args):
     attrs = _parse_attrs(attrs, *args)
     for attr in attrs:

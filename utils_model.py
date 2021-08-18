@@ -1,4 +1,4 @@
-from utils import PyJSON, ensure_attrs, has_attrs
+
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -7,13 +7,19 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
+import utils_pytorch
 from utils_pytorch.utils import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
-from utils_pytorch.utils import get_attrs, compose_func, match_attrs, compose_function
+from utils_pytorch.utils import get_attrs, compose_function, match_attrs, compose_function
+from utils_pytorch.utils import PyJSON, ensure_attrs, has_attrs
 from utils_pytorch.LRSchedulers import LinearLR
+
 
 def build_module(module):
     if module.type in ["SingleLayer"]:
-        return SingleLayer(module)
+        return utils_pytorch.Models.SingleLayer(module)
+    else:
+        # to be implemented
+        raise Exception()
 
 def create_self_connection_mask(size):
     return torch.from_numpy(np.ones(size, size) - np.eye(size))
@@ -88,65 +94,26 @@ def parse_non_linear_function_description(description):
     else:
         raise Exception("parse_non_linear_function_description: invalid description type: %s"%type(description))
 
-class SingleLayer(nn.Module):
-    def __init__(self, param):
-        super(SingleLayer, self).__init__()
-        ensure_attrs(param, "subtype", default="f(Wx+b)")
-        self.param = param
-        param.weight = param.weight
-    
-        self.weight = create_2D_weight(param.weight)
-        self.register_parameter("weight", self.weight)
-        
-        get_weight_function = [lambda :self.weight]
-        if match_attrs(param.weight, "isExcitatoryInhibitory", value=True):
-            self.ExcitatoryInhibitoryMask = create_excitatory_inhibitory_mask(*param.weight.size, param.weight.excitatory.num, param.weight.inhibitory.num)
-            get_weight_function.append(lambda weight:weight * self.ExcitatoryInhibitoryMask)
-            ensure_attrs(param.weight, "ConstraintMethod", value="AbsoluteValue")
-            self.WeightConstraintMethod = get_constraint_function(param.weight.ConstraintMethod)
-            get_weight_function.append(self.WeightConstraintMethod)
-        if match_attrs(param.weight, "NoSelfConnection", value=True):
-            if param.weight.size[0] != param.weight.size[1]:
-                raise Exception("NoSelfConnection requires weight to be square matrix.")
-            self.SelfConnectionMask = create_self_connection_mask(param.weight.size[0])            
-            get_weight_function.append(lambda weight:weight * self.SelfConnectionMask)
-        self.get_weight = compose_function(get_weight_function)
-
-        if match_attrs(param.bias, value=False):
-            self.bias = 0.0
-        elif match_attrs(param.bias, value=True):
-            self.bias = torch.zeros(param.weight.size[1])
-            self.register_parameter("bias", self.bias)
-        else:
-            # to be implemented
-            pass
-
-        self.NonLinear = get_non_linear_function()
-
-        if param.subtype in ["f(Wx+b)"]:
-            self.forward = lambda x:self.NonLinear(torch.mm(x, self.weight) + self.bias)
-        elif param.subtype in ["f(Wx)+b"]:
-            self.forward = lambda x:self.NonLinear(torch.mm(x, self.weight)) + self.bias
-        else:
-            raise Exception("SingleLayer: Invalid subtype: %s"%param.subtype)
-
 def create_2D_weight(param):
-    if param.method in ["kaiming", "he"]:
-        param.method = "kaiming"
-        ensure_attrs(param, "mode", default="in")
-        ensure_attrs(param, "distribution", default="uniform")
-        ensure_attrs(param, "coefficient", default=1.0)
-        if param.mode in ["in"]:
-            if param.distribution in ["uniform"]:
+    initialize = param.initialize
+    if initialize.method in ["kaiming", "he"]:
+        initialize.method = "kaiming"
+        ensure_attrs(initialize, "mode", default="in")
+        ensure_attrs(initialize, "distribution", default="uniform")
+        ensure_attrs(initialize, "coefficient", default=1.0)
+        print(initialize.mode)
+        print(initialize.distribution)
+        if initialize.mode in ["in"]:
+            if initialize.distribution in ["uniform"]:
                 range = [
-                    - param.coefficient * 6 ** 0.5 / param.size[0] ** 0.5,
-                    param.coefficient * 6 ** 0.5 / param.size[0] ** 0.5
+                    - initialize.coefficient * 6 ** 0.5 / param.size[0] ** 0.5,
+                    initialize.coefficient * 6 ** 0.5 / param.size[0] ** 0.5
                 ]
                 weight = np.random.uniform(*range, tuple(param.size))
-            elif param.distribution in ["uniform+"]:
+            elif initialize.distribution in ["uniform+"]:
                 range = [
                     0.0,
-                    2.0 * param.coefficient * 6 ** 0.5 / param.size[0] ** 0.5
+                    2.0 * initialize.coefficient * 6 ** 0.5 / param.size[0] ** 0.5
                 ]
                 weight = np.random.uniform(*range, tuple(param.size))
             else:
@@ -155,10 +122,10 @@ def create_2D_weight(param):
         else:
             raise Exception()
             # to be implemented
-    
-    elif param.method in ["xaiver", "glorot"]:
-        param.method = "xaiver"
-
+    elif initialize.method in ["xaiver", "glorot"]:
+        initialize.method = "xaiver"
+        raise Exception()
+        # to be implemented
     else:
         raise Exception()
         # to be implemented
