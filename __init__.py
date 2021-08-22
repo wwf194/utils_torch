@@ -1,3 +1,3 @@
-#from utils_pytorch.utils import *
-import utils_pytorch.utils_plot as utils_plot
-import utils_pytorch.Models.SingleLayer as SingleLayer
+from utils_torch.utils import *
+import utils_torch.utils_plot as utils_plot
+import utils_torch.Models.SingleLayer as SingleLayer

@@ -7,19 +7,19 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-import utils_pytorch
-from utils_pytorch.utils import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
-from utils_pytorch.utils import get_attrs, compose_function, match_attrs, compose_function
-from utils_pytorch.utils import PyJSON, ensure_attrs, has_attrs
-from utils_pytorch.LRSchedulers import LinearLR
-
+import utils_torch
+from utils_torch.utils import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
+from utils_torch.utils import get_attrs, compose_function, match_attrs, compose_function
+from utils_torch.utils import PyJSON, ensure_attrs, has_attrs
+from utils_torch.LRSchedulers import LinearLR
 
 def build_module(module):
     if module.type in ["SingleLayer"]:
-        return utils_pytorch.Models.SingleLayer(module)
+        return utils_torch.Models.SingleLayer(module)
+    elif module.type in ["MultiLayerPerceptron", "MLP", "mlp"]:
+        return utils_torch.Models.MultiLayerPerceptron(module)
     else:
-        # to be implemented
-        raise Exception()
+        raise Exception("build_module: No such module: %s"%module.type)
 
 def create_self_connection_mask(size):
     return torch.from_numpy(np.ones(size, size) - np.eye(size))
@@ -35,6 +35,17 @@ def create_excitatory_inhibitory_mask(input_num, output_num, excitatory_num, inh
     inhibitory_mask = np.ones(inhibitory_num, output_num)
     excitatory_inhibitory_mask = np.concatenate([excitatory_mask, inhibitory_mask], axis=0)
     return excitatory_inhibitory_mask
+
+
+def get_ei_mask(E_num, N_num, device=None):
+    if device is None:
+        device = torch.device('cpu')
+    ei_mask = torch.zeros((N_num, N_num), device=device, requires_grad=False)
+    for i in range(E_num):
+        ei_mask[i][i] = 1.0
+    for i in range(E_num, N_num):
+        ei_mask[i][i] = -1.0
+    return ei_mask
 
 def create_mask(N_num, output_num, device=None):
     if device is None:
@@ -101,8 +112,6 @@ def create_2D_weight(param):
         ensure_attrs(initialize, "mode", default="in")
         ensure_attrs(initialize, "distribution", default="uniform")
         ensure_attrs(initialize, "coefficient", default=1.0)
-        print(initialize.mode)
-        print(initialize.distribution)
         if initialize.mode in ["in"]:
             if initialize.distribution in ["uniform"]:
                 range = [
@@ -132,77 +141,66 @@ def create_2D_weight(param):
 
     return torch.from_numpy(weight)
 
-def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
-    name, args = get_name_args(init_info)
-    coeff = 1.0
-    init_method = None
-    if isinstance(args, float):
-        coeff = args
-    if isinstance(name, str):
-        name = [name]
+# def init_weight(weight, init_info, cons_method=None): # weight: [input_num, output_num]
+#     name, args = get_name_args(init_info)
+#     coeff = 1.0
+#     init_method = None
+#     if isinstance(args, float):
+#         coeff = args
+#     if isinstance(name, str):
+#         name = [name]
 
-    if contain(name, ['ortho', 'orthogonal']):
-        init_method = 'ortho'
-    elif contain(name, ['glorot', 'glorot_uniform', 'xavier', 'xavier_uniform']):
-        init_method = 'glorot'
-    elif contain(name, 'uniform'):
-        init_method = 'uniform'
-    elif contain(name, ['gaussian', 'normal']):
-        init_method = 'normal'
-    else:
-        init_method = 'uniform' # default distribution
-    if init_method in ['normal', 'uniform']: # init method that has input/output mode.
-        if contain(name, ['input_output', 'output_input', 'in_out', 'out_in']):
-            # to be implemented
-            pass
-        elif contain(name, 'input'):
-            if cons_method is None or cons_method in ['abs']:
-                lim_l = - coeff / weight.size(0)
-                lim_r = - lim_l
-            elif cons_method in ['force']:
-                lim_l = 0.0
-                lim_r = 2 * coeff / weight.size(0)
-            else:
-                raise Exception('Invalid')            
-        elif contain(name, 'output'):
-            if cons_method is None or cons_method in ['abs']:
-                lim_l = - coeff / weight.size(1)
-                lim_r = - lim_l
-            elif cons_method in ['force']:
-                lim_l = 0.0
-                lim_r = 2 * coeff / weight.size(1)
-            else:
-                raise Exception('Invalid cons_method: %s'%cons_method)
-        else:
-            raise Exception('Invalid init weight mode: %s'%str(name))
-    if init_method is not None:
-        if init_method in ['uniform']:
-            torch.nn.init.uniform_(weight, lim_l, lim_r)  
-        elif init_method in ['normal']:
-            torch.nn.init.normal_(weight, mean=(lim_l+lim_r)/2, std=(lim_r+lim_l)/2)  
-        elif init_method in ['ortho']:
-            weight_ = weight.detach().clone()
-            torch.nn.init.orthogonal_(weight_, gain=1.0) # init input weight to be orthogonal.
-            with torch.no_grad():  # avoid gradient calculation error during in-place operation.
-                weight.copy_( weight_ * coeff )        
-        elif init_method in ['glorot']:
-            weight_ = weight.detach().clone()
-            torch.nn.init.xavier_uniform_(weight_, gain=1.0)
-            with torch.no_grad():
-                weight.copy_( weight_ * coeff )
-        else:
-            raise Exception('Invalid init method: %s'%init_method)
-
-def get_ei_mask(E_num, N_num, device=None):
-    if device is None:
-        device = torch.device('cpu')
-    ei_mask = torch.zeros((N_num, N_num), device=device, requires_grad=False)
-    for i in range(E_num):
-        ei_mask[i][i] = 1.0
-    for i in range(E_num, N_num):
-        ei_mask[i][i] = -1.0
-    return ei_mask
-
+#     if contain(name, ['ortho', 'orthogonal']):
+#         init_method = 'ortho'
+#     elif contain(name, ['glorot', 'glorot_uniform', 'xavier', 'xavier_uniform']):
+#         init_method = 'glorot'
+#     elif contain(name, 'uniform'):
+#         init_method = 'uniform'
+#     elif contain(name, ['gaussian', 'normal']):
+#         init_method = 'normal'
+#     else:
+#         init_method = 'uniform' # default distribution
+#     if init_method in ['normal', 'uniform']: # init method that has input/output mode.
+#         if contain(name, ['input_output', 'output_input', 'in_out', 'out_in']):
+#             # to be implemented
+#             pass
+#         elif contain(name, 'input'):
+#             if cons_method is None or cons_method in ['abs']:
+#                 lim_l = - coeff / weight.size(0)
+#                 lim_r = - lim_l
+#             elif cons_method in ['force']:
+#                 lim_l = 0.0
+#                 lim_r = 2 * coeff / weight.size(0)
+#             else:
+#                 raise Exception('Invalid')            
+#         elif contain(name, 'output'):
+#             if cons_method is None or cons_method in ['abs']:
+#                 lim_l = - coeff / weight.size(1)
+#                 lim_r = - lim_l
+#             elif cons_method in ['force']:
+#                 lim_l = 0.0
+#                 lim_r = 2 * coeff / weight.size(1)
+#             else:
+#                 raise Exception('Invalid cons_method: %s'%cons_method)
+#         else:
+#             raise Exception('Invalid init weight mode: %s'%str(name))
+#     if init_method is not None:
+#         if init_method in ['uniform']:
+#             torch.nn.init.uniform_(weight, lim_l, lim_r)  
+#         elif init_method in ['normal']:
+#             torch.nn.init.normal_(weight, mean=(lim_l+lim_r)/2, std=(lim_r+lim_l)/2)  
+#         elif init_method in ['ortho']:
+#             weight_ = weight.detach().clone()
+#             torch.nn.init.orthogonal_(weight_, gain=1.0) # init input weight to be orthogonal.
+#             with torch.no_grad():  # avoid gradient calculation error during in-place operation.
+#                 weight.copy_( weight_ * coeff )        
+#         elif init_method in ['glorot']:
+#             weight_ = weight.detach().clone()
+#             torch.nn.init.xavier_uniform_(weight_, gain=1.0)
+#             with torch.no_grad():
+#                 weight.copy_( weight_ * coeff )
+#         else:
+#             raise Exception('Invalid init method: %s'%init_method)
 
 
 def get_loss_func(loss_func_str, truth_is_label=False, num_class=None):
@@ -217,8 +215,7 @@ def get_loss_func(loss_func_str, truth_is_label=False, num_class=None):
         return torch.nn.CrossEntropyLoss()
     else:
         raise Exception('Invalid main loss: %s'%loss_func_str)
-
-
+        
 def get_act_func_module(act_func_str):
     name = act_func_str
     if act_func_str in ['relu']:
@@ -451,9 +448,7 @@ class MLP(nn.Module):
     def forward_alt_weight_scale(self, x, **kw):
         out = self.forward(x)
         out_target = search_dict(kw, ['out_target', 'out_truth'])
-
         # to be implemented: calculate weight scale
-
         self.alt_weight_scale_assess_count += 1
         if self.alt_weight_scale_assess_count >= self.alt_weight_scale_assess_num:
             self.forward = self.forward_

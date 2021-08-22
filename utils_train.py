@@ -321,52 +321,5 @@ class model(nn.Module):
         return x
 '''
 
-def prep_net(batch_size=64, load=False, model_name=''):
-    if not load:
-        model=model()
-    else:
-        net=torch.load(model_name)
-        print('loading model:'+model_name)
-
-    batch_size=64
-    net.train()
-    return net
-
-def print_training_curve(train_loss_list, train_acc_list, val_loss_list, val_acc_list):
-    plt.subplot(2, 1, 1)
-    plt.plot(x, train_loss_list, '-', label='train', color='r')
-    plt.plot(x, val_loss_list, '-', label='test', color='b')
-    plt.title('Loss')
-    plt.ylabel('acc')
-    plt.xlabel('epoch')
-    plt.legend(loc='best')
-    
-    plt.subplot(2, 1, 2)
-    plt.plot(x, train_acc_list, '-', label='train', color='r')
-    plt.plot(x, val_acc_list, '-', label='test', color='b')
-    plt.title('Accuracy')
-    plt.ylabel('acc')
-    plt.xlabel('epoch')
-    plt.legend(loc='best')
-
-    plt.tight_layout(pad=0.4, w_pad=2.0, h_pad=2.0)
-    
-    plt.savefig("train_statistics_"+model_name+".jpg")
-
-
-    print(net.parameters())
-    for parameters in net.parameters():
-        print(parameters)
-
-    for name,parameters in net.named_parameters():
-        print(name,':',parameters.size())
-
-    plt.hist(r1, normed=True, facecolor="blue", edgecolor="black", alpha=0.7)
-    plt.xlabel("weights")
-    plt.ylabel("frequency")
-    plt.title("r1 Distribution")
-    plt.savefig("r1_hist.jpg")
-
-
 
 

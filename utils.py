@@ -17,6 +17,7 @@ from typing import Iterable
 #import pynvml
 #from pynvml.nvml import nvmlDeviceOnSameBoard
 from types import SimpleNamespace
+from numpy import linalg
 import timeout_decorator
 import numpy as np
 import torch
@@ -166,36 +167,37 @@ def save_data(data, save_path): # save data into given file path. existing file 
     torch.save(data, f)
     f.close()
 
-def ensure_path(path_, is_folder=False): # check if given path_ exists. if not, create it.
-    if is_folder: # caller of this function makes sure that path_ is a directory/folder.
-        if not path_.endswith('/'): # folder
-            warnings.warn('%s is a folder, and should ends with /.'%path_)
-            path_ += '/'
-            #print(path_)
+def ensure_path(path, is_folder=False): # check if given path exists. if not, create it.
+    if is_folder: # caller of this function makes sure that path is a directory/folder.
+        if not path.endswith('/'): # folder
+            warnings.warn('%s is a folder, and should ends with /.'%path)
+            path += '/'
+            #print(path)
             #input()
-        if not os.path.exists(path_):
-            os.makedirs(path_)
-    else: # path_ can either be a directory or a folder. If path_ exists, then it is what it is (file or folder). If not, depend on whether it ends with '/'.
-        if os.path.exists(path_): # path_ exists
-            if os.path.isdir(path_):
-                if not path_.endswith('/'): # folder
-                    path_ += '/'     
-            elif os.path.isfile(path_):
-                raise Exception('file already exists: %s'%str(path_))
+        if not os.path.exists(path):
+            os.makedirs(path)
+    else: # path can either be a directory or a folder. If path exists, then it is what it is (file or folder). If not, depend on whether it ends with '/'.
+        if os.path.exists(path): # path exists
+            if os.path.isdir(path):
+                if not path.endswith('/'): # folder
+                    path += '/'     
+            elif os.path.isfile(path):
+                raise Exception('file already exists: %s'%str(path))
             else:
-                raise Exception('special file already exists: %s'%str(path_))
-        else: # path_ does not exists
-            if path_.endswith('/'): # path_ is a folder
-                path_stripped = path_.rstrip('/')
+                raise Exception('special file already exists: %s'%str(path))
+        else: # path does not exists
+            if path.endswith('/'): # path is a folder
+                path_strip = path.rstrip('/')
             else:
-                path_stripped = path_
-            if os.path.exists(path_stripped): # folder with same name exists
+                path_strip = path
+            if os.path.exists(path_strip): # folder with same name exists
                 raise Exception('ensure_path: homonymous file exists.')
             else:
-                if not os.path.exists(path_):
-                    os.makedirs(path_)
-                    #os.mkdir(path_) # os.mkdir does not support creating multi-level folders.
-                #filepath, filename = os.path.split(path_)
+                if not os.path.exists(path_strip):
+                    os.makedirs(path_strip)
+                    #os.mkdir(path) # os.mkdir does not support creating multi-level folders.
+                #filepath, filename = os.path.split(path)
+    return path
 
 ensure_dir = ensure_path # sometimes we don't distinguish between dir(ectory) and path.
 
@@ -235,7 +237,7 @@ def cal_path_rel_main(path_rel=None, path_start=None, path_main=None):
     print('file_path: %s'%file_path)
     #print('file_path_rel_path_start: %s'%file_path_rel_path_start)
     print('file_path_rel_main_path: %s'%file_path_rel_main_path)
-    print(path_to_module(file_path_rel_main_path))
+    print(target_path_module(file_path_rel_main_path))
     '''
     #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
     return path_rel_main
@@ -247,8 +249,8 @@ def import_file(path_rel_main=None, path_rel=None, path_start=None, path_main=No
     path_folder_rel = os.path.dirname(path_rel_main)
     #print('file_name: %s'%file_name)
     #print('path_folder_rel: %s'%path_folder_rel)
-    #print(path_to_module(path_folder_rel) + remove_suffix(file_name))
-    return importlib.import_module(path_to_module(path_folder_rel) + remove_suffix(file_name))
+    #print(target_path_module(path_folder_rel) + remove_suffix(file_name))
+    return importlib.import_module(target_path_module(path_folder_rel) + remove_suffix(file_name))
 
 def get_sys_type():
     if re.match(r'win',sys.platform) is not None:
@@ -548,7 +550,7 @@ def get_last_model(model_prefix, base_dir='./', is_dir=True):
     if max_epoch is not None:
         return base_dir + model_prefix + str(max_epoch) + '/'
     else:
-        return 'error'
+        return "error"
 
 def standardize_suffix(suffix):
     pattern = re.compile(r'\.?(\w+)')
@@ -644,14 +646,14 @@ def scan_files(path, pattern, ignore_folder=True, raise_not_found_error=False):
 
     return matched_files
 
-def copy_files(file_list, path_from='./', path_to=None, sys_type='linux'):
-    if not path_from.endswith('/'):
-        path_from += '/'
+def copy_files(file_list, source_path='./', target_path=None, sys_type='linux'):
+    if not source_path.endswith('/'):
+        source_path += '/'
 
-    if not path_to.endswith('/'):
-        path_to += '/'
+    if not target_path.endswith('/'):
+        target_path += '/'
 
-    ensure_path(path_to)
+    ensure_path(target_path)
 
     '''
     if subpath is not None:
@@ -660,7 +662,7 @@ def copy_files(file_list, path_from='./', path_to=None, sys_type='linux'):
         path += subpath
     ensure_path(path)
     '''
-    #print(path_to)
+    #print(target_path)
     if sys_type in ['linux']:
         for file in file_list:
             file = file.lstrip('./')
@@ -668,13 +670,13 @@ def copy_files(file_list, path_from='./', path_to=None, sys_type='linux'):
             #print(path)
             #print(file)
             #shutil.copy2(file, dest + file)
-            #print(path_from + file)
-            #print(path_to + file)
-            ensure_path(os.path.dirname(path_to + file))
-            if os.path.exists(path_to + file):
-                os.system('rm -r %s'%(path_to + file))
+            #print(source_path + file)
+            #print(target_path + file)
+            ensure_path(os.path.dirname(target_path + file))
+            if os.path.exists(target_path + file):
+                os.system('rm -r %s'%(target_path + file))
             #print('cp -r %s %s'%(file_path + file, path + file))
-            os.system('cp -r %s %s'%(path_from + file, path_to + file))
+            os.system('cp -r %s %s'%(source_path + file, target_path + file))
     elif sys_type in ['windows']:
         # to be implemented 
         pass
@@ -689,7 +691,7 @@ def join_path(path_0, path_1):
     if path_1.startswith('/'):
         raise Exception('join_path: path_1 is a absolute path: %s'%path_1)
     return path_0 + path_1
-def path_to_module(path):
+def target_path_module(path):
     path = path.lstrip('./')
     path = path.lstrip('/')
     if not path.endswith('/'):
@@ -796,69 +798,69 @@ def visit_path(args=None, func=None, recur=False, path=None):
 visit_dir = visit_path
 
 
-def copy_folder(path_from, path_to, exceptions=[], verbose=True):
+def copy_folder(source_path, target_path, exceptions=[], verbose=True):
     '''
     if args.path is not None:
         path = args.path
     else:
         path = '/data4/wangweifan/backup/'
     '''
-    #ensure_path(path_from)
-    ensure_path(path_to)
+    #ensure_path(source_path)
+    ensure_path(target_path)
     
     for i in range(len(exceptions)):
         exceptions[i] = os.path.abspath(exceptions[i])
         if os.path.isdir(exceptions[i]):
             exceptions[i] += '/'
 
-    path_from = os.path.abspath(path_from)
-    path_to = os.path.abspath(path_to)
+    source_path = os.path.abspath(source_path)
+    target_path = os.path.abspath(target_path)
 
-    if not path_from.endswith('/'):
-        path_from += '/'
-    if not path_to.endswith('/'):
-        path_to += '/'
+    if not source_path.endswith('/'):
+        source_path += '/'
+    if not target_path.endswith('/'):
+        target_path += '/'
 
     if verbose:
-        print('Copying folder from %s to %s. Exceptions: %s'%(path_from, path_to, exceptions))
+        print('Copying folder from %s to %s. Exceptions: %s'%(source_path, target_path, exceptions))
 
-    if path_from + '/' in exceptions:
+    if source_path + '/' in exceptions:
         warnings.warn('copy_folder: neglected the entire root path. nothing will be copied')
         if verbose:
             print('neglected')
     else:
-        copy_folder_recur(path_from, path_to, subpath='', exceptions=exceptions)
+        copy_folder_recur(source_path, target_path, subpath='', exceptions=exceptions)
 
-def copy_folder_recur(path_from, path_to, subpath='', exceptions=[], verbose=True):
-    #ensure_path(path_from + subpath)
-    ensure_path(path_to + subpath)
-    items = os.listdir(path_from + subpath)
+def copy_folder_recur(source_path, target_path, subpath='', exceptions=[], verbose=True):
+    #ensure_path(source_path + subpath)
+    ensure_path(target_path + subpath)
+    items = os.listdir(source_path + subpath)
     for item in items:
-        #print(path_to + subpath + item)
-        path_ = path_from + subpath + item
-        if os.path.isfile(path_): # is a file
-            if path_ + '/' in exceptions:
+        #print(target_path + subpath + item)
+        path = source_path + subpath + item
+        if os.path.isfile(path): # is a file
+            if path + '/' in exceptions:
                 if verbose:
-                    print('neglected file: %s'%path_)
+                    print('neglected file: %s'%path)
             else:
-                if os.path.exists(path_to + subpath + item):
-                    md5_source = get_md5(path_from + subpath + item)
-                    md5_target = get_md5(path_to + subpath + item)
+                if os.path.exists(target_path + subpath + item):
+                    md5_source = get_md5(source_path + subpath + item)
+                    md5_target = get_md5(target_path + subpath + item)
                     if md5_target==md5_source: # same file
                         #print('same file')
                         continue
                     else:
                         #print('different file')
-                        os.system('rm -r "%s"'%(path_to + subpath + item))
-                        os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))     
+                        os.system('rm -r "%s"'%(target_path + subpath + item))
+                        os.system('cp -r "%s" "%s"'%(source_path + subpath + item, target_path + subpath + item))     
                 else:
-                    os.system('cp -r "%s" "%s"'%(path_from + subpath + item, path_to + subpath + item))
-        elif os.path.isdir(path_): # is a folder.
-            if path_ + '/' in exceptions:
+                    os.system('cp -r "%s" "%s"'%(source_path + subpath + item, target_path + subpath + item))
+        elif os.path.isdir(path): # is a folder.
+            if path + '/' in exceptions:
                 if verbose:
-                    print('neglected folder: %s'%(path_ + '/'))
+                    print('neglected folder: %s'%(path + '/'))
             else:
-                copy_folder_recur(path_from, path_to, subpath + item + '/', verbose=verbose)
+                copy_folder_recur(source_path, target_path, subpath + item + '/', verbose=verbose)
         else:
             warnings.warn('%s is neither a file nor a path.')
 
@@ -874,10 +876,18 @@ def prep_title(title):
             title += ': '
     return title
 
-def new_empty_object():
+def np_cosine_similarity(vecA, vecB):
+    normA = np.linalg.norm(vecA)
+    normB = np.linalg.norm(vecB)
+    #normA_ = np.sum(vecA ** 2) ** 0.5
+    #normB_ = np.sum(vecB ** 2) ** 0.5
+    consine_similarity = np.dot(vecA.T, vecB) / (normA * normB)
+    return consine_similarity
+
+def EmptyPythonObj():
     return type('test', (), {})()
 
-
+new_empty_object = EmptyPythonObj
 
 class PyJSON(object):
     def __init__(self, d=None):
@@ -905,59 +915,110 @@ class PyJSON(object):
     def __getitem__(self, key):
         return self.__dict__[key]
 
-def json_obj_to_object(json_obj):
+def JsonObj2PythonObj(json_obj):
     obj = PyJSON()
     obj.from_dict(json_obj)
     return obj
     #return jsonpickle.decode(json_obj_to_json_str(json_obj))
     #return json.loads(json.dumps(dict), object_hook=lambda d: SimpleNamespace(**d))
-def json_obj_to_json_str(json_obj):
+json_obj_to_object = JsonObj2PythonObj
+
+def JsonObj2JsonStr(json_obj):
     return json.dumps(json_obj)
 
-def object_to_json_obj(obj):
+json_obj_to_json_str = JsonObj2JsonStr
+
+def PythonObj2JsonObj(obj):
     return json.loads(object_to_json_str(obj))
 
-def object_to_json_str(obj):
-    # return json.dumps(obj.__dict__, cls=change_type,indent=4)
-    # why default=lambda o: o.__dict__?
-    return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
+def PythonObj2JsonFile(obj, path):
+    # json_obj = PythonObj2JsonObj(obj)
+    # json_str = JsonObj2JsonStr(json_obj)
+    json_str = PythonObj2JsonStr(obj)
+    JsonStr2JsonFile(json_str, path)
 
-def json_str_to_json_obj(json_str):
-    return json.loads(json_str)
-
-def json_str_to_object(json_str):
-    json_obj = json_str_to_json_obj(json_str)
-    return json_obj_to_object(json_obj)
-    # return json.loads(json_str, object_hook=lambda d: SimpleNamespace(**d))
-
-def new_json_file(json_str, path):
+def JsonStr2JsonFile(json_str, path):    
+    if path.endswith(".jsonc") or path.endswith(".json"):
+        pass
+    else:
+        path += ".jsnonc"
     with open(path, "w") as f:
         f.write(json_str)
 
+object_to_json_obj = PythonObj2JsonObj
+
+def PythonObj2JsonStr(obj):
+    # return json.dumps(obj.__dict__, cls=change_type,indent=4)
+    # why default=lambda o: o.__dict__?
+    return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
+object_to_json_str = PythonObj2JsonStr
+
+def JsonStr2JsonObj(json_str):
+    return json.loads(json_str)
+json_str_to_json_obj = JsonStr2JsonObj
+
+def JsonStr2PythonObj(json_str):
+    json_obj = json_str_to_json_obj(json_str)
+    return json_obj_to_object(json_obj)
+    # return json.loads(json_str, object_hook=lambda d: SimpleNamespace(**d))
+json_str_to_object = JsonStr2PythonObj
+
+def JsonFile2JsonObj(file_path):
+    with open(file_path, "r") as f:
+        json_dict = json5.load(f)
+    return json_dict
+load_json_file = JsonFile2JsonObj
+
+def JsonStr2JsonFile(json_str, path):
+    with open(path, "w") as f:
+        f.write(json_str)
+
+new_json_file = JsonStr2JsonFile
+
+def parse_param_json_dicts(json_dicts, overwrite=True):
+    param = JsonObj2PythonObj(json_dicts)
+    for name, obj in list_attrs(param):
+        setattr(obj, "__DollarPath__", "root.%s."%name)
+    json_dicts_parsed = parse_obj(param)
+    for value in json_dicts_parsed.values():
+        value.pop("__DollarPath__")
+    for name, obj in list_attrs(param):
+        delattr(obj, "__DollarPath__")
+    return json_dicts_parsed
+
 def parse_json_obj(obj): # obj can either be dict or list.
     json_obj = obj
-    obj = json_obj_to_object(json_obj)
+    obj = JsonObj2PythonObj(json_obj)
     parse_obj(obj)
-    return object_to_json_obj(obj)
+    return PythonObj2JsonObj(obj)
+
+JsonObj2ParsedJsonObj = parse_json_obj
+
+def JsonObj2ParsedPythonObj(json_obj):
+    return JsonObj2PythonObj(JsonObj2ParsedJsonObj(json_obj))
 
 def parse_obj(obj):
     _parse_obj(obj, root=obj, attrs=[], parent=None)
     return object_to_json_obj(obj)
 
-def _parse_obj(obj, root, attrs, parent):
+def _parse_obj(obj, root, attrs, parent, base_path="root."):
+    if hasattr(obj, "__DollarPath__"):
+        base_path = getattr(obj, "__DollarPath__")
     if isinstance(obj, list):
         for index, item in enumerate(obj):
-            _parse_obj(item, root, attrs + [index], obj)
+            _parse_obj(item, root, attrs + [index], obj, base_path)
     elif isinstance(obj, dict):
         for key, value in obj.items():
-            _parse_obj(value, root, attrs + [key], obj)
+            _parse_obj(value, root, attrs + [key], obj, base_path)
     elif isinstance(obj, str):
         #if obj!="" and obj[0]=="$":
-        if "$" in obj:
-            parent[attrs[-1]] = eval("root."+obj.replace("$", ""))
+        if "$" in obj or "^" in obj:
+            sentence = obj.replace("$", base_path).replace("^", "root.")
+            #print(sentence)
+            parent[attrs[-1]] = eval(sentence)
     elif isinstance(obj, object) and hasattr(obj, "__dict__"):
         for attr, value in obj.__dict__.items():
-            _parse_obj(value, root, attrs + [attr], obj) 
+            _parse_obj(value, root, attrs + [attr], obj, base_path)
     else:
         #raise Exception("_parse_json_obj: Invalid type: %s"%type(obj))
         pass
@@ -1020,7 +1081,7 @@ def match_attrs(obj, attrs=None, *args, **kw):
         return obj==kw["value"]
     else:
         if has_attrs(obj, attrs, *args):
-            if get_attrs(obj, attrs, *args, **kw)==kw["value"]:
+            if get_attrs(obj, attrs, *args)==kw["value"]:
                 return True
         return False
 

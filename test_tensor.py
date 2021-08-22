@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import numpy as np
-#from utils_model_ import get_tensor_info
+#from model_ import get_tensor_info
 import time
 cache = {}
 cache['time'] = time.time()

@@ -1,1 +1,1 @@
-from utils_pytorch.Models.SingleLayer import SingleLayer as SingleLayer
+from utils_torch.Models.SingleLayer import SingleLayer as SingleLayer
