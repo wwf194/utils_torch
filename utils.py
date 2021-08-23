@@ -13,7 +13,7 @@ import json5
 import jsonpickle
 import pickle
 import importlib
-from typing import Iterable
+from typing import Iterable, List
 #import pynvml
 #from pynvml.nvml import nvmlDeviceOnSameBoard
 from types import SimpleNamespace
@@ -25,6 +25,20 @@ import torch.nn as nn
 
 import matplotlib as mpl
 from matplotlib import pyplot as plt
+
+from utils_torch.json import *
+from utils_torch.attrs import *
+
+def add_log(log, time_stamp=True):
+    logger = utils_torch.args_global.logger
+    if logger is not None:
+        if time_stamp:
+            logger.debug("[%s]%s"%(get_time(), log))
+        else:
+            logger.debug("%s"%log)
+
+def set_logger(logger):
+    utils_torch.args_global.logger = logger
 
 def get_time(format="%Y-%m-%d %H:%M:%S", verbose=False):
     time_str = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
@@ -201,13 +215,13 @@ def ensure_path(path, is_folder=False): # check if given path exists. if not, cr
 
 ensure_dir = ensure_path # sometimes we don't distinguish between dir(ectory) and path.
 
-def cal_path_rel_main(path_rel=None, path_start=None, path_main=None):
+def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     # path_rel: file path relevant to path_start
     if path_main is None:
         path_main = sys.path[0]
     if path_start is None:
         path_start = path_main
-        warnings.warn('cal_path_rel_main: path_start is None. using default: %s'%path_main)
+        warnings.warn('cal_path_from_main: path_start is None. using default: %s'%path_main)
     path_start = os.path.abspath(path_start)
     path_main = os.path.abspath(path_main)
     if os.path.isfile(path_main):
@@ -224,33 +238,36 @@ def cal_path_rel_main(path_rel=None, path_start=None, path_main=None):
         raise Exception('path_rel: %s is a absolute path.'%path_rel)
     
     path_abs = os.path.abspath(os.path.join(path_start, path_rel))
-    #file_path_rel_path_start = os.path.relpath(path_rel, start=path_start)
+    #file_path_from_path_start = os.path.relpath(path_rel, start=path_start)
     
-    path_rel_main = os.path.relpath(path_abs, start=path_main)
+    path_from_main = os.path.relpath(path_abs, start=path_main)
 
-    #print('path_abs: %s path_main: %s path_rel_main: %s'%(path_abs, path_main, path_rel_main))
+    #print('path_abs: %s path_main: %s path_from_main: %s'%(path_abs, path_main, path_from_main))
     '''
     print(main_path)
     print(path_start)
     print('path_start_rel: %s'%path_start_rel)
     print(file_name)
     print('file_path: %s'%file_path)
-    #print('file_path_rel_path_start: %s'%file_path_rel_path_start)
-    print('file_path_rel_main_path: %s'%file_path_rel_main_path)
-    print(target_path_module(file_path_rel_main_path))
+    #print('file_path_from_path_start: %s'%file_path_from_path_start)
+    print('file_path_from_main_path: %s'%file_path_from_main_path)
+    print(target_path_module(file_path_from_main_path))
     '''
     #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
-    return path_rel_main
+    return path_from_main
 
-def import_file(path_rel_main=None, path_rel=None, path_start=None, path_main=None):
-    if path_rel_main is None:
-        path_rel_main = cal_path_rel_main(path_rel, path_start, path_main)
-    file_name = os.path.basename(path_rel_main)
-    path_folder_rel = os.path.dirname(path_rel_main)
-    #print('file_name: %s'%file_name)
-    #print('path_folder_rel: %s'%path_folder_rel)
-    #print(target_path_module(path_folder_rel) + remove_suffix(file_name))
-    return importlib.import_module(target_path_module(path_folder_rel) + remove_suffix(file_name))
+def import_module(module_path):
+    return importlib.import_module(module_path)
+
+def import_file(file_from_sys_path):
+    if not os.path.isfile(file_from_sys_path):
+        raise Exception("%s is not a file."%file_from_sys_path)
+    if file_from_sys_path.startswith("/"):
+        raise Exception("import_file: file_from_sys_path must not be absolute path.")
+    if file_from_sys_path.startswith("./"):
+        module_path = file_from_sys_path.lstrip("./")
+    module_path = module_path.replace("/", ".")
+    return importlib.import_module(module_path)
 
 def get_sys_type():
     if re.match(r'win',sys.platform) is not None:
@@ -458,13 +475,6 @@ def plot_train_curve_1(train_loss_list, val_loss_list, fontsize=40):
     plt.legend(loc='best')
     plt.close()
 
-def polar2xy(r, theta):
-    return r * math.cos(theta), r * math.sin(theta)
-def xy2polar(x, y):
-    return cmath.polar(complex(x, y))
-
-def xy2polar_np(points): # [point_num, (x, y)]
-    return np.arctan2(points[:, 1], points[:, 0])
 
 def set_instance_attr(self, dict_, keys=None, exception=[]):
     if keys is None: # set all keys as instance variables.
@@ -560,6 +570,14 @@ def standardize_suffix(suffix):
     else:
         suffix = result.group(1)
     return suffix
+
+def ensure_suffix(name, suffix):
+    if not suffix.startswith("."):
+        suffix = "." + suffix
+    if name.endswith(suffix):
+        return suffix
+    else:
+        return name + suffix
 
 def check_suffix(name, suffix=None, is_path=True):
     # check whether given file name has suffix. If true, check whether it's legal. If false, add given suffix to it.
@@ -884,280 +902,33 @@ def np_cosine_similarity(vecA, vecB):
     consine_similarity = np.dot(vecA.T, vecB) / (normA * normB)
     return consine_similarity
 
-def EmptyPythonObj():
+def EmptyPyObj():
     return type('test', (), {})()
 
-new_empty_object = EmptyPythonObj
+new_empty_object = EmptyPyObj
 
-class PyJSON(object):
-    def __init__(self, d=None):
-        if d is not None:
-            if type(d) is str:
-                d = json.loads(d)
-            self.from_dict(d)
-    def from_dict(self, d):
-        self.__dict__ = {}
-        for key, value in d.items():
-            if type(value) is dict:
-                value = PyJSON(value)
-            self.__dict__[key] = value
-    def to_dict(self):
-        d = {}
-        for key, value in self.__dict__.items():
-            if type(value) is PyJSON:
-                value = value.to_dict()
-            d[key] = value
-        return d
-    def __repr__(self):
-        return str(self.to_dict())
-    def __setitem__(self, key, value):
-        self.__dict__[key] = value
-    def __getitem__(self, key):
-        return self.__dict__[key]
+def RemoveAllFiles(path, verbose=True):
+    if not os.path.exists(path):
+        raise Exception()
+    if not os.path.isdir(path):
+        raise Exception()
+    for file in ListAllFiles(path):
+        file_path = os.path.join(path, file)
+        os.remove(file_path)
+        utils_torch.add_log("utils_pytorch: removed file: %s"%file_path)
 
-def JsonObj2PythonObj(json_obj):
-    obj = PyJSON()
-    obj.from_dict(json_obj)
-    return obj
-    #return jsonpickle.decode(json_obj_to_json_str(json_obj))
-    #return json.loads(json.dumps(dict), object_hook=lambda d: SimpleNamespace(**d))
-json_obj_to_object = JsonObj2PythonObj
+def ListAllFiles(path):
+    if not os.path.exists(path):
+        raise Exception()
+    if not os.path.isdir(path):
+        raise Exception()
+    items = os.listdir(path)
+    files = []
+    for item in items:
+        if os.path.isfile(os.path.join(path, item)):
+            files.append(item)
+    return files
 
-def JsonObj2JsonStr(json_obj):
-    return json.dumps(json_obj)
-
-json_obj_to_json_str = JsonObj2JsonStr
-
-def PythonObj2JsonObj(obj):
-    return json.loads(object_to_json_str(obj))
-
-def PythonObj2JsonFile(obj, path):
-    # json_obj = PythonObj2JsonObj(obj)
-    # json_str = JsonObj2JsonStr(json_obj)
-    json_str = PythonObj2JsonStr(obj)
-    JsonStr2JsonFile(json_str, path)
-
-def JsonStr2JsonFile(json_str, path):    
-    if path.endswith(".jsonc") or path.endswith(".json"):
-        pass
-    else:
-        path += ".jsnonc"
-    with open(path, "w") as f:
-        f.write(json_str)
-
-object_to_json_obj = PythonObj2JsonObj
-
-def PythonObj2JsonStr(obj):
-    # return json.dumps(obj.__dict__, cls=change_type,indent=4)
-    # why default=lambda o: o.__dict__?
-    return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
-object_to_json_str = PythonObj2JsonStr
-
-def JsonStr2JsonObj(json_str):
-    return json.loads(json_str)
-json_str_to_json_obj = JsonStr2JsonObj
-
-def JsonStr2PythonObj(json_str):
-    json_obj = json_str_to_json_obj(json_str)
-    return json_obj_to_object(json_obj)
-    # return json.loads(json_str, object_hook=lambda d: SimpleNamespace(**d))
-json_str_to_object = JsonStr2PythonObj
-
-def JsonFile2JsonObj(file_path):
-    with open(file_path, "r") as f:
-        json_dict = json5.load(f)
-    return json_dict
-load_json_file = JsonFile2JsonObj
-
-def JsonStr2JsonFile(json_str, path):
-    with open(path, "w") as f:
-        f.write(json_str)
-
-new_json_file = JsonStr2JsonFile
-
-def parse_param_json_dicts(json_dicts, overwrite=True):
-    param = JsonObj2PythonObj(json_dicts)
-    for name, obj in list_attrs(param):
-        setattr(obj, "__DollarPath__", "root.%s."%name)
-    json_dicts_parsed = parse_obj(param)
-    for value in json_dicts_parsed.values():
-        value.pop("__DollarPath__")
-    for name, obj in list_attrs(param):
-        delattr(obj, "__DollarPath__")
-    return json_dicts_parsed
-
-def parse_json_obj(obj): # obj can either be dict or list.
-    json_obj = obj
-    obj = JsonObj2PythonObj(json_obj)
-    parse_obj(obj)
-    return PythonObj2JsonObj(obj)
-
-JsonObj2ParsedJsonObj = parse_json_obj
-
-def JsonObj2ParsedPythonObj(json_obj):
-    return JsonObj2PythonObj(JsonObj2ParsedJsonObj(json_obj))
-
-def parse_obj(obj):
-    _parse_obj(obj, root=obj, attrs=[], parent=None)
-    return object_to_json_obj(obj)
-
-def _parse_obj(obj, root, attrs, parent, base_path="root."):
-    if hasattr(obj, "__DollarPath__"):
-        base_path = getattr(obj, "__DollarPath__")
-    if isinstance(obj, list):
-        for index, item in enumerate(obj):
-            _parse_obj(item, root, attrs + [index], obj, base_path)
-    elif isinstance(obj, dict):
-        for key, value in obj.items():
-            _parse_obj(value, root, attrs + [key], obj, base_path)
-    elif isinstance(obj, str):
-        #if obj!="" and obj[0]=="$":
-        if "$" in obj or "^" in obj:
-            sentence = obj.replace("$", base_path).replace("^", "root.")
-            #print(sentence)
-            parent[attrs[-1]] = eval(sentence)
-    elif isinstance(obj, object) and hasattr(obj, "__dict__"):
-        for attr, value in obj.__dict__.items():
-            _parse_obj(value, root, attrs + [attr], obj, base_path)
-    else:
-        #raise Exception("_parse_json_obj: Invalid type: %s"%type(obj))
-        pass
-    return obj
-
-''' Deprecated. No longer used by parse_json_obj
-def _parse_json_obj(obj, root, attrs, parent):
-    if isinstance(obj, list):
-        for index, item in enumerate(obj):
-            _parse_json_obj(item, root, attrs + [index], obj)
-    elif isinstance(obj, dict):
-        for key, value in obj.items():
-            _parse_json_obj(value, root, attrs + [key], obj)
-    elif isinstance(obj, str):
-        if obj[0]=="$":
-            parent[attrs[-1]] = get_attrs(root, obj[1:])
-    else:
-        #raise Exception("_parse_json_obj: Invalid type: %s"%type(obj))
-        pass
-    return obj
-'''
-def set_attrs(obj, attrs, *args, **kw):
-    if kw.get("value") is None:
-        raise Exception("set_attrs: named parameter value must be given.")
-    else:
-        default = kw["value"]
-    kw["write_default"] = True
-    ensure_attrs(obj, attrs, *args)
-
-def remove_attrs(obj, attrs, *args):
-    attrs = _parse_attrs(attrs, *args)
-    if not has_attrs(obj, attrs, *args):
-        return False
-    else:
-        count = 0
-        for attr in attrs:
-            if count < len(attrs) - 1:
-                if isinstance(obj, dict) or isinstance(obj, list):
-                    obj = obj[attr]
-                elif isinstance(obj, object):
-                    obj = getattr(obj, attr)
-                else:
-                    raise Exception() # to be implemented
-            else:
-                if isinstance(obj, dict):
-                    obj.pop(attr)
-                elif isinstance(obj, list):
-                    del obj[attr]
-                elif isinstance(obj, object):
-                    delattr(obj, attr)
-                else:
-                    raise Exception() # to be implemented
-            count += 1
-
-def match_attrs(obj, attrs=None, *args, **kw):
-    if kw.get("value") is None and len(args)==0:
-        raise Exception("match_attrs: named parameter value must be given.")
-    # return True if and only if obj.attrs exists and equals to value
-    if attrs is None:
-        return obj==kw["value"]
-    else:
-        if has_attrs(obj, attrs, *args):
-            if get_attrs(obj, attrs, *args)==kw["value"]:
-                return True
-        return False
-
-def ensure_attrs(obj, attrs, *args, **kw):
-    if kw.get("default") is None:
-        default = None
-    else:
-        default = kw["default"]
-
-    attrs = _parse_attrs(attrs, *args)
-    obj_root = obj
-    count = 0
-    for attr in attrs:
-        if count < len(attrs) - 1:
-            if hasattr(obj, attr):
-                obj = getattr(obj, attr)
-            else:
-                obj_empty = new_empty_object()
-                setattr(obj, attr, obj_empty)
-                obj = obj_empty
-        else:
-            if hasattr(obj, attr):
-                if kw.get("write_default")==True:
-                    setattr(obj, attr, default)
-                else:
-                    pass
-            else:
-                setattr(obj, attr, default)
-                print("aaa", obj, attr, default)
-        count += 1
-
-def has_attrs(obj, attrs, *args):
-    attrs = _parse_attrs(attrs, *args)
-    for attr in attrs:
-        if hasattr(obj, attr):
-            obj = getattr(obj, attr)
-        else:
-            return False
-    return True
-
-def list_attrs(obj):
-    return [(attr, value) for attr, value in obj.__dict__.items()]
-
-def get_attrs(obj, attrs, *args):
-    attrs = _parse_attrs(attrs, *args)
-    attrs_reached = []
-    for attr in attrs:
-        attrs_reached.append(attr)
-        if isinstance(obj, dict):
-            obj = obj[attr]
-        elif isinstance(attr, int): # obj is a list
-            obj = obj[attr]
-        elif isinstance(attr, object):
-            if isinstance(attr, str): # obj is an object
-                if hasattr(obj, attr):
-                    obj = getattr(obj, attr)
-                else:
-                    raise Exception("get_attrs: non-existent attr: %s"%(".".join(attrs_reached)))
-        else:
-            raise Exception("get_attrs: invalid attr type: %s"%(".".join(attrs_reached)))
-    return obj
-
-def _parse_attrs(attrs, *args):
-    if len(args)>0:
-        attrs_origin = [attrs, *args]
-    else:
-        attrs_origin = attrs
-    if isinstance(attrs, str):
-        attrs = attrs.split(".")
-    elif isinstance(attrs, list):  
-        attrs = []
-        for attr in attrs_origin:
-            if isinstance(attr, str):
-                attrs += attr.split(".")
-            elif isinstance(attr, int):
-                attrs += attr
-    else:
-        raise Exception("set_attrs: invalid attrs type: %s"%type(attrs))
-    return attrs
+args_global = utils_torch.json.JsonObj2PyObj({
+    "logger": None
+})

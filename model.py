@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import utils_torch
 from utils_torch.utils import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
 from utils_torch.utils import get_attrs, compose_function, match_attrs, compose_function
-from utils_torch.utils import PyJSON, ensure_attrs, has_attrs
+from utils_torch.utils import PyObjFromJson, ensure_attrs, has_attrs
 from utils_torch.LRSchedulers import LinearLR
 
 def build_module(module):
@@ -65,7 +65,7 @@ def get_constraint_function(method):
 
 def get_non_linear_function(description):
     param = parse_non_linear_function_description(description)
-    if param.type in ["relu"]:
+    if param.type in ["relu", "ReLU"]:
         if param.coefficient==1.0:
             return F.relu
         else:
@@ -87,13 +87,13 @@ get_activation_function = get_non_linear_function
 
 def parse_non_linear_function_description(description):
     if isinstance(description, str):
-        return PyJSON({
+        return PyObjFromJson({
             "type":description,
             "coefficient": 1.0
         })
     elif isinstance(description, list):
         if len(description)==2:
-            return PyJSON({
+            return PyObjFromJson({
                 "type": description[0],
                 "coefficient": description[1]
             })

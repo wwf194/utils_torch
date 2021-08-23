@@ -1,1 +1,2 @@
-from utils_torch.Models.SingleLayer import SingleLayer as SingleLayer
+from utils_torch.Models.SingleLayer import SingleLayer
+from utils_torch.Models.MultiLayerPerceptron import MultiLayerPerceptron
