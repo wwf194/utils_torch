@@ -26,8 +26,10 @@ import torch.nn as nn
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
+from utils_torch.files import *
 from utils_torch.json import *
 from utils_torch.attrs import *
+from utils_torch.python import *
 
 def add_log(log, time_stamp=True):
     logger = utils_torch.args_global.logger
@@ -301,7 +303,7 @@ def get_args(param): # a mechanism supporting name and args given in different t
     elif isinstance(param, list):
         return param[1]
     elif isinstance(param, str):
-        #return 1.0 #using default coefficient: 1.0
+        #return 1.0 #using default Coefficient: 1.0
         return None
     else:
         raise Exception('Invalid param type:' +str(type(param)))
@@ -894,40 +896,7 @@ def prep_title(title):
             title += ': '
     return title
 
-def np_cosine_similarity(vecA, vecB):
-    normA = np.linalg.norm(vecA)
-    normB = np.linalg.norm(vecB)
-    #normA_ = np.sum(vecA ** 2) ** 0.5
-    #normB_ = np.sum(vecB ** 2) ** 0.5
-    consine_similarity = np.dot(vecA.T, vecB) / (normA * normB)
-    return consine_similarity
-
-def EmptyPyObj():
-    return type('test', (), {})()
-
-new_empty_object = EmptyPyObj
-
-def RemoveAllFiles(path, verbose=True):
-    if not os.path.exists(path):
-        raise Exception()
-    if not os.path.isdir(path):
-        raise Exception()
-    for file in ListAllFiles(path):
-        file_path = os.path.join(path, file)
-        os.remove(file_path)
-        utils_torch.add_log("utils_pytorch: removed file: %s"%file_path)
-
-def ListAllFiles(path):
-    if not os.path.exists(path):
-        raise Exception()
-    if not os.path.isdir(path):
-        raise Exception()
-    items = os.listdir(path)
-    files = []
-    for item in items:
-        if os.path.isfile(os.path.join(path, item)):
-            files.append(item)
-    return files
+from utils_torch.Router import BuildRouter
 
 args_global = utils_torch.json.JsonObj2PyObj({
     "logger": None

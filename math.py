@@ -9,3 +9,11 @@ def xy2polar(x, y):
 
 def xy2polar_np(points): # [point_num, (x, y)]
     return np.arctan2(points[:, 1], points[:, 0])
+
+def CosineSimilarityNumpy(vecA, vecB):
+    normA = np.linalg.norm(vecA)
+    normB = np.linalg.norm(vecB)
+    #normA_ = np.sum(vecA ** 2) ** 0.5
+    #normB_ = np.sum(vecB ** 2) ** 0.5
+    consine_similarity = np.dot(vecA.T, vecB) / (normA * normB)
+    return consine_similarity

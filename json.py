@@ -1,10 +1,10 @@
 
 import utils_torch
-# from utils_torch.utils import list_attrs # leads to recurrent reference.
+# from utils_torch.utils import ListAttrs # leads to recurrent reference.
 import json
 import json5
 
-class PyObjFromJson(object):
+class PyObj(object):
     def __init__(self, param=None):
         if param is not None:
             if type(param) is dict:
@@ -18,7 +18,7 @@ class PyObjFromJson(object):
     def from_list(self, list):
         for index, item in enumerate(list):
             if type(item) is dict:
-                list[index] = PyObjFromJson(item)
+                list[index] = PyObj(item)
             elif type(item) is list:
                 self.from_list(item)
             else:
@@ -37,17 +37,17 @@ class PyObjFromJson(object):
                         obj = getattr(self, key)
                     else:
                         if index == len(keys) - 1:
-                            setattr(obj, key, PyObjFromJson({
+                            setattr(obj, key, PyObj({
                                 keys[index]: value
                             }))
                         else:
-                            setattr(obj, key, PyObjFromJson({
+                            setattr(obj, key, PyObj({
                                 ".".join(keys[index + 1:]): value
                             }))
             else:
                 checkIsLegalPyName(key)
                 if type(value) is dict:
-                    value = PyObjFromJson(value)
+                    value = PyObj(value)
                 elif type(value) is list:
                     self.from_list(value)
                 else:
@@ -57,7 +57,7 @@ class PyObjFromJson(object):
     def to_dict(self):
         d = {}
         for key, value in self.__dict__.items():
-            if type(value) is PyObjFromJson:
+            if type(value) is PyObj:
                 value = value.to_dict()
             d[key] = value
         return d
@@ -70,35 +70,33 @@ class PyObjFromJson(object):
 
 def JsonObj2PyObj(json_obj):
     if isinstance(json_obj, list):
-        return PyObjFromJson().from_list(json_obj)
+        return PyObj().from_list(json_obj)
     elif isinstance(json_obj, dict):
-        return PyObjFromJson().from_dict(json_obj)
+        return PyObj().from_dict(json_obj)
     else:
         raise Exception()
 json_obj_to_object = JsonObj2PyObj
 JsonObj2PyObj = JsonObj2PyObj
 
 def JsonObj2JsonStr(json_obj):
-    return json.dumps(json_obj)
-
-json_obj_to_json_str = JsonObj2JsonStr
+    return json5.dumps(json_obj)
 
 def PyObj2JsonObj(obj):
-    return json.loads(object_to_json_str(obj))
+    return json.loads(PyObj2JsonStr(obj))
 
 def PyObj2JsonFile(obj, path):
     # json_obj = PyObj2JsonObj(obj)
-    # json_str = JsonObj2JsonStr(json_obj)
-    json_str = PyObj2JsonStr(obj)
-    JsonStr2JsonFile(json_str, path)
+    # JsonStr = JsonObj2JsonStr(json_obj)
+    JsonStr = PyObj2JsonStr(obj)
+    JsonStr2JsonFile(JsonStr, path)
 
-def JsonStr2JsonFile(json_str, path):    
+def JsonStr2JsonFile(JsonStr, path):    
     if path.endswith(".jsonc") or path.endswith(".json"):
         pass
     else:
         path += ".jsnonc"
     with open(path, "w") as f:
-        f.write(json_str)
+        f.write(JsonStr)
 
 object_to_json_obj = PyObj2JsonObj
 
@@ -106,91 +104,33 @@ def PyObj2JsonStr(obj):
     # return json.dumps(obj.__dict__, cls=change_type,indent=4)
     # why default=lambda o: o.__dict__?
     return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
-object_to_json_str = PyObj2JsonStr
 
-def JsonStr2JsonObj(json_str):
-    return json.loads(json_str)
-json_str_to_json_obj = JsonStr2JsonObj
+def JsonStr2JsonObj(JsonStr):
+    return json.loads(JsonStr)
 
-def JsonStr2PyObj(json_str):
-    json_obj = json_str_to_json_obj(json_str)
-    return json_obj_to_object(json_obj)
-    # return json.loads(json_str, object_hook=lambda d: SimpleNamespace(**d))
-json_str_to_object = JsonStr2PyObj
+def JsonStr2PyObj(JsonStr):
+    JsonObj = JsonStr2JsonObj(JsonStr)
+    return JsonObj2PyObj(JsonObj)
+    # return json.loads(JsonStr, object_hook=lambda d: SimpleNamespace(**d))
+JsonStr_to_object = JsonStr2PyObj
 
-def JsonFile2PyObj(file_path):
-    return JsonObj2PyObj(JsonFile2JsonObj(file_path))
+def JsonFile2PyObj(FilePath):
+    return JsonObj2PyObj(JsonFile2JsonObj(FilePath))
 
-def JsonFile2JsonObj(file_path):
-    with open(file_path, "r") as f:
+def JsonFile2JsonObj(FilePath):
+    with open(FilePath, "r") as f:
         json_dict = json5.load(f)
     return json_dict
 load_json_file = JsonFile2JsonObj
 
-def JsonStr2JsonFile(json_str, path):
+def JsonObj2JsonFile(JsonObj, FilePath):
+    return JsonStr2JsonFile(JsonObj2JsonStr(JsonObj), FilePath)
+
+def JsonStr2JsonFile(JsonStr, path):
     with open(path, "w") as f:
-        f.write(json_str)
+        f.write(JsonStr)
 
 new_json_file = JsonStr2JsonFile
-
-def parse_param_json_obj(json_obj, overwrite=True):
-    py_obj = JsonObj2PyObj(json_obj)
-    for name, obj in utils_torch.list_attrs(py_obj):
-        setattr(obj, "__DollarPath__", "root.%s."%name)
-    json_dicts_parsed = parse_py_obj(py_obj)
-    for value in json_dicts_parsed.values():
-        value.pop("__DollarPath__")
-    for name, obj in utils_torch.list_attrs(py_obj):
-        delattr(obj, "__DollarPath__")
-    return json_dicts_parsed
-
-def parse_param_py_obj(py_obj, overwrite=True):
-    for name, obj in utils_torch.list_attrs(py_obj):
-        setattr(obj, "__DollarPath__", "root.%s."%name)
-    py_obj_parsed = parse_py_obj(py_obj)
-    for name, obj in utils_torch.list_attrs(py_obj_parsed):
-        delattr(obj, "__DollarPath__")
-    return py_obj_parsed
-
-def parse_json_obj(json_obj): # obj can either be dict or list.
-    py_obj = JsonObj2PyObj(json_obj)
-    parse_py_obj(py_obj)
-    return py_obj
-
-JsonObj2ParsedJsonObj = parse_json_obj
-
-def JsonObj2ParsedPyObj(json_obj):
-    return JsonObj2PyObj(JsonObj2ParsedJsonObj(json_obj))
-
-def parse_py_obj(py_obj):
-    _parse_py_obj(py_obj, root=py_obj, attrs=[], parent=None)
-    return py_obj
-
-def _parse_py_obj(obj, root, attrs, parent, base_path="root."):
-    if hasattr(obj, "__DollarPath__"):
-        base_path = getattr(obj, "__DollarPath__")
-    if isinstance(obj, list):
-        for index, item in enumerate(obj):
-            _parse_py_obj(item, root, attrs + [index], obj, base_path)
-    elif isinstance(obj, dict):
-        for key, value in obj.items():
-            _parse_py_obj(value, root, attrs + [key], obj, base_path)
-    elif isinstance(obj, str):
-        sentence = obj
-        while type(sentence) is str and ("@" in sentence or "^" in sentence):
-            sentence = sentence.replace("@", base_path).replace("^", "root.")
-            sentence = eval(sentence)
-        if isinstance(sentence, str) and sentence.startswith("$"):
-            sentence = eval(sentence[1:])
-        
-        parent[attrs[-1]] = sentence
-    elif isinstance(obj, object) and hasattr(obj, "__dict__"):
-        for attr, value in obj.__dict__.items():
-            _parse_py_obj(value, root, attrs + [attr], obj, base_path)
-    else:
-        #raise Exception("_parse_json_obj: Invalid type: %s"%type(obj))
-        pass
-    return obj
 
 
 def isLegalPyName(name):

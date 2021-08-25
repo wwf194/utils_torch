@@ -1,8 +1,8 @@
 import torch
 import utils_torch
-from utils_torch.attrs import set_attrs, has_attrs, ensure_attrs
+from utils_torch.attrs import SetAttrs, HasAttrs, EnsureAttrs
 
-def init_from_param(param):
+def InitFromParams(param):
     # to be implemented
     return
 def load_model(param):
@@ -12,38 +12,38 @@ class MultiLayerPerceptron(torch.nn.Module):
     def __init__(self, param):
         super(MultiLayerPerceptron, self).__init__()
         if param is not None:
-            self.init_from_param(param)
-    def init_from_param(self, param):
+            self.InitFromParams(param)
+    def InitFromParams(self, param):
         self.param = param
-        self.layers = []
-        ensure_attrs(param, "initialize.method", default="FromNeuronNum")
-        ensure_attrs(param, "nonlinear", default="ReLU")
-        ensure_attrs(param.layers, "bias", default="True")
-        ensure_attrs(param.layers, "type", default="f(Wx+b)")
-        self.layers = []
-        if param.initialize.method in ["FromNeuronNum"]:
-            ensure_attrs(param.layers, "num", default=len(param.neurons.num) - 1)
-            for layerIndex in range(param.layers.num):
+        self.Layers = []
+        EnsureAttrs(param, "Initialize.Method", default="FromNeuronNum")
+        EnsureAttrs(param, "NonLinear", default="ReLU")
+        EnsureAttrs(param.Layers, "Bias", default="True")
+        EnsureAttrs(param.Layers, "Type", default="f(Wx+b)")
+        self.Layers = []
+        if param.Initialize.Method in ["FromNeuronNum"]:
+            EnsureAttrs(param.Layers, "Num", default=len(param.Neurons.Num) - 1)
+            for layerIndex in range(param.Layers.Num):
                 layerParam = utils_torch.EmptyPyObj()
-                set_attrs(layerParam, "type", "SingleLayer")
-                set_attrs(layerParam, "subtype", param.layers.type)
-                set_attrs(layerParam, "bias", param.layers.bias)
-                set_attrs(layerParam, "input.num", value=param.neurons.num[layerIndex])
-                set_attrs(layerParam, "output.num", value=param.neurons.num[layerIndex + 1])
-                set_attrs(layerParam, "nonlinear", value=param.nonlinear)
-                layer = utils_torch.model.build_module(layerParam)
+                SetAttrs(layerParam, "Type", "SingleLayer")
+                SetAttrs(layerParam, "Subtype", param.Layers.Type)
+                SetAttrs(layerParam, "Bias", param.Layers.Bias)
+                SetAttrs(layerParam, "Input.Num", value=param.Neurons.Num[layerIndex])
+                SetAttrs(layerParam, "Output.Num", value=param.Neurons.Num[layerIndex + 1])
+                SetAttrs(layerParam, "NonLinear", value=param.NonLinear)
+                layer = utils_torch.model.BuildModule(layerParam)
                 #setattr(self, "layer%d"%layerIndex, layer)
                 self.add_module("layer%d"%layerIndex, layer)
-                set_attrs(param, "modules", value=layerParam)
-                self.layers.append(layer)
+                SetAttrs(param, "Modules", value=layerParam)
+                self.Layers.append(layer)
         else:
             raise Exception()
 
     def forward(self, input):
         activity = utils_torch.EmptyPyObj()
-        for layerIndex, layer in enumerate(self.layers):
+        for layerIndex, layer in enumerate(self.Layers):
             output = layer.forward(input)
-            set_attrs(activity, "layer%d"%layerIndex, value=output)
+            SetAttrs(activity, "layer%d"%layerIndex, value=output)
             input = output
         return output
 
