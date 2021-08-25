@@ -79,8 +79,6 @@ def ParsePyObj(PyObj):
     _ParsePyObj(PyObj, root=PyObj, attrs=[], parent=None)
     return PyObj
 
-ParsePyObj = ParsePyObj
-
 def _ParsePyObj(obj, root, attrs, parent, base_path="root."):
     if hasattr(obj, "__DollarPath__"):
         base_path = getattr(obj, "__DollarPath__")
@@ -101,11 +99,10 @@ def _ParsePyObj(obj, root, attrs, parent, base_path="root."):
             #    raise Exception()
         if isinstance(sentence, str) and sentence.startswith("$"):
             sentence = eval(sentence[1:])
-        
         parent[attrs[-1]] = sentence
-    elif isinstance(obj, object) and hasattr(obj, "__dict__"):
+    elif hasattr(obj, "__dict__"):
         for attr, value in obj.__dict__.items():
-            _ParsePyObj(value, root, attrs + [attr], obj, base_path)
+            _ParsePyObj(value, root, [*attrs, attr], obj, base_path)
     else:
         #raise Exception("_ParseJsonObj: Invalid type: %s"%type(obj))
         pass

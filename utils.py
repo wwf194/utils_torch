@@ -39,6 +39,14 @@ def add_log(log, time_stamp=True):
         else:
             logger.debug("%s"%log)
 
+def add_warning(log, logger=None, time_stamp=True):
+    logger = utils_torch.args_global.logger
+    if logger is not None:
+        if time_stamp:
+            logger.warning("[%s][WARNING]%s"%(get_time(), log))
+        else:
+            logger.warning("%s"%log)
+
 def set_logger(logger):
     utils_torch.args_global.logger = logger
 

@@ -27,4 +27,20 @@ def RegisterList2PyObj(List, PyObj, attrs=None):
 def EmptyPyObj():
     return type('test', (), {})()
 
+def isLegalPyName(name):
+    if name=="":
+        return False
+    if name[0].isalpha() or name[0] == '_':
+        for i in name[1:]:
+            if not (i.isalnum() or i == '_'):
+                return False
+        else:
+            return True
+    else:
+        return False
+
+def checkIsLegalPyName(name):
+    if not isLegalPyName(name):
+        raise Exception("%s is not a legal python name."%name)
+
 new_empty_object = EmptyPyObj
