@@ -191,8 +191,23 @@ def save_data(data, save_path): # save data into given file path. existing file 
     torch.save(data, f)
     f.close()
 
-def ensure_path(path, is_folder=False): # check if given path exists. if not, create it.
-    if is_folder: # caller of this function makes sure that path is a directory/folder.
+def EnsureDirectoryOfFile(FilePath):
+    
+    return
+
+EnsureDirOfFile = EnsureDirectoryOfFile
+
+def EnsureDirectory(DirPath):
+    return
+
+EnsureDir = EnsureDirectory
+EnsureFolder = EnsureDirectory
+
+def ExistsFile(FilePath):
+    return os.path.isfile(FilePath)
+
+def EnsurePath(path, isFolder=False): # check if given path exists. if not, create it.
+    if isFolder: # caller of this function makes sure that path is a directory/folder.
         if not path.endswith('/'): # folder
             warnings.warn('%s is a folder, and should ends with /.'%path)
             path += '/'
@@ -215,7 +230,7 @@ def ensure_path(path, is_folder=False): # check if given path exists. if not, cr
             else:
                 path_strip = path
             if os.path.exists(path_strip): # folder with same name exists
-                raise Exception('ensure_path: homonymous file exists.')
+                raise Exception('EnsurePath: homonymous file exists.')
             else:
                 if not os.path.exists(path_strip):
                     os.makedirs(path_strip)
@@ -223,7 +238,6 @@ def ensure_path(path, is_folder=False): # check if given path exists. if not, cr
                 #filepath, filename = os.path.split(path)
     return path
 
-ensure_dir = ensure_path # sometimes we don't distinguish between dir(ectory) and path.
 
 def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     # path_rel: file path relevant to path_start
@@ -266,8 +280,8 @@ def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
     return path_from_main
 
-def import_module(module_path):
-    return importlib.import_module(module_path)
+def ImportModule(module_path):
+    return importlib.ImportModule(module_path)
 
 def import_file(file_from_sys_path):
     if not os.path.isfile(file_from_sys_path):
@@ -277,7 +291,7 @@ def import_file(file_from_sys_path):
     if file_from_sys_path.startswith("./"):
         module_path = file_from_sys_path.lstrip("./")
     module_path = module_path.replace("/", ".")
-    return importlib.import_module(module_path)
+    return importlib.ImportModule(module_path)
 
 def get_sys_type():
     if re.match(r'win',sys.platform) is not None:
@@ -681,14 +695,14 @@ def copy_files(file_list, source_path='./', target_path=None, sys_type='linux'):
     if not target_path.endswith('/'):
         target_path += '/'
 
-    ensure_path(target_path)
+    EnsurePath(target_path)
 
     '''
     if subpath is not None:
         if not subpath.endswith('/'):
              subpath += '/'
         path += subpath
-    ensure_path(path)
+    EnsurePath(path)
     '''
     #print(target_path)
     if sys_type in ['linux']:
@@ -700,7 +714,7 @@ def copy_files(file_list, source_path='./', target_path=None, sys_type='linux'):
             #shutil.copy2(file, dest + file)
             #print(source_path + file)
             #print(target_path + file)
-            ensure_path(os.path.dirname(target_path + file))
+            EnsurePath(os.path.dirname(target_path + file))
             if os.path.exists(target_path + file):
                 os.system('rm -r %s'%(target_path + file))
             #print('cp -r %s %s'%(file_path + file, path + file))
@@ -833,8 +847,8 @@ def copy_folder(source_path, target_path, exceptions=[], verbose=True):
     else:
         path = '/data4/wangweifan/backup/'
     '''
-    #ensure_path(source_path)
-    ensure_path(target_path)
+    #EnsurePath(source_path)
+    EnsurePath(target_path)
     
     for i in range(len(exceptions)):
         exceptions[i] = os.path.abspath(exceptions[i])
@@ -860,8 +874,8 @@ def copy_folder(source_path, target_path, exceptions=[], verbose=True):
         copy_folder_recur(source_path, target_path, subpath='', exceptions=exceptions)
 
 def copy_folder_recur(source_path, target_path, subpath='', exceptions=[], verbose=True):
-    #ensure_path(source_path + subpath)
-    ensure_path(target_path + subpath)
+    #EnsurePath(source_path + subpath)
+    EnsurePath(target_path + subpath)
     items = os.listdir(source_path + subpath)
     for item in items:
         #print(target_path + subpath + item)

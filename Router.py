@@ -39,11 +39,11 @@ def ParseRouters(Param, RedirectTarget):
         raise Exception()
 
 def ParseRouterDynamic(Routing, States):
-    utils_torch.parse.RedirectPyObj(Routing, States)
-    # for attr in Routing.ParseRouterAttrs:
-    #     value = GetAttrs(Routing, attr)    
-    # value = re.sub("([#]\w+)", lambda matchedStr:"getattr(States, %s)"%matchedStr[1:], value)
-    # SetAttrs(Routing, attr, eval(value))
+    #utils_torch.parse.RedirectPyObj(Routing, States)
+    for attrs in Routing.DynamicParseAttrs:
+        value = GetAttrs(Routing, attrs)    
+    value = re.sub("([%]\w+)", lambda matchedStr:"getattr(States, %s)"%matchedStr[1:], value)
+    SetAttrs(Routing, attrs, eval(value))
 
 def ParseRoutersStr(Routings):
     if not isinstance(Routings, list):
@@ -84,11 +84,12 @@ def _ParseRouterStr(Routing):
         setattr(param, attr, value)
     EnsureAttrs(param, "RepeatTime", value=1)
 
-    param.ParseRouterAttrs = []
+    param.DynamicParseAttrs = []
     for attr, value in ListAttrs(param):
         if isinstance(value, str):
-            if "#" in value:
-                param.ParseRouterAttrs.append(attr)
+            #if "%" in value:
+            if value[0]=="%": # Dynamic Parse
+                param.DynamicParseAttrs.append(attr)
     return param
 
 def SeparateArgs(ArgsString):

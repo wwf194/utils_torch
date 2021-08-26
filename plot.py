@@ -1,13 +1,15 @@
+import numpy as np
+import cv2 as cv
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 
 default_res=60
-from matplotlib.lines import Line2D
-#import matplotlib.pyplot as plt
-#import numpy as np
-#import cv2 as cv
 
-#from utils_torch.utils import search_dict, ensure_path
+#from utils_torch.utils import search_dict, EnsurePath
 
+def PlotPointsNp(ax, Points):
+    return
 
 def norm_and_map(data, cmap='jet', return_min_max=False):
     #print(weight_r.shape)
@@ -19,7 +21,7 @@ def norm_and_map(data, cmap='jet', return_min_max=False):
     else:
         data_norm = (data - data_min) / (data_max - data_min) # normalize to [0, 1]
     cmap_func = plt.cm.get_cmap(cmap)
-    data_mapped = cmap_func(data_norm) # [N_num, res_x, res_y, (r,g,b,a)]
+    data_mapped = cmap_func(data_norm) # [N_num, ResolutionX, ResolutionY, (r,g,b,a)]
 
     if return_min_max:
         return data_mapped, data_min, data_max
@@ -30,48 +32,48 @@ def norm(data, ):
     # to be implemented
     return
 
-def get_res_xy(res, width, height):
+def get_ResolutionXy(res, width, height):
     if width>=height:
-        res_x = res
-        res_y = int( res * height / width )
+        ResolutionX = res
+        ResolutionY = int( res * height / width )
     else:
-        res_y = res
-        res_x = int( res * width / height )
-    return res_x, res_y
+        ResolutionY = res
+        ResolutionX = int( res * width / height )
+    return ResolutionX, ResolutionY
 
-def get_int_coords(x, y, xy_range, res_x, res_y):
-    #return int( (x / box_width + 0.5) * res_x ), int( (y / box_height+0.5) * res_y )
-    x0, y0, x1, y1 = xy_range
-    return int( ((x-x0)/(x1-x0)) * res_x ), int( (y-y0)/(y1-y0) * res_y )
+def Floats2PixelIndex(x, y, BoundaryBox, ResolutionX, ResolutionY):
+    #return int( (x / box_width + 0.5) * ResolutionX ), int( (y / box_height+0.5) * ResolutionY )
+    x0, y0, x1, y1 = BoundaryBox
+    return int( ((x-BoundaryBox.xMin)/(x1-x0)) * ResolutionX ), int( (y-y0)/(y1-y0) * ResolutionY )
 
-def get_int_coords_np(points, xy_range, res_x, res_y):
-    #return int( (x / box_width + 0.5) * res_x ), int( (y / box_height+0.5) * res_y )
+def get_int_coords_np(points, BoundaryBox, ResolutionX, ResolutionY):
+    #return int( (x / box_width + 0.5) * ResolutionX ), int( (y / box_height+0.5) * ResolutionY )
     #print('points shape:'+str(points.shape))
-    x0, y0, x1, y1 = xy_range
-    pixel_half_x = (x1 - x0) / ( 2 * res_x )
-    pixel_half_y = (y1 - y0) / ( 2 * res_y )
-    pixel_width_x = (x1 - x0) / res_x
-    pixel_width_y = (y1 - y0) / res_y
+    x0, y0, x1, y1 = BoundaryBox
+    pixel_half_x = (x1 - x0) / ( 2 * ResolutionX )
+    pixel_half_y = (y1 - y0) / ( 2 * ResolutionY )
+    pixel_width_x = (x1 - x0) / ResolutionX
+    pixel_width_y = (y1 - y0) / ResolutionY
     x, y = points[:, 0], points[:, 1]
     #print(x.shape)
     #print(y.shape)
-    #return np.stack( [ ( ((x-x0-pixel_half_x)/(x1-x0)) * (res_x-1) ).astype(np.int), ( (y-y0-pixel_half_y)/(y1-y0) * (res_y-1) ).astype(np.int) ], axis=1)
+    #return np.stack( [ ( ((x-x0-pixel_half_x)/(x1-x0)) * (ResolutionX-1) ).astype(np.int), ( (y-y0-pixel_half_y)/(y1-y0) * (ResolutionY-1) ).astype(np.int) ], axis=1)
     coords_int =  np.stack( [ ( (x-x0-pixel_half_x)/pixel_width_x ), ( (y-y0-pixel_half_y)/pixel_width_y )], axis=1)
     return np.around(coords_int).astype(np.int) # np.astype(np.int) do floor, not round.
-def get_float_coords(i, j, xy_range, res_x, res_y):
-    #x0, y0, x1, y1 = sum(xy_range, [])
-    x0, y0, x1, y1 = xy_range
-    return i/res_x*(x1-x0) + x0, j/res_y*(y1-y0) + y0
+def get_float_coords(i, j, BoundaryBox, ResolutionX, ResolutionY):
+    #x0, y0, x1, y1 = sum(BoundaryBox, [])
+    x0, y0, x1, y1 = BoundaryBox
+    return i/ResolutionX*(x1-x0) + x0, j/ResolutionY*(y1-y0) + y0
 
-def get_float_coords_np(points, xy_range, res_x, res_y):
-    x0, y0, x1, y1 = xy_range
-    pixel_half_x = (x1 - x0) / ( 2 * res_x )
-    pixel_half_y = (y1 - y0) / ( 2 * res_y )
-    x_float = points[:,0] / res_x*(x1-x0) + x0 + pixel_half_x
-    y_float = points[:,1] / res_y*(y1-y0) + y0 + pixel_half_y
+def get_float_coords_np(points, BoundaryBox, ResolutionX, ResolutionY):
+    x0, y0, x1, y1 = BoundaryBox
+    pixel_half_x = (x1 - x0) / ( 2 * ResolutionX )
+    pixel_half_y = (y1 - y0) / ( 2 * ResolutionY )
+    x_float = points[:,0] / ResolutionX*(x1-x0) + x0 + pixel_half_x
+    y_float = points[:,1] / ResolutionY*(y1-y0) + y0 + pixel_half_y
     return np.stack([x_float, y_float], axis=1)
 
-def plot_polyline_cv(img, points, closed=False, color=(0,0,0), width=2, type=4, xy_range=[[0.0,0.0],[1.0,1.0]]): #points:[point_num, (x,y)]
+def plot_polyline_cv(img, points, closed=False, color=(0,0,0), width=2, type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]): #points:[point_num, (x,y)]
     if isinstance(points, list):
         points = np.array(points)
 
@@ -84,8 +86,8 @@ def plot_polyline_cv(img, points, closed=False, color=(0,0,0), width=2, type=4, 
     x_res, y_res = img.shape[0], img.shape[1]
 
     for i in range(line_num):
-        point_0 = get_int_coords(points[i%point_num][0], points[i%point_num][1], xy_range, x_res, y_res)
-        point_1 = get_int_coords(points[(i+1)%point_num][0], points[(i+1)%point_num][1], xy_range, x_res, y_res)
+        point_0 = get_int_coords(points[i%point_num][0], points[i%point_num][1], BoundaryBox, x_res, y_res)
+        point_1 = get_int_coords(points[(i+1)%point_num][0], points[(i+1)%point_num][1], BoundaryBox, x_res, y_res)
         cv.line(img, point_0, point_1, color, width, type)
 
 def plot_polyline_plt(ax, points, color=(0.0,0.0,0.0), width=2, closed=False): #points:[point_num, (x,y)]
@@ -137,15 +139,15 @@ def plot_matrix(ax, data, save=True, save_path='./', save_name='matrix_plot.png'
         
 
     if save:
-        ensure_path(save_path)
+        EnsurePath(save_path)
         plt.savefig(save_path + save_name)
 
     return
 
-def plot_line(img, points, line_color=(0,0,0), line_width=2, line_type=4, xy_range=[[0.0,0.0],[1.0,1.0]]):
+def plot_line(img, points, line_color=(0,0,0), line_width=2, line_type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]):
     x_res, y_res = img.shape[0], img.shape[1]
-    point_0 = get_int_coords(points[0][0], points[0][1], xy_range, x_res, y_res)
-    point_1 = get_int_coords(points[1][0], points[1][1], xy_range, x_res, y_res)
+    point_0 = get_int_coords(points[0][0], points[0][1], BoundaryBox, x_res, y_res)
+    point_1 = get_int_coords(points[1][0], points[1][1], BoundaryBox, x_res, y_res)
     cv.line(img, point_0, point_1, line_color, line_width, line_type)
 
 def get_colors(num=5):
@@ -250,6 +252,16 @@ def concat_images_in_rows(images, row_size, image_width, spacer_size=4):
     ret = np.vstack(row_images_with_spacers)
     return ret
 '''
+
+
+def ImagesFile2GIFFile():
+    return
+
+ImagesFile2GIF = ImagesFile2GIFFile
+
+def ImagesNp2GIFFile():
+    return
+ImagesNp2GIF = ImagesNp2GIFFile
 
 '''
 from PIL import Image 

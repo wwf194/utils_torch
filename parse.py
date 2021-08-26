@@ -90,14 +90,14 @@ def _ParsePyObj(obj, root, attrs, parent, base_path="root."):
             _ParsePyObj(value, root, attrs + [key], obj, base_path)
     elif isinstance(obj, str):
         sentence = obj
-        while type(sentence) is str and ("@" in sentence or "^" in sentence):
-            sentence = sentence.replace("@", base_path).replace("^", "root.")
+        while type(sentence) is str and ("$" in sentence or "^" in sentence):
+            sentence = sentence.replace("$", base_path).replace("^", "root.")
             #try:
             sentence = eval(sentence)
             #except Exception:
             #    utils_torch.add_log("Exception when running %s"%sentence)
             #    raise Exception()
-        if isinstance(sentence, str) and sentence.startswith("$"):
+        if isinstance(sentence, str) and sentence.startswith("#"):
             sentence = eval(sentence[1:])
         parent[attrs[-1]] = sentence
     elif hasattr(obj, "__dict__"):

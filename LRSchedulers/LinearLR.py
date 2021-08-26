@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-from utils_torch.utils import ensure_path
+from utils_torch.utils import EnsurePath
 
 class LinearLR(object): # linear lr scheduler log lr = a + b log epoch lr = e ^ a + e ^ b lr
     def __init__(self, optimizer, milestones=None, epochs=None, lr_decays=None, epoch_num=None, verbose=False):
@@ -173,7 +173,7 @@ class LinearLR(object): # linear lr scheduler log lr = a + b log epoch lr = e ^ 
 
         ax.set_title("Learning Rate Decay - Epoch")
         if save:
-            ensure_path(save_path)
+            EnsurePath(save_path)
             plt.savefig(save_path + save_name)
 
         return ax

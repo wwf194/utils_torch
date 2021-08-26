@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import re
 
 import utils_torch
-from utils_torch.utils import ensure_path, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
+from utils_torch.utils import EnsurePath, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
 from utils_torch.utils import compose_function, compose_function
 from utils_torch.utils import PyObj
 from utils_torch.json import *
@@ -454,7 +454,7 @@ class MLP(nn.Module):
         if axes is None:
             fig, axes = plt.subplots(nrows=row_num, ncols=col_num, figSize=(5*col_num, 5*row_num))
         if save:
-            ensure_path(save_path)
+            EnsurePath(save_path)
             plt.savefig(save_path + save_name)
         return
     def print_info(self, name='', verbose=True):
