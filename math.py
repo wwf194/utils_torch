@@ -2,13 +2,15 @@ import math
 import cmath
 import numpy as np
 
-def polar2xy(Radius, Direction):
+def Polar2Xy(Radius, Direction):
     # Direction: [-pi, pi)
     return Radius * math.cos(Direction), Radius * math.sin(Direction)
-def xy2polar(x, y):
+polar2xy = Polar2Xy
+
+def Xy2Polar(x, y):
     return cmath.polar(complex(x, y))
 
-def xy2polarNp(PointsNp): # [PointNum, (x, y)]
+def Vectors2DirectionNp(PointsNp): # [PointNum, (x, y)]
     return np.arctan2(PointsNp[:, 1], PointsNp[:, 0])
 
 def Vertices2VertexPairs(Vertices, close=True):
@@ -17,7 +19,7 @@ def Vertices2VertexPairs(Vertices, close=True):
     if close:
         for Index in VertexNum:
             VertexPairs.append(Vertices[Index], Vertices[(Index + 1) % VertexNum])
-    return
+    return VertexPairs
 
 def Vertices2Vectors(Vertices, close=True): 
     return Vertices2EdgesNp(np.array(Vertices, dtype=np.float32), close=close).tolist()
@@ -44,20 +46,21 @@ def Vectors2Norms(Vectors):
     return Vectors2NormsNp(np.array(Vectors, dtype=np.float32)).tolist()
 
 def Vectors2NormsNp(VectorsNp):  # Calculate Norm Vectors Pointing From Inside To Outside Of Polygon
-    #VectorNum = len(Vectors)  
-    #Vectors = np.array(Vectors, dtype=np.float32)
     VectorNum = VectorsNp.shape[0]
     VectorsNorm = np.zeros([VectorNum, 2])
     # (a, b) is vertical to (b, -a)
     VectorsNorm[:, 0] = VectorsNp[:, 1]
     VectorsNorm[:, 1] = - VectorsNp[:, 0]
     # Normalize To Unit Length
-    VectorsNorm = VectorsNorm / (np.linalg.norm(VectorNorms, axis=1, keepdims=True))
+    VectorsNorm = VectorsNorm / (np.linalg.norm(VectorsNorm, axis=1, keepdims=True))
     return VectorsNorm
 
-def Vectors2DirectionsNp(Vectors):
+def Vectors2NormsDirectionsNp(Vectors):
+    return Vectors2NormsNp(Vectors), Vectors2DirectionsNp(Vectors)
+
+def Vectors2DirectionsNp(VectorsNp):
     Directions = []
-    Directions = xy2polarNp(Vectors)
+    Directions = Vectors2DirectionsNp(VectorsNp)
     return Directions
 
 def Vectors2Directions(Vectors):
@@ -81,5 +84,31 @@ def Vectors2Directions(Vectors):
         Directions.append(Direction)    
     return Directions
 
-def Vectors2NormsNp(VectorsNp, axis=-1):
-    return np.linalg.norm(VectorsNp, axis=axis)
+def Vector2Norm(VectorNp):
+    return np.linalg.norm(VectorNp)
+
+def Vectors2NormsNp(VectorsNp): # VectorsNp: [VectorNum, VectorSize]
+    return np.linalg.norm(VectorsNp, axis=-1)
+
+def Angles2StandardRangeNp(Angles):
+    return np.mod(Angles, np.pi * 2) - np.pi
+
+def isAcuteAnglesNp(AnglesA, AnglesB):
+    return np.abs(Angles2StandardRangeNp(AnglesA, AnglesB)) < np.pi / 2
+
+isAcuteAngles = isAcuteAnglesNp
+
+def StartEndPoints2VectorsNp(PointsStart, PointsEnd):
+    return PointsStart - PointsEnd
+
+def StartEndPoints2VectorsDirectionNp(PointsStart, PointsEnd):
+    Vectors = StartEndPoints2VectorsNp(PointsStart, PointsEnd)
+    return Vectors2DirectionsNp(Vectors)
+
+def StartEndPoints2VectorsNormNp(PointsStart, PointsEnd):
+    Vectors = StartEndPoints2VectorsNp(PointsStart, PointsEnd)
+    return Vectors2NormsNp(Vectors)
+
+def StartEndPoints2VectorsNormDirectionNp(PointsStart, PointsEnd):
+    Vectors = StartEndPoints2VectorsNp(PointsStart, PointsEnd)
+    return Vectors2NormsDirectionsNp(Vectors)

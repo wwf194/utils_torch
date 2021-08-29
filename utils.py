@@ -281,7 +281,7 @@ def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     return path_from_main
 
 def ImportModule(module_path):
-    return importlib.ImportModule(module_path)
+    return importlib.import_module(module_path)
 
 def import_file(file_from_sys_path):
     if not os.path.isfile(file_from_sys_path):
