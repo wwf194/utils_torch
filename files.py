@@ -5,19 +5,33 @@ def RemoveAllFiles(path, verbose=True):
         raise Exception()
     if not os.path.isdir(path):
         raise Exception()
-    for file in ListAllFiles(path):
+    for file in GetAllFiles(path):
         file_path = os.path.join(path, file)
         os.remove(file_path)
         utils_torch.add_log("utils_pytorch: removed file: %s"%file_path)
 
-def ListAllFiles(path):
-    if not os.path.exists(path):
+def GetAllFiles(DirPath):
+    if not os.path.exists(DirPath):
         raise Exception()
-    if not os.path.isdir(path):
+    if not os.path.isdir(DirPath):
         raise Exception()
-    items = os.listdir(path)
-    files = []
+    items = os.listdir(DirPath)
+    Files = []
     for item in items:
-        if os.path.isfile(os.path.join(path, item)):
-            files.append(item)
-    return files
+        if os.path.isfile(os.path.join(DirPath, item)):
+            Files.append(item)
+    return Files
+
+ListAllFiles = GetAllFiles
+
+def GetAllDirs(DirPath):
+    if not os.path.exists(DirPath):
+        raise Exception()
+    if not os.path.isdir(DirPath):
+        raise Exception()
+    items = os.listdir(DirPath)
+    Dirs = []
+    for item in items:
+        if os.path.isdir(os.path.join(DirPath, item)):
+            Dirs.append(item)
+    return Dirs

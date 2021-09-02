@@ -111,6 +111,10 @@ def PyObj2JsonStr(obj):
     # return json.dumps(obj.__dict__, cls=change_type,indent=4)
     # why default=lambda o: o.__dict__?
     return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
+    
+def PyObj2JsonStrHook(Obj):
+    # to be implemented
+    return
 
 def JsonStr2JsonObj(JsonStr):
     RemoveJsonStrComments(JsonStr)

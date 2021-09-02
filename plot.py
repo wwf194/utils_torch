@@ -6,9 +6,31 @@ from matplotlib.lines import Line2D
 
 default_res=60
 
-#from utils_torch.utils import search_dict, EnsurePath
+from utils_torch.utils import EnsurePath
+from enum import Enum
 
-def PlotPointsNp(ax, Points):
+class ColorPlt(Enum):
+    White = (1.0, 1.0, 1.0)
+    Black = (0,0, 0.0, 0.0)
+    Red = (1.0, 0.0, 0.0)
+    Green = (0.0, 1.0, 0.0)
+    Blue = (0.0, 0.0, 1.0)
+
+def PlotLinesPltNp(ax, PointsStart, PointsEnd, Width=2.0, Color=ColorPlt.Black):
+    LineNum = PointsStart.shape[0]
+    for Index in range(LineNum):
+        ax.add_line(Line2D(PointsStart[Index, :], PointsEnd[Index, :], linewidth=Width, Color=Color))
+PlotLines = PlotLinesPltNp
+
+def PlotLinePlt(ax, PointStart, PointEnd, Width=2.0, Color=ColorPlt.Black):
+    # @param Width: Line width in points(?pixels)
+    line = ax.add_line(Line2D(PointStart, PointEnd))
+    line.set_linewidth(Width)
+    line.set_color(Color)
+PlotLine = PlotLinePlt
+
+def PlotPointsNp(ax, Points, color=ColorPlt.Blue):
+    ax.scatter(Points, color=color)
     return
 
 def norm_and_map(data, cmap='jet', return_min_max=False):
@@ -46,7 +68,7 @@ def Floats2PixelIndex(x, y, BoundaryBox, ResolutionX, ResolutionY):
     x0, y0, x1, y1 = BoundaryBox
     return int( ((x-BoundaryBox.xMin)/(x1-x0)) * ResolutionX ), int( (y-y0)/(y1-y0) * ResolutionY )
 
-def get_int_coords_np(points, BoundaryBox, ResolutionX, ResolutionY):
+def Xy2PixelIndex(points, BoundaryBox, ResolutionX, ResolutionY):
     #return int( (x / box_width + 0.5) * ResolutionX ), int( (y / box_height+0.5) * ResolutionY )
     #print('points shape:'+str(points.shape))
     x0, y0, x1, y1 = BoundaryBox
@@ -73,11 +95,12 @@ def get_float_coords_np(points, BoundaryBox, ResolutionX, ResolutionY):
     y_float = points[:,1] / ResolutionY*(y1-y0) + y0 + pixel_half_y
     return np.stack([x_float, y_float], axis=1)
 
-def plot_polyline_cv(img, points, closed=False, color=(0,0,0), width=2, type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]): #points:[point_num, (x,y)]
+
+def plot_polyline_cv(img, points, closed=False, color=(0,0,0), width=2, type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]): #points:[PointNum, (x,y)]
     if isinstance(points, list):
         points = np.array(points)
 
-    point_num = points.shape[0]
+    PointNum = points.shape[0]
     if closed:
         line_num = points.shape[0] - 1
     else:
@@ -86,49 +109,53 @@ def plot_polyline_cv(img, points, closed=False, color=(0,0,0), width=2, type=4, 
     x_res, y_res = img.shape[0], img.shape[1]
 
     for i in range(line_num):
-        point_0 = get_int_coords(points[i%point_num][0], points[i%point_num][1], BoundaryBox, x_res, y_res)
-        point_1 = get_int_coords(points[(i+1)%point_num][0], points[(i+1)%point_num][1], BoundaryBox, x_res, y_res)
+        point_0 = get_int_coords(points[i%PointNum][0], points[i%PointNum][1], BoundaryBox, x_res, y_res)
+        point_1 = get_int_coords(points[(i+1)%PointNum][0], points[(i+1)%PointNum][1], BoundaryBox, x_res, y_res)
         cv.line(img, point_0, point_1, color, width, type)
 
-def plot_polyline_plt(ax, points, color=(0.0,0.0,0.0), width=2, closed=False): #points:[point_num, (x,y)]
-    point_num = points.shape[0]
-    if closed:
-        plot_num = point_num
+def PlotPolyLineFromVerticesPlt(ax, Points, Color=ColorPlt.Black, width=2.0, Closed=False):
+    # @param Points: np.ndarray with shape [PointNum, (x,y)]
+    PointNum = Points.shape[0]
+    if Closed:
+        LineNum = PointNum + 1
     else:
-        plot_num = point_num - 1
-    if isinstance(color, dict):
-        method = search_dict(color, ['method', 'mode'])
-        if method in ['start-end']:
-            color_start = np.array(color['start'], dtype=np.float)
-            color_end = np.array(color['end'], dtype=np.float)
-            for i in range(plot_num):
-                xs, ys = [ points[i][0], points[(i+1)%point_num][0]], [ points[i][1], points[(i+1)%point_num][1]]
-                ratio = i / ( plot_num - 1 )
-                color_now = tuple( ratio * color_end + (1.0 - ratio) * color_start )
-                ax.add_line(Line2D( xs, ys, linewidth=width, color=color_now ))
-        elif method in ['given']:
-            color = search_dict(color, ['content', 'data'])
-            for i in range(plot_num):
-                xs, ys = [ points[i][0], points[(i+1)%point_num][0]], [ points[i][1], points[(i+1)%point_num][1]]
-                ax.add_line(Line2D( xs, ys, linewidth=width, color=color[i] ))           
-        else:
-            raise Exception('plot_polyline_plt: invalid color mode:'+str(method))
+        LineNum = PointNum
+        #Points = np.concatenate((Points, Points[-1, :][np.newaxis, :]), axis=0)
+
+    if isinstance(Color, np.ndarray):
+        pass
+    else:
+        for Index in range(LineNum):
+            PlotLinePlt(ax, Points[Index], Points[(Index + 1)%PointNum])
+
+    # if isinstance(color, dict):
+    #     method = search_dict(color, ['method', 'mode'])
+    #     if method in ['start-end']:
+    #         color_start = np.array(color['start'], dtype=np.float)
+    #         color_end = np.array(color['end'], dtype=np.float)
+    #         for i in range(plot_num):
+    #             xs, ys = [ points[i][0], points[(i+1)%PointNum][0]], [ points[i][1], points[(i+1)%PointNum][1]]
+    #             ratio = i / ( plot_num - 1 )
+    #             color_now = tuple( ratio * color_end + (1.0 - ratio) * color_start )
+    #             ax.add_line(Line2D( xs, ys, linewidth=width, color=color_now ))
+    #     elif method in ['given']:
+    #         color = search_dict(color, ['content', 'data'])
+    #         for i in range(plot_num):
+    #             xs, ys = [ points[i][0], points[(i+1)%PointNum][0]], [ points[i][1], points[(i+1)%PointNum][1]]
+    #             ax.add_line(Line2D( xs, ys, linewidth=width, color=color[i] ))           
+    #     else:
+    #         raise Exception('PlotPolyLinePlt: invalid color mode:'+str(method))
         
-    elif isinstance(color, tuple):
-        for i in range(plot_num):
-            xs, ys = [ points[i][0], points[(i+1)%point_num][0]], [ points[i][1], points[(i+1)%point_num][1]]
-            ax.add_line(Line2D( xs, ys, linewidth=width, color=color ))
-    else:
-        raise Exception('plot_polyline_plt: invalid color mode:'+str(method))
-    if isinstance(points, list):
-        points = np.array(points)
+    # elif isinstance(color, tuple):
+    #     for i in range(plot_num):
+    #         xs, ys = [ points[i][0], points[(i+1)%PointNum][0]], [ points[i][1], points[(i+1)%PointNum][1]]
+    #         ax.add_line(Line2D( xs, ys, linewidth=width, color=color ))
+    # else:
+    #     raise Exception('PlotPolyLinePlt: invalid color mode:'+str(method))
 
-plot_polyline = plot_polyline_plt
-
-def plot_matrix(ax, data, save=True, save_path='./', save_name='matrix_plot.png', title=None, colorbar=True):
+def PlotMatrix(ax, data, save=True, save_path='./', save_name='matrix_plot.png', title=None, colorbar=True):
     im = ax.imshow(data)
-    
-    
+
     if title is not None:
         ax.set_title(title)
     ax.axis('off')

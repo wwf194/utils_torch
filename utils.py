@@ -32,7 +32,7 @@ from utils_torch.attrs import *
 from utils_torch.python import *
 
 def add_log(log, time_stamp=True):
-    logger = utils_torch.args_global.logger
+    logger = utils_torch.ArgsGlobal.logger
     if logger is not None:
         if time_stamp:
             logger.debug("[%s]%s"%(get_time(), log))
@@ -40,7 +40,7 @@ def add_log(log, time_stamp=True):
             logger.debug("%s"%log)
 
 def add_warning(log, logger=None, time_stamp=True):
-    logger = utils_torch.args_global.logger
+    logger = utils_torch.ArgsGlobal.logger
     if logger is not None:
         if time_stamp:
             logger.warning("[%s][WARNING]%s"%(get_time(), log))
@@ -48,7 +48,7 @@ def add_warning(log, logger=None, time_stamp=True):
             logger.warning("%s"%log)
 
 def set_logger(logger):
-    utils_torch.args_global.logger = logger
+    utils_torch.ArgsGlobal.logger = logger
 
 def get_time(format="%Y-%m-%d %H:%M:%S", verbose=False):
     time_str = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
@@ -56,8 +56,61 @@ def get_time(format="%Y-%m-%d %H:%M:%S", verbose=False):
         print(time_str)
     return time_str
 
-def compose_function(*function):
+def ImplementInitializeTask(param, ObjCurrent, ObjRoot):
+    if param.Name in ["CreateAttr"]:
+        CreateAttr(param.Args, ObjCurrent, ObjRoot)
+    else:
+        raise Exception()
+    
+def CreateAttr(Args, ObjCurrent, ObjRoot=None):
+    Class = utils_torch.ImportModule(Args.Class)
+    AttrObj = Class.__MainClass__()
+    setattr(ObjCurrent, Args.AttrName, AttrObj)
+    AttrObj.InitFromParam(ParseAttr(Args.param, ObjCurrent=ObjCurrent, ObjRoot=ObjRoot))
+def ComposeFunction(*function):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), function, lambda x: x)
+
+def CallFunction(Functions, **kw):
+    # kw.setdefault("ObjRoot", None)
+    # kw.setdefault("ObjCurrent", None)
+    FunctionOutput = None
+    for FunctionDescription in Functions:
+        FunctionName = FunctionDescription[0]
+        FunctionArgs = FunctionDescription[1]
+        kw["__PreviousFunctionOutput__"] = FunctionOutput,
+        Function = ParseAttr(
+            FunctionName, 
+            **kw
+        )
+        FunctionArgsParsed = ParseFunctionArgs(FunctionArgs)
+        FunctionOutput = Function(*FunctionArgsParsed)
+
+def ParseFunctionArgs(FunctionArgs, **kw):
+    if type(FunctionArgs) is not list:
+        raise Exception()
+    ArgsParsed = []
+    for Arg in FunctionArgs:
+        if isinstance(Arg, str):
+            if Arg.startswith("__") and Arg.endswith("__"):
+                ArgsParsed.append(kw[Arg])
+            elif "&" in Arg:
+                ArgParsed = ParseAttr(Arg, **kw)
+                ArgsParsed.append(ArgParsed)
+        else:
+            ArgsParsed.append(Arg)
+    return ArgsParsed
+
+def ParseAttr(Str, **kw):
+    ObjRoot = kw.setdefault("ObjRoot", None)
+    ObjCurrent = kw.setdefault("ObjCurrent", None)
+    if "&" in Str:
+        sentence = Str.replace("&^", "ObjRoot.").replace("&", "ObjCurrent.")
+        return eval(sentence)
+    else:
+        return Str
+
+# def GetFunction(FunctionName, ObjRoot=None, ObjCurrent=None, **kw):
+#     return eval(FunctionName.replace("&^", "ObjRoot.").replace("&", "ObjCurrent"))
 
 def contain(list, items):
     if isinstance(items, Iterable) and not isinstance(items, str): # items is a list
@@ -191,20 +244,36 @@ def save_data(data, save_path): # save data into given file path. existing file 
     torch.save(data, f)
     f.close()
 
-def EnsureDirectoryOfFile(FilePath):
-    
-    return
 
-EnsureDirOfFile = EnsureDirectoryOfFile
+def ExistsFile(FilePath):
+    return os.path.isfile(FilePath)
+
+def Path2AbsolutePath(Path):
+    return os.path.abspath(Path)
 
 def EnsureDirectory(DirPath):
-    return
+    #DirPathAbs = Path2AbsolutePath(DirPath)
+    if os.path.exists(DirPath):
+        if not os.path.isdir(DirPath):
+            raise Exception("%s Already Exists but Is NOT a Directory."%DirPath)
+    else:
+        if not DirPath.endswith("/"):
+            DirPath += "/"
+        os.makedirs(DirPath)
 
 EnsureDir = EnsureDirectory
 EnsureFolder = EnsureDirectory
 
-def ExistsFile(FilePath):
-    return os.path.isfile(FilePath)
+def EnsureDirectoryOfFile(FilePath):
+    if FilePath.endswith("/"):
+        raise Exception()
+    FilePath = Path2AbsolutePath(FilePath)
+    FileDir = os.path.dirname(FilePath)
+    EnsureDir(FileDir)
+
+EnsureDirOfFile = EnsureDirectoryOfFile
+
+EnsureFolder = EnsureDir
 
 def EnsurePath(path, isFolder=False): # check if given path exists. if not, create it.
     if isFolder: # caller of this function makes sure that path is a directory/folder.
@@ -344,57 +413,57 @@ def get_items_from_dict(dict_, keys):
     else:
         return tuple(items)   
 
-def get_from_dict(dict_, key, default=None, write_default=False, throw_keyerror=True):
-    # try getting dict[key]. 
-    # if key exists, return dict[key].
-    # if no such key, return default, and set dict[key]=default if write_default==True.
-    '''
-    if isinstance(key, list):
-        items = []
-        for name in key:
-            items.append(dict_[name])
-        return tuple(items)
-    else:
-    '''
-    if dict_.get(key) is None:
-        if write_default:
-            dict_[key] = default
-        else:
-            if default is not None:
-                return default
-            else:
-                if throw_keyerror:
-                    raise Exception('KeyError: dict has not such key: %s'%str(key))
-                else:
-                    return None
-    return dict_[key]
+# def get_from_dict(dict_, key, default=None, write_default=False, throw_keyerror=True):
+#     # try getting dict[key]. 
+#     # if key exists, return dict[key].
+#     # if no such key, return default, and set dict[key]=default if write_default==True.
+#     '''
+#     if isinstance(key, list):
+#         items = []
+#         for name in key:
+#             items.append(dict_[name])
+#         return tuple(items)
+#     else:
+#     '''
+#     if dict_.get(key) is None:
+#         if write_default:
+#             dict_[key] = default
+#         else:
+#             if default is not None:
+#                 return default
+#             else:
+#                 if throw_keyerror:
+#                     raise Exception('KeyError: dict has not such key: %s'%str(key))
+#                 else:
+#                     return None
+#     return dict_[key]
 
-def search_dict(dict_, keys, default=None, write_default=False, write_default_key=None, throw_multi_error=False, throw_none_error=True):
-    values = []
-    for key in keys:
-        value = dict_.get(key)
-        if value is not None:
-            values.append(value)
-    if len(values)>1:
-        if throw_multi_error:
-            raise Exception('search_dict: found multiple keys.')
-        else:
-            return values
-    elif len(values)==0:
-        if default is not None:
-            if write_default:
-                if write_default_key is None: # write value to all keys
-                    for key in keys:
-                        dict_[key] = default
-                else:
-                    dict_[write_default_key] = default
-            return default
-        if throw_none_error:
-            raise Exception('search_dict: no keys matched.')
-        else:
-            return None
-    else:
-        return values[0]
+# def search_dict(dict_, keys, default=None, write_default=False, write_default_key=None, throw_multi_error=False, throw_none_error=True):
+#     values = []
+#     for key in keys:
+#         value = dict_.get(key)
+#         if value is not None:
+#             values.append(value)
+#     if len(values)>1:
+#         if throw_multi_error:
+#             raise Exception('search_dict: found multiple keys.')
+#         else:
+#             return values
+#     elif len(values)==0:
+#         if default is not None:
+#             if write_default:
+#                 if write_default_key is None: # write value to all keys
+#                     for key in keys:
+#                         dict_[key] = default
+#                 else:
+#                     dict_[write_default_key] = default
+#             return default
+#         if throw_none_error:
+#             raise Exception('search_dict: no keys matched.')
+#         else:
+#             return None
+#     else:
+#         return values[0]
 
 def write_dict_info(dict_, save_path='./', save_name='dict info.txt'): # write readable dict info into file.
     values_remained = []
@@ -920,6 +989,6 @@ def prep_title(title):
 
 from utils_torch.Router import BuildRouter
 
-args_global = utils_torch.json.JsonObj2PyObj({
+ArgsGlobal = utils_torch.json.JsonObj2PyObj({
     "logger": None
 })

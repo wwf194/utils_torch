@@ -2,6 +2,11 @@ import math
 import cmath
 import numpy as np
 
+import numpy as np
+
+def CreateArray(Shape, Value, DataType):
+    return np.full(tuple(Shape), Value, dtype=DataType)
+
 def Polar2Xy(Radius, Direction):
     # Direction: [-pi, pi)
     return Radius * math.cos(Direction), Radius * math.sin(Direction)
@@ -9,6 +14,12 @@ polar2xy = Polar2Xy
 
 def Xy2Polar(x, y):
     return cmath.polar(complex(x, y))
+
+def Xy2PolarNp(PointsNp):
+    # @param PointsNp: np.ndarray with shape [PointNum, (x, y)]
+    Radius = np.linalg.norm(PointsNp, axis=-1)
+    PolarsNp = np.stack([np.cos(Radius), np.sin(Radius)], axis=1)
+    return PolarsNp
 
 def Vectors2DirectionNp(PointsNp): # [PointNum, (x, y)]
     return np.arctan2(PointsNp[:, 1], PointsNp[:, 0])

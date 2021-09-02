@@ -2,7 +2,7 @@ import torch
 import utils_torch
 from utils_torch.attrs import SetAttrs, HasAttrs, EnsureAttrs
 
-def InitFromParams(param):
+def InitFromParam(param):
     # to be implemented
     return
 def load_model(param):
@@ -12,8 +12,8 @@ class MultiLayerPerceptron(torch.nn.Module):
     def __init__(self, param):
         super(MultiLayerPerceptron, self).__init__()
         if param is not None:
-            self.InitFromParams(param)
-    def InitFromParams(self, param):
+            self.InitFromParam(param)
+    def InitFromParam(self, param):
         self.param = param
         self.Layers = []
         EnsureAttrs(param, "Initialize.Method", default="FromNeuronNum")

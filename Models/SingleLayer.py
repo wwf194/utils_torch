@@ -4,12 +4,12 @@ import torch.nn.functional as F
 
 from utils_torch.model import *
 from utils_torch.utils import *
-from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, compose_function, SetAttrs
+from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, ComposeFunction, SetAttrs
 from utils_torch.model import GetNonLinearFunction, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, Create2DWeight
 
-def InitFromParams(param):
+def InitFromParam(param):
     model = SingleLayer()
-    model.InitFromParams(param)
+    model.InitFromParam(param)
     return model
 
 def load_model(args):
@@ -19,8 +19,8 @@ class SingleLayer(nn.Module):
     def __init__(self, param=None):
         super(SingleLayer, self).__init__()
         if param is not None:
-            self.InitFromParams(param)
-    def InitFromParams(self, param):
+            self.InitFromParam(param)
+    def InitFromParam(self, param):
         super(SingleLayer, self).__init__()
         SetAttrs(param, "Type", value="SingleLayer")
         EnsureAttrs(param, "Subtype", default="f(Wx+b)")
@@ -81,4 +81,4 @@ class SingleLayer(nn.Module):
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
             self.SelfConnectionMask = CreateSelfConnectionMask(param.Weight.Size[0])            
             get_Weight_function.append(lambda Weight:Weight * self.SelfConnectionMask)
-        self.get_Weight = compose_function(get_Weight_function)
+        self.get_Weight = ComposeFunction(get_Weight_function)

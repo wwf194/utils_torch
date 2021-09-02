@@ -13,6 +13,21 @@ def HasIntersection(A, B, C, D, Threshold=1.0e-9):
     BD = D - B
     return (np.cross(AC, AD) * np.cross(BC, BD) <= Threshold) * (np.cross(AC, BC) * np.cross(AD, BD) <= Threshold)
 
+def InterceptRatio(p1, p2, ref1, ref2, p1p2=None):
+    # Judge whether p1p2 will be intercepted by ref1-ref2.
+    # If yes, gives ratio: p1-InterceptionPoint / ref1-ref2
+    # If no, gives ratio 1.0.
+    PointNum = p1.shape[0]
+    Lambda = np.ones((PointNum), )
+    hasIntersection = HasIntersection(p1, p2, ref1, ref2)
+    hasIntersectionIndices = np.argwhere(hasIntersection)
+    p1WithIntersection = p1[hasIntersectionIndices, :]
+    intersectionPoins = IntersectionPoints(p1WithIntersection, p2[hasIntersectionIndices, :], ref1, ref2)
+    if p1p2 is None:
+        p1p2 = p2 - p1
+    LambdaWithIntersection = np.mean((intersectionPoins - p1WithIntersection) / p1p2, axis=1)
+    Lambda[hasIntersectionIndices] = LambdaWithIntersection
+    return Lambda
 
 def IntersectionPoint(A, B, C, D):
     return
@@ -35,7 +50,7 @@ def IsBoundaryBoxIntersect(P1, P2, Q1, Q2): # 快速排斥实验
     # np.min(P1[:, 1], P2[:, 1], axis=1) <= np.max(Q1[:, 1], Q2[:, 1], axis=1) * \
     # np.min(Q1[:, 1], Q2[:, 1], axis=1) <= np.max(P1[:, 1], P2[:, 1], axis=1)
 
-def isLineSegmentCross(P1, P2, Q1, Q2): # 跨立实验
+def IsLineSegmentCross(P1, P2, Q1, Q2): # 跨立实验
     if \
         ((Q1[:, 0]-P1[:, 0])*(Q1[:, 1]-Q2[:, 1])-(Q1[:, 1]-P1[:, 1])*( Q1[:, 0]-Q2[:, 0])) * ((Q1[:, 0]-P2[:, 0])*(Q1[:, 1]-Q2[:, 1])-(Q1[:, 1]-P2[:, 1])*(Q1[:, 0]-Q2[:, 0])) < 0 or \
         ((P1[:, 0]-Q1[:, 0])*(P1[:, 1]-P2[:, 1])-(P1[:, 1]-Q1[:, 1])*(P1[:, 0]-P2[:, 0])) * ((P1[:, 0]-Q2[:, 0])*(P1[:, 1]-P2[:, 1])-(P1[:, 1]-Q2[:, 1])*( P1[:, 0]-P2[:, 0])) < 0:
@@ -73,8 +88,7 @@ def _Perpendicular(a):
     b[:, 1] = a[:,0]
     return b
 
-
-def IntersectionPoint(P1, P2, Q1,Q2) :
+def IntersectionPoints(P1, P2, Q1,Q2) :
     P1P2 = P2 - P1
     Q1Q2 = Q2 - Q1
     Q1P1 = P1 - Q1
@@ -83,20 +97,10 @@ def IntersectionPoint(P1, P2, Q1,Q2) :
     Numerator = np.sum(P1P2Perpendicular * Q1P1, axis=1)
     return (Numerator / Denominator.astype(float)) * Q1Q2 + Q1
 
-def StartEndPoints2IntersectionPoints(StartPointsA, EndPointsA, StartPointsB, EndPointsB):
-    VectorsA = StartPointsA - EndPointsA
-    VectorsB = StartPointsB - EndPointsB
-
-    da = np.atleast_2d(a2 - a1)
-    db = np.atleast_2d(b2 - b1)
-    dp = np.atleast_2d(a1 - b1)
-    dap = np.dot(da, T)
-    denom = np.sum(dap * db, axis=1)
-    num = np.sum(dap * dp, axis=1)
-    return np.atleast_2d(num / denom).T * db + b1
-
-
 def main():
+
+
+
     return
 
 
