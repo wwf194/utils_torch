@@ -15,7 +15,7 @@ def plot_weight_2d(weight, ax=None, title=None):
         
     return 
 
-def get_data_stat():
+def Getdata_stat():
     print(torch.__version__)
     if torch.cuda.is_available():
         print('cuda is available')

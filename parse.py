@@ -48,7 +48,7 @@ def _Redirect2PyObjList(PyObj, PyObjRefs, parent, attr):
                     success = True
                     break
                 except Exception:
-                    utils_torch.add_log("Failed to redirect to current PyObjRef. Try redirecting to next PyObjRef.")
+                    utils_torch.AddLog("Failed to redirect to current PyObjRef. Try redirecting to next PyObjRef.")
             if not success:
                 raise Exception("Failed to redirect to any PyObjRef in given PyObjRefs.")
             SetAttrs(parent, attr, value=valueRef)
@@ -95,7 +95,7 @@ def _ParsePyObj(obj, root, attrs, parent, base_path="root."):
             try:
                 sentence = eval(sentence)
             except Exception:
-               utils_torch.add_log("Exception when running %s"%sentence)
+               utils_torch.AddLog("Exception when running %s"%sentence)
                raise Exception()
         if isinstance(sentence, str) and sentence.startswith("#"):
             sentence = eval(sentence[1:])

@@ -7,10 +7,6 @@ import time
 import math
 import cmath
 import warnings
-import json
-import jsons
-import json5
-import jsonpickle
 import pickle
 import importlib
 from typing import Iterable, List
@@ -26,85 +22,147 @@ import torch.nn as nn
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
-from utils_torch.files import *
-from utils_torch.json import *
+# from utils_torch.files import *
+# from utils_torch.json import *
 from utils_torch.attrs import *
-from utils_torch.python import *
+# from utils_torch.python import *
 
-def add_log(log, time_stamp=True):
+def AddLog(log, time_stamp=True):
     logger = utils_torch.ArgsGlobal.logger
     if logger is not None:
         if time_stamp:
-            logger.debug("[%s]%s"%(get_time(), log))
+            logger.debug("[%s]%s"%(GetTime(), log))
         else:
             logger.debug("%s"%log)
 
-def add_warning(log, logger=None, time_stamp=True):
+def AddWarning(log, logger=None, time_stamp=True):
     logger = utils_torch.ArgsGlobal.logger
     if logger is not None:
         if time_stamp:
-            logger.warning("[%s][WARNING]%s"%(get_time(), log))
+            logger.warning("[%s][WARNING]%s"%(GetTime(), log))
         else:
             logger.warning("%s"%log)
 
-def set_logger(logger):
+def SetLogger(logger):
     utils_torch.ArgsGlobal.logger = logger
 
-def get_time(format="%Y-%m-%d %H:%M:%S", verbose=False):
+def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
     time_str = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
     if verbose:
         print(time_str)
     return time_str
 
-def ImplementInitializeTask(param, ObjCurrent, ObjRoot):
-    if param.Name in ["CreateAttr"]:
-        CreateAttr(param.Args, ObjCurrent, ObjRoot)
+def ImplementInitializeTask(param, **kw):
+    ObjRoot = kw.setdefault("ObjRoot", None)
+    ObjCurrent = kw.setdefault("ObjCurrent", None)
+    if param.Type in ["BuildObject", "BuildObj"]:
+        BuildObj(param.Args, **kw)
+    elif param.Type in ["FunctionCall"]:
+        CallFunction(param.Args, **kw)
     else:
         raise Exception()
     
-def CreateAttr(Args, ObjCurrent, ObjRoot=None):
-    Class = utils_torch.ImportModule(Args.Class)
-    AttrObj = Class.__MainClass__()
-    setattr(ObjCurrent, Args.AttrName, AttrObj)
-    AttrObj.InitFromParam(ParseAttr(Args.param, ObjCurrent=ObjCurrent, ObjRoot=ObjRoot))
+def BuildObj(Args, **kw):
+    Module = utils_torch.ImportModule(Args.ModulePath)
+    Obj = Module.__MainClass__(ParseAttr(Args.ParamPath, **kw))
+    if Args.MountPath.startswith("&^"):
+        MountObj(Obj, kw["ObjRoot"], Args.MountPath.replace("&^", ""))
+    elif Args.MountPath.startswith("&"):
+        MountObj(Obj, kw["ObjCurrent"], Args.MountPath.replace("&", ""))
+    else:
+        raise Exception()
+
+BuildObject = BuildObj
+
+def MountObj(Obj, ObjRoot, MountPath):
+    SetAttrs(ObjRoot, MountPath, Obj)
+
 def ComposeFunction(*function):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), function, lambda x: x)
 
-def CallFunction(Functions, **kw):
+def CallFunctions(Functions, **kw):
+    ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
+    if isinstance(Functions, dict): # Call one function
+        _CallFunction(Functions, ContextInfo)
+    elif isinstance(Functions, list): # Call a cascade of functions
+        for Function in Functions:
+            _CallFunction(Function, ContextInfo)
+    else:
+        raise Exception()
+
+CallFunction = CallFunctions
+
+def _CallFunction(Function, ContextInfo):
     # kw.setdefault("ObjRoot", None)
     # kw.setdefault("ObjCurrent", None)
-    FunctionOutput = None
-    for FunctionDescription in Functions:
-        FunctionName = FunctionDescription[0]
-        FunctionArgs = FunctionDescription[1]
-        kw["__PreviousFunctionOutput__"] = FunctionOutput,
-        Function = ParseAttr(
-            FunctionName, 
-            **kw
-        )
-        FunctionArgsParsed = ParseFunctionArgs(FunctionArgs)
-        FunctionOutput = Function(*FunctionArgsParsed)
+    EnsureAttrs(ContextInfo, "__PreviousFunctionOutput__", None)
+    FunctionName = Function[0]
+    FunctionArgs = Function[1]
+    Function = ParseAttrFromContextInfo(
+        FunctionName,
+        ContextInfo
+    )
+    PositionalArgs, KeyWordArgs = ParseFunctionArgs(FunctionArgs, ContextInfo)
+    FunctionOutput = Function(*PositionalArgs, **KeyWordArgs)    
+    if FunctionOutput is not None:
+        print("aaa", FunctionOutput)
+        SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
+        print(ContextInfo.__PreviousFunctionOutput__)
+    else:
+        SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
 
-def ParseFunctionArgs(FunctionArgs, **kw):
+def RemoveStartEndEmptySpaceChars(Str):
+    Str = re.match(r"\s*([\S].*)", Str).group(1)
+    Str = re.match(r"(.*[\S])\s*", Str).group(1)
+    return Str
+
+RemoveHeadTailWhiteChars = RemoveStartEndEmptySpaceChars
+
+def ParseFunctionArgs(FunctionArgs, ContextInfo):
     if type(FunctionArgs) is not list:
         raise Exception()
-    ArgsParsed = []
+    PositionalArgs = []
+    KeyWordArgs = {}
     for Arg in FunctionArgs:
-        if isinstance(Arg, str):
-            if Arg.startswith("__") and Arg.endswith("__"):
-                ArgsParsed.append(kw[Arg])
-            elif "&" in Arg:
-                ArgParsed = ParseAttr(Arg, **kw)
-                ArgsParsed.append(ArgParsed)
+        if "=" in Arg:
+            Arg = Arg.split("=")
+            if not len(Arg) == 2:
+                raise Exception()
+            Key = RemoveHeadTailWhiteChars(Arg[0])
+            Value = RemoveHeadTailWhiteChars(Arg[1])
+            KeyWordArgs[Key] = ParseFunctionArg(Value, ContextInfo)
         else:
-            ArgsParsed.append(Arg)
-    return ArgsParsed
+            ArgParsed = ParseFunctionArg(Arg, ContextInfo)
+            PositionalArgs.append(ArgParsed)
+    return PositionalArgs, KeyWordArgs
+
+def ParseFunctionArg(Arg, ContextInfo):
+    if isinstance(Arg, str):
+        if Arg.startswith("__") and Arg.endswith("__"):
+            return GetAttrs(ContextInfo, Arg)
+        elif "&" in Arg:
+            #ArgParsed = ParseAttr(Arg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
+            return ParseAttrFromContextInfo(Arg, ContextInfo)
+        else:
+            return Arg
+    else:
+        return Arg
 
 def ParseAttr(Str, **kw):
     ObjRoot = kw.setdefault("ObjRoot", None)
     ObjCurrent = kw.setdefault("ObjCurrent", None)
     if "&" in Str:
         sentence = Str.replace("&^", "ObjRoot.").replace("&", "ObjCurrent.")
+        return eval(sentence)
+    else:
+        return Str
+
+def ParseAttrFromContextInfo(Str, ContextInfo):
+    EnsureAttrs(ContextInfo, "ObjRoot", None)
+    EnsureAttrs(ContextInfo, "ObjCurrent", None)
+    if "&" in Str:
+        sentence = Str.replace("&^", "GetAttrs(ContextInfo, 'ObjRoot').").\
+            replace("&", "GetAttrs(ContextInfo, 'ObjCurrent').")
         return eval(sentence)
     else:
         return Str
@@ -142,7 +200,7 @@ def contain_all(list_, items):
         else:
             return False    
 
-def get_row_col(tot_num, row_num=None, col_num=None):
+def Getrow_col(tot_num, row_num=None, col_num=None):
     if row_num is None and col_num is not None:
         row_num = tot_num // col_num
         if tot_num % col_num > 0:
@@ -155,11 +213,11 @@ def get_row_col(tot_num, row_num=None, col_num=None):
         return row_num, col_num
     else:
         if tot_num != row_num * col_num:
-            raise Exception('get_row_col: cannot simultaneouly fit row_num %d and col_num %d'%(row_num, col_num))
+            raise Exception('Getrow_col: cannot simultaneouly fit row_num %d and col_num %d'%(row_num, col_num))
         else:
             return row_num, col_num
 
-def get_ax(axes, row_index, col_index, row_num, col_num):
+def Getax(axes, row_index, col_index, row_num, col_num):
     if row_num==1: # deal with degraded cases where col_num or row_num is 1.
         if col_num>1:
             ax = axes[col_index]
@@ -177,22 +235,22 @@ def timeout_(timeout=5, daemon_threads_target=[], daemon_threads_args=[], daemon
         thread.start()
     time.sleep(timeout)
 
-def get_best_gpu(timeout=15, default_device='cuda:0'):
+def Getbest_gpu(timeout=15, default_device='cuda:0'):
     dict_ = {'device':None}
-    timeout_thread = threading.Thread(target=timeout_, args=(timeout, [get_best_gpu_], [()], [{'dict_':{}}]))
+    timeout_thread = threading.Thread(target=timeout_, args=(timeout, [Getbest_gpu_], [()], [{'dict_':{}}]))
     timeout_thread.start()
     timeout_thread.join()
 
     if dict_['device'] is None:
         if default_device is None:
-            raise Exception('get_best_gpu: Time Out.')
+            raise Exception('Getbest_gpu: Time Out.')
         else:
-            warnings.warn('get_best_gpu: Time out. Using default device.')
+            warnings.warn('Getbest_gpu: Time out. Using default device.')
             return default_device
     else:
         return dict_['device']
 
-def get_best_gpu_(dict_={}): # return torch.device with largest available gpu memory.
+def Getbest_gpu_(dict_={}): # return torch.device with largest available gpu memory.
     '''
     pynvml.nvmlInit()
     deviceCount = pynvml.nvmlDeviceGetCount()
@@ -264,14 +322,14 @@ def EnsureDirectory(DirPath):
 EnsureDir = EnsureDirectory
 EnsureFolder = EnsureDirectory
 
-def EnsureDirectoryOfFile(FilePath):
+def EnsureFileDirectory(FilePath):
     if FilePath.endswith("/"):
         raise Exception()
     FilePath = Path2AbsolutePath(FilePath)
     FileDir = os.path.dirname(FilePath)
     EnsureDir(FileDir)
 
-EnsureDirOfFile = EnsureDirectoryOfFile
+EnsureFileDir = EnsureFileDirectory
 
 EnsureFolder = EnsureDir
 
@@ -344,7 +402,7 @@ def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     print('file_path: %s'%file_path)
     #print('file_path_from_path_start: %s'%file_path_from_path_start)
     print('file_path_from_main_path: %s'%file_path_from_main_path)
-    print(target_path_module(file_path_from_main_path))
+    print(tarGetpath_module(file_path_from_main_path))
     '''
     #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
     return path_from_main
@@ -362,7 +420,7 @@ def import_file(file_from_sys_path):
     module_path = module_path.replace("/", ".")
     return importlib.ImportModule(module_path)
 
-def get_sys_type():
+def Getsys_type():
     if re.match(r'win',sys.platform) is not None:
         sys_type = 'windows'
     elif re.match(r'linux',sys.platform) is not None:
@@ -371,7 +429,7 @@ def get_sys_type():
         sys_type = 'unknown'
     return sys_type
 
-def get_name(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
+def Getname(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
     if isinstance(param, dict):
         name = search_dict(param, ['name', 'method', 'type'])
         return name
@@ -382,7 +440,7 @@ def get_name(param): # a mechanism supporting name and args given in different t
     else:
         raise Exception('Invalid param type:' +str(type(param)))
 
-def get_args(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
+def Getargs(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
     #print(type(param))
     #print(param)
     if isinstance(param, dict):
@@ -399,12 +457,12 @@ def get_args(param): # a mechanism supporting name and args given in different t
     else:
         raise Exception('Invalid param type:' +str(type(param)))
 
-def get_name_args(param):
-    return get_name(param), get_args(param)
+def Getname_args(param):
+    return Getname(param), Getargs(param)
 
-get_arg = get_args
+Getarg = Getargs
 
-def get_items_from_dict(dict_, keys):
+def GetItemsFromDict(dict_, keys):
     items = []
     for name in keys:
         items.append(dict_[name])
@@ -413,7 +471,7 @@ def get_items_from_dict(dict_, keys):
     else:
         return tuple(items)   
 
-# def get_from_dict(dict_, key, default=None, write_default=False, throw_keyerror=True):
+# def GetFromDict(dict_, key, default=None, write_default=False, throw_keyerror=True):
 #     # try getting dict[key]. 
 #     # if key exists, return dict[key].
 #     # if no such key, return default, and set dict[key]=default if write_default==True.
@@ -479,8 +537,8 @@ def print_torch_info(): # print info about training environment, global variable
     torch.pytorch_info()
     #print('device='+str(device))
 
-def get_act_func_module(act_func_info):
-    name = get_name(act_func_info)
+def Getact_func_module(act_func_info):
+    name = Getname(act_func_info)
     if name in ['relu']:
         return nn.ReLU()
     elif name in ['tanh']:
@@ -509,7 +567,7 @@ def update_key(dict_0, dict_1, prefix='', strip=False, strip_only=True, exempt=[
             else:
                 dict_0[trunc_key]=dict_1[key]
 
-def get_np_stat(data, verbose=False):
+def Getnp_stat(data, verbose=False):
     return {
         "min": np.min(data),
         "max": np.max(data),
@@ -631,7 +689,7 @@ def print_dict(dict_):
     print('\n')
 
 
-def get_last_model(model_prefix, base_dir='./', is_dir=True):
+def Getlast_model(model_prefix, base_dir='./', is_dir=True):
     # search for directory or file of most recently saved models(model with biggest epoch index)
     if is_dir:
         max_epoch = None
@@ -757,14 +815,14 @@ def scan_files(path, pattern, ignore_folder=True, raise_not_found_error=False):
 
     return matched_files
 
-def copy_files(file_list, source_path='./', target_path=None, sys_type='linux'):
+def copy_files(file_list, source_path='./', tarGetpath=None, sys_type='linux'):
     if not source_path.endswith('/'):
         source_path += '/'
 
-    if not target_path.endswith('/'):
-        target_path += '/'
+    if not tarGetpath.endswith('/'):
+        tarGetpath += '/'
 
-    EnsurePath(target_path)
+    EnsurePath(tarGetpath)
 
     '''
     if subpath is not None:
@@ -773,7 +831,7 @@ def copy_files(file_list, source_path='./', target_path=None, sys_type='linux'):
         path += subpath
     EnsurePath(path)
     '''
-    #print(target_path)
+    #print(tarGetpath)
     if sys_type in ['linux']:
         for file in file_list:
             file = file.lstrip('./')
@@ -782,12 +840,12 @@ def copy_files(file_list, source_path='./', target_path=None, sys_type='linux'):
             #print(file)
             #shutil.copy2(file, dest + file)
             #print(source_path + file)
-            #print(target_path + file)
-            EnsurePath(os.path.dirname(target_path + file))
-            if os.path.exists(target_path + file):
-                os.system('rm -r %s'%(target_path + file))
+            #print(tarGetpath + file)
+            EnsurePath(os.path.dirname(tarGetpath + file))
+            if os.path.exists(tarGetpath + file):
+                os.system('rm -r %s'%(tarGetpath + file))
             #print('cp -r %s %s'%(file_path + file, path + file))
-            os.system('cp -r %s %s'%(source_path + file, target_path + file))
+            os.system('cp -r %s %s'%(source_path + file, tarGetpath + file))
     elif sys_type in ['windows']:
         # to be implemented 
         pass
@@ -802,7 +860,7 @@ def join_path(path_0, path_1):
     if path_1.startswith('/'):
         raise Exception('join_path: path_1 is a absolute path: %s'%path_1)
     return path_0 + path_1
-def target_path_module(path):
+def tarGetpath_module(path):
     path = path.lstrip('./')
     path = path.lstrip('/')
     if not path.endswith('/'):
@@ -873,7 +931,7 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
         return None
 
 import hashlib
-def get_md5(path, md5=None):
+def Getmd5(path, md5=None):
     if md5 is None:
         md5 = hashlib.md5()
     if os.path.isfile(path):
@@ -909,7 +967,7 @@ def visit_path(args=None, func=None, recur=False, path=None):
 visit_dir = visit_path
 
 
-def copy_folder(source_path, target_path, exceptions=[], verbose=True):
+def copy_folder(source_path, tarGetpath, exceptions=[], verbose=True):
     '''
     if args.path is not None:
         path = args.path
@@ -917,7 +975,7 @@ def copy_folder(source_path, target_path, exceptions=[], verbose=True):
         path = '/data4/wangweifan/backup/'
     '''
     #EnsurePath(source_path)
-    EnsurePath(target_path)
+    EnsurePath(tarGetpath)
     
     for i in range(len(exceptions)):
         exceptions[i] = os.path.abspath(exceptions[i])
@@ -925,53 +983,53 @@ def copy_folder(source_path, target_path, exceptions=[], verbose=True):
             exceptions[i] += '/'
 
     source_path = os.path.abspath(source_path)
-    target_path = os.path.abspath(target_path)
+    tarGetpath = os.path.abspath(tarGetpath)
 
     if not source_path.endswith('/'):
         source_path += '/'
-    if not target_path.endswith('/'):
-        target_path += '/'
+    if not tarGetpath.endswith('/'):
+        tarGetpath += '/'
 
     if verbose:
-        print('Copying folder from %s to %s. Exceptions: %s'%(source_path, target_path, exceptions))
+        print('Copying folder from %s to %s. Exceptions: %s'%(source_path, tarGetpath, exceptions))
 
     if source_path + '/' in exceptions:
         warnings.warn('copy_folder: neglected the entire root path. nothing will be copied')
         if verbose:
             print('neglected')
     else:
-        copy_folder_recur(source_path, target_path, subpath='', exceptions=exceptions)
+        copy_folder_recur(source_path, tarGetpath, subpath='', exceptions=exceptions)
 
-def copy_folder_recur(source_path, target_path, subpath='', exceptions=[], verbose=True):
+def copy_folder_recur(source_path, tarGetpath, subpath='', exceptions=[], verbose=True):
     #EnsurePath(source_path + subpath)
-    EnsurePath(target_path + subpath)
+    EnsurePath(tarGetpath + subpath)
     items = os.listdir(source_path + subpath)
     for item in items:
-        #print(target_path + subpath + item)
+        #print(tarGetpath + subpath + item)
         path = source_path + subpath + item
         if os.path.isfile(path): # is a file
             if path + '/' in exceptions:
                 if verbose:
                     print('neglected file: %s'%path)
             else:
-                if os.path.exists(target_path + subpath + item):
-                    md5_source = get_md5(source_path + subpath + item)
-                    md5_target = get_md5(target_path + subpath + item)
+                if os.path.exists(tarGetpath + subpath + item):
+                    md5_source = Getmd5(source_path + subpath + item)
+                    md5_target = Getmd5(tarGetpath + subpath + item)
                     if md5_target==md5_source: # same file
                         #print('same file')
                         continue
                     else:
                         #print('different file')
-                        os.system('rm -r "%s"'%(target_path + subpath + item))
-                        os.system('cp -r "%s" "%s"'%(source_path + subpath + item, target_path + subpath + item))     
+                        os.system('rm -r "%s"'%(tarGetpath + subpath + item))
+                        os.system('cp -r "%s" "%s"'%(source_path + subpath + item, tarGetpath + subpath + item))     
                 else:
-                    os.system('cp -r "%s" "%s"'%(source_path + subpath + item, target_path + subpath + item))
+                    os.system('cp -r "%s" "%s"'%(source_path + subpath + item, tarGetpath + subpath + item))
         elif os.path.isdir(path): # is a folder.
             if path + '/' in exceptions:
                 if verbose:
                     print('neglected folder: %s'%(path + '/'))
             else:
-                copy_folder_recur(source_path, target_path, subpath + item + '/', verbose=verbose)
+                copy_folder_recur(source_path, tarGetpath, subpath + item + '/', verbose=verbose)
         else:
             warnings.warn('%s is neither a file nor a path.')
 
@@ -988,6 +1046,13 @@ def prep_title(title):
     return title
 
 from utils_torch.Router import BuildRouter
+
+def GetAllMethodsOfModule(ModulePath):
+    from inspect import getmembers, isfunction
+    Module = ImportModule(ModulePath)
+    return getmembers(Module, isfunction)
+
+ListAllMethodsOfModule = GetAllMethodsOfModule
 
 ArgsGlobal = utils_torch.json.JsonObj2PyObj({
     "logger": None

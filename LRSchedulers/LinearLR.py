@@ -90,15 +90,15 @@ class LinearLR(object): # linear lr scheduler log lr = a + b log epoch lr = e ^ 
         """
         self.__dict__.update(state_dict)
 
-    def get_last_lr(self):
+    def Getlast_lr(self):
         """ Return last computed learning rate by current scheduler.
         """
         return self._last_lr
 
-    def get_last_lr_decay(self):
+    def Getlast_lr_decay(self):
         return self._last_lr_decay
 
-    def get_lr(self):
+    def Getlr(self):
         # Compute learning rate using chainable form of the scheduler
         raise NotImplementedError
 
@@ -142,7 +142,7 @@ class LinearLR(object): # linear lr scheduler log lr = a + b log epoch lr = e ^ 
         lr_decays = []
         for i in range(epoch_num):
             self.step()
-            lr_decays.append(self.get_last_lr_decay())
+            lr_decays.append(self.Getlast_lr_decay())
         
         self.reset()
         figure, ax = plt.subplots()

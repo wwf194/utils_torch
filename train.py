@@ -281,7 +281,7 @@ def evaluate_iter(net, testloader, criterion, scheduler, augment, device):
         else:
             outputs, act = net(inputs)
             #outputs = list(map(lambda x:x.to(device), outputs))  
-        loss_total += net.get_loss(inputs, labels).item()
+        loss_total += net.Getloss(inputs, labels).item()
         correct_count+=(torch.max(outputs[-1], 1)[1]==labels).sum().item()
         labels_count+=labels.size(0)
     #print("\n")

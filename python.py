@@ -1,3 +1,5 @@
+import utils_torch
+
 def FilterDictFromPyObj(keys, PyObj):
     Dict = {}
     for key in keys:
@@ -24,10 +26,8 @@ def RegisterList2PyObj(List, PyObj, attrs=None):
     for index in range(len(List)):
         setattr(PyObj, attrs[index], List[index])
 
-def EmptyPyObj():
-    return type('test', (), {})()
 
-def isLegalPyName(name):
+def IsLegalPyName(name):
     if name=="":
         return False
     if name[0].isalpha() or name[0] == '_':
@@ -39,8 +39,6 @@ def isLegalPyName(name):
     else:
         return False
 
-def checkIsLegalPyName(name):
-    if not isLegalPyName(name):
+def CheckIsLegalPyName(name):
+    if not IsLegalPyName(name):
         raise Exception("%s is not a legal python name."%name)
-
-new_empty_object = EmptyPyObj

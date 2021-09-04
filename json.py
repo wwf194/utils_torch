@@ -1,42 +1,47 @@
-
+import re
 import json
 import json5
-import re
+from typing import List
 
 import utils_torch
+from utils_torch.python import CheckIsLegalPyName
 # from utils_torch.utils import ListAttrs # leads to recurrent reference.
+
+def EmptyPyObj():
+    return PyObj()
 
 class PyObj(object):
     def __init__(self, param=None):
         if param is not None:
             if type(param) is dict:
-                self.from_dict(param)
+                self.FromDict(param)
             elif type(param) is list:
-                self.from_list(param)
+                self.FromList(param)
             elif type(param) is str:
                 param = json.loads(param)
             else:
                 raise Exception()
-    def from_list(self, list):
-        for index, item in enumerate(list):
-            if type(item) is dict:
-                list[index] = PyObj(item)
-            elif type(item) is list:
-                self.from_list(item)
+    def FromList(self, list):
+        ListParsed = []
+        for Index, Item in enumerate(list):
+            if type(Item) is dict:
+                ListParsed.append(PyObj(Item))
+            elif type(Item) is list:
+                ListParsed.append(self.FromList(Item))
             else:
-                pass
-        return list
-    def from_dict(self, dict_):
-        self.__dict__ = {}
+                ListParsed.append(Item)
+        return ListParsed
+    def FromDict(self, dict_):
+        #self.__dict__ = {}
         for key, value in dict_.items():
             if "." in key:
                 keys = key.split(".")
-                utils_torch.python.checkIsLegalPyName(key[0])
+                CheckIsLegalPyName(key[0])
                 obj = self
                 for index, key in enumerate(keys):
                     if index == len(keys) - 1:
                         if hasattr(obj, key):
-                            utils_torch.add_warning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
+                            utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
                                 %(key, getattr(obj, key), value))
                         setattr(obj, key, value)
                     if hasattr(obj, key):
@@ -53,14 +58,18 @@ class PyObj(object):
                         setattr(obj, key, PyObj())
                         obj = getattr(self, key)
             else:
-                utils_torch.python.checkIsLegalPyName(key)
+                CheckIsLegalPyName(key)
                 if type(value) is dict:
-                    value = PyObj(value)
+                    if hasattr(self, key) and isinstance(getattr(self, key), PyObj):
+                        getattr(self, key).FromDict(value)
+                    else: # overwrite
+                        setattr(self, key, PyObj(value))
                 elif type(value) is list:
-                    self.from_list(value)
+                    # always overwrite
+                    setattr(self, key, self.FromList(value))
                 else:
-                    pass
-                setattr(self, key, value)
+                    # alwayes overwrite
+                    setattr(self, key, value)
         return self
     def to_dict(self):
         d = {}
@@ -78,9 +87,9 @@ class PyObj(object):
 
 def JsonObj2PyObj(json_obj):
     if isinstance(json_obj, list):
-        return PyObj().from_list(json_obj)
+        return PyObj().FromList(json_obj)
     elif isinstance(json_obj, dict):
-        return PyObj().from_dict(json_obj)
+        return PyObj().FromDict(json_obj)
     else:
         raise Exception()
 json_obj_to_object = JsonObj2PyObj

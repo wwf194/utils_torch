@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import re
 
 import utils_torch
-#from utils_torch.utils import EnsurePath, get_args, get_name, get_name_args, get_from_dict, search_dict, contain, contain_all, get_row_col, prep_title
+#from utils_torch.utils import EnsurePath, Getargs, Getname, Getname_args, GetFromDict, search_dict, contain, contain_all, Getrow_col, prep_title
 from utils_torch.json import *
 from utils_torch.attrs import *
 from utils_torch.LRSchedulers import LinearLR
@@ -37,7 +37,7 @@ def CreateExcitatoryInhibitoryMask(InputNum, OutputNum, ExcitatoryNum, Inhibitor
         InhibitoryNum = InputNum - ExcitatoryNum
     else:
         if InputNum != ExcitatoryNum + InhibitoryNum:
-            raise Exception("get_ExcitatoryInhibitoryMask: InputNum==ExcitatoryNum + InhibitoryNum must be satisfied.")
+            raise Exception("GetExcitatoryInhibitoryMask: InputNum==ExcitatoryNum + InhibitoryNum must be satisfied.")
 
     ExcitatoryMask = np.ones(ExcitatoryNum, OutputNum)
     InhibitoryMask = np.ones(InhibitoryNum, OutputNum)
@@ -82,7 +82,7 @@ def GetNonLinearFunction(description):
     else:
         raise Exception("GetNonLinearFunction: Invalid nonlinear function description: %s"%description)
 
-get_activation_function = GetNonLinearFunction
+Getactivation_function = GetNonLinearFunction
 
 def parse_non_linear_function_description(description):
     if isinstance(description, str):
@@ -151,9 +151,9 @@ def GetLossFunction(LossFunctionDescription, truth_is_label=False, num_class=Non
     else:
         raise Exception('Invalid loss function description: %s'%LossFunctionDescription)
 
-get_loss_function = GetLossFunction
+Getloss_function = GetLossFunction
 
-def get_act_func_module(act_func_str):
+def Getact_func_module(act_func_str):
     name = act_func_str
     if act_func_str in ['relu']:
         return nn.ReLU()
@@ -166,7 +166,7 @@ def get_act_func_module(act_func_str):
     else:
         raise Exception('Invalid act func str: %s'%act_func_str)
         
-def get_act_func_from_str(name='relu', Param=None):
+def Getact_func_from_str(name='relu', Param=None):
     if Param is None:
         Param = 'default'
     if name in ['none']:
@@ -191,16 +191,16 @@ def get_act_func_from_str(name='relu', Param=None):
         raise Exception('Invalid act func name: %s'%name)
 
 def build_optimizer(dict_, Params=None, model=None, load=False):
-    Type_ = get_from_dict(dict_, 'Type', default='sgd', write_default=True)
+    Type_ = GetFromDict(dict_, 'Type', default='sgd', write_default=True)
     #func = dict_['func'] #forward ; rec, output, input
-    #lr = get_from_dict(dict_, 'lr', default=1.0e-3, write_default=True)
+    #lr = GetFromDict(dict_, 'lr', default=1.0e-3, write_default=True)
     lr = dict_['lr']
-    weight_decay = get_from_dict(dict_, 'weight_decay', default=0.0, write_default=True)
+    weight_decay = GetFromDict(dict_, 'weight_decay', default=0.0, write_default=True)
     if Params is not None:
         pass
     elif model is not None:
-        if hasattr(model, 'get_Param_to_train'):
-            Params = model.get_Param_to_train()
+        if hasattr(model, 'GetParam_to_train'):
+            Params = model.GetParam_to_train()
         else:
             Params = model.Parameters()
     else:
@@ -249,7 +249,7 @@ def build_scheduler(dict_, optimizer, load=False, verbose=True):
     return scheduler
 
 # search for directory or file of most recently saved models(model with biggest epoch index)
-def get_last_model(model_prefix, base_dir=None, is_dir=True):
+def Getlast_model(model_prefix, base_dir=None, is_dir=True):
     if is_dir:
         max_epoch = None
         pattern = model_prefix+'(\d+)'
@@ -357,7 +357,7 @@ class MLP(nn.Module):
                 self.Params[name] = bias
         
         if not (self.layer_num == 1 and not self.dict['act_func_on_last_layer']):
-            self.act_func = get_act_func(self.dict['act_func'])
+            self.act_func = Getact_func(self.dict['act_func'])
 
         self.alt_weight_scale = self.dict.setdefault('alt_weight_scale', False)
         
@@ -448,7 +448,7 @@ class MLP(nn.Module):
             print(result)
         return result
     def plot_weight(self, axes=None, save=False, save_path='./', save_name='mlp_weight_plot.png'):
-        row_num, col_num = get_row_col()
+        row_num, col_num = Getrow_col()
         if axes is None:
             fig, axes = plt.subplots(nrows=row_num, ncols=col_num, figSize=(5*col_num, 5*row_num))
         if save:
@@ -485,7 +485,7 @@ class MLP(nn.Module):
 
 '''
 def build_mlp(dict_):
-    act_func = get_act_func_module(dict_['act_func'])
+    act_func = Getact_func_module(dict_['act_func'])
     Layers = []
     layer_dicts = []
     N_nums = dict_['N_nums'] #InputNum, hidden_layer1_unit_num, hidden_layer2_unit_numm ... OutputNum
@@ -501,13 +501,13 @@ def build_mlp(dict_):
 '''
 
 def build_mlp_sequential(dict_, load=False):
-    act_func = get_act_func_module(dict_['act_func'])
+    act_func = Getact_func_module(dict_['act_func'])
     use_bias = dict_['bias']
     Layers = []
     layer_dicts = []
     N_nums = dict_['N_nums'] #InputNum, hidden_layer1_unit_num, hidden_layer2_unit_numm ... OutputNum
     layer_num = len(N_nums) - 1
-    act_func_on_last_layer = get_from_dict(dict_, 'act_func_on_last_layer', default=True, write_default=True)
+    act_func_on_last_layer = GetFromDict(dict_, 'act_func_on_last_layer', default=True, write_default=True)
     for layer_index in range(layer_num):
         layer_current = nn.Linear(N_nums[layer_index], N_nums[layer_index+1], bias=use_bias)
         if load:
@@ -524,7 +524,7 @@ def print_model_Param(model):
         print('This is my %s. Size:%s is_leaf:%s device:%s requires_grad:%s'%
             (name, list(Param.Size()), Param.is_leaf, Param.device, Param.requires_grad))
 
-def get_tensor_info(tensor, name='', verbose=True, complete=True):
+def Gettensor_info(tensor, name='', verbose=True, complete=True):
     print(tensor.device)
     report = '%s...\033[0;31;40mVALUE\033[0m\n'%str(tensor)
     if complete:
@@ -535,7 +535,7 @@ def get_tensor_info(tensor, name='', verbose=True, complete=True):
         print(report)
     return report
 
-def get_tensor_stat(tensor, verbose=False):
+def Gettensor_stat(tensor, verbose=False):
     return {
         "min": torch.min(tensor),
         "max": torch.max(tensor),

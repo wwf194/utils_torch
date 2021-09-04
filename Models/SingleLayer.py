@@ -19,7 +19,7 @@ class SingleLayer(nn.Module):
     def __init__(self, param=None):
         super(SingleLayer, self).__init__()
         if param is not None:
-            self.InitFromParam(param)
+            self.param = param
     def InitFromParam(self, param):
         super(SingleLayer, self).__init__()
         SetAttrs(param, "Type", value="SingleLayer")
@@ -36,19 +36,19 @@ class SingleLayer(nn.Module):
             self.CreateWeight()
             self.CreateBias()
             self.NonLinear = GetNonLinearFunction(param.NonLinear)
-            self.forward = lambda x:self.NonLinear(torch.mm(x, self.get_Weight()) + self.Bias)
+            self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + self.Bias)
         elif param.Subtype in ["f(Wx)+b"]:
             self.CreateWeight()
             self.CreateBias()
             self.NonLinear = GetNonLinearFunction(param.NonLinear)
-            self.forward = lambda x:self.NonLinear(torch.mm(x, self.get_Weight())) + self.Bias
+            self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight())) + self.Bias
         elif param.Subtype in ["Wx"]:
             self.CreateWeight()
-            self.forward = lambda x:torch.mm(x, self.get_Weight())
+            self.forward = lambda x:torch.mm(x, self.GetWeight())
         elif param.Subtype in ["Wx+b"]:
             self.CreateWeight()
             self.CreateBias()
-            self.forward = lambda x:torch.mm(x, self.get_Weight()) + self.Bias         
+            self.forward = lambda x:torch.mm(x, self.GetWeight()) + self.Bias         
         else:
             raise Exception("SingleLayer: Invalid Subtype: %s"%param.Subtype)
     def CreateBias(self, Size=None):
@@ -69,16 +69,16 @@ class SingleLayer(nn.Module):
         if not HasAttrs(param.Weight, "Size"):
             SetAttrs(param.Weight, "Size", value=[param.Input.Num, param.Output.Num])
         self.Weight = torch.nn.Parameter(Create2DWeight(param.Weight))
-        get_Weight_function = [lambda :self.Weight]
+        GetWeight_function = [lambda :self.Weight]
         if MatchAttrs(param.Weight, "isExciInhi", value=True):
             self.ExciInhiMask = CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.excitatory.Num, param.Weight.inhibitory.Num)
-            get_Weight_function.append(lambda Weight:Weight * self.ExciInhiMask)
+            GetWeight_function.append(lambda Weight:Weight * self.ExciInhiMask)
             EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")
             self.WeightConstraintMethod = GetConstraintFunction(param.Weight.ConstraintMethod)
-            get_Weight_function.append(self.WeightConstraintMethod)
+            GetWeight_function.append(self.WeightConstraintMethod)
         if MatchAttrs(param.Weight, "NoSelfConnection", value=True):
             if param.Weight.Size[0] != param.Weight.Size[1]:
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
             self.SelfConnectionMask = CreateSelfConnectionMask(param.Weight.Size[0])            
-            get_Weight_function.append(lambda Weight:Weight * self.SelfConnectionMask)
-        self.get_Weight = ComposeFunction(get_Weight_function)
+            GetWeight_function.append(lambda Weight:Weight * self.SelfConnectionMask)
+        self.GetWeight = ComposeFunction(GetWeight_function)

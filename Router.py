@@ -6,7 +6,7 @@ from utils_torch.python import *
 class Router:
     def __init__(self, param=None):
         if param is not None:
-            self.InitFromParam(param)
+            self.param = param
     def InitFromParam(self, param):
         ParseRoutersStr(param.Routings)
     def forward(self, **kw):

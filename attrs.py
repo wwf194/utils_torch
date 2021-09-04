@@ -1,13 +1,15 @@
 
+from utils_torch.json import PyObj
 import utils_torch
 
-def CheckAttrs(Obj, attrs, *args, **kw):
+def CheckAttrs(Obj, attrs=[], *args, **kw):
     if kw.get("value") is None:
         raise Exception()
-    if GetAttrs(Obj, attrs, *args) != kw["value"]:
-        raise Exception() 
+    Value = GetAttrs(Obj, attrs, *args)
+    if Value != kw["value"]:
+        raise Exception("CheckAttrs: %s != %s"%(Value, kw["value"]))
 
-def SetAttrs(Obj, attrs, *args, **kw):
+def SetAttrs(Obj, attrs=[], *args, **kw):
     if kw.get("value") is None:
         attrs = _ParseAttrs(attrs, *args)
         if len(attrs) > 0:
@@ -16,8 +18,7 @@ def SetAttrs(Obj, attrs, *args, **kw):
             args = []
         else:
             raise Exception("SetAttrs: named parameter value must be given.")
-    else:
-        default = kw["value"]
+
     kw["WriteDefault"] = True
     kw["default"] = kw["value"]
     EnsureAttrs(Obj, attrs, *args, **kw)
@@ -59,41 +60,81 @@ def MatchAttrs(Obj, attrs=None, *args, **kw):
                 return True
         return False
 
-def EnsureAttrs(Obj, attrs, *args, **kw):
+def EnsureAttrs(Obj, attrs=[], *args, **kw):
+    attrs = _ParseAttrs(attrs, *args)
     if kw.get("default") is None:
         if kw.get("value") is not None:
-            default = kw["value"]
+            kw["default"] = kw["value"]
         else:
-            default = None
-    else:
-        default = kw["default"]
-
-    attrs = _ParseAttrs(attrs, *args)
-    Obj_root = Obj
+            if len(attrs)>0:
+                kw["default"] = attrs[-1]
+                attrs = attrs[:-1]
+            else:
+                raise Exception()
+    default = kw["default"]
     count = 0
-    for attr in attrs:
-        if count < len(attrs) - 1:
-            if not hasattr(Obj, "__dict__"):
-                Obj = utils_torch.json.PyObj({
-                    "__value__": Obj
-                })
-            if hasattr(Obj, attr):
-                Obj = getattr(Obj, attr)
+
+    if len(attrs) == 0:
+        if isinstance(Obj, PyObj):
+            if kw.get("WriteDefault")==True:
+                setattr(Obj, "__value__", default)
+        return
+
+    parent, parentAttr = None, None
+    for index, attr in enumerate(attrs):
+        if index < len(attrs) - 1:
+            if hasattr(Obj, "__dict__"):
+                parent = Obj
+                parentAttr = attr
+                if hasattr(Obj, attr):
+                    Obj = getattr(Obj, attr)
+                else:
+                    setattr(Obj, attr, utils_torch.PyObj())
+                    Obj = getattr(Obj, attr)               
             else:
-                Obj_empty = utils_torch.new_empty_object()
-                setattr(Obj, attr, Obj_empty)
-                Obj = Obj_empty
+                SetAttr(parent, parentAttr, utils_torch.json.PyObj({"__value__": Obj}))
+                Obj = getattr(parent, parentAttr)
+                parent = Obj
+                parentAttr = attr
+                setattr(Obj, attr, utils_torch.PyObj())
+                Obj = getattr(Obj, attr)                    
         else:
-            if hasattr(Obj, attr):
-                value = getattr(Obj, attr)
-                if value is not None: # Obj already has a not None attribute
-                    if kw.get("WriteDefault")==True:
-                        setattr(Obj, attr, default)       
+            if hasattr(Obj, "__dict__"):
+                if hasattr(Obj, attr):
+                    value = getattr(Obj, attr)
+                    if value is not None: # Obj already has a not None attribute
+                        if kw.get("WriteDefault")==True:
+                            setattr(Obj, attr, default)
+                    else:
+                        setattr(Obj, attr, default)
+                else:
+                    setattr(Obj, attr, default)
             else:
-                setattr(Obj, attr, default)
+                if kw.get("WriteDefault")==True:
+                    if parent is None:
+                        raise Exception("EnsureAttrs: Cannot redirect parent attribute.")
+                    SetAttr(parent, parentAttr, 
+                        utils_torch.PyObj({
+                            "__value__": Obj,
+                        }))
+                    
+                    Obj = getattr(parent, parentAttr)
+                    setattr(Obj, attr, default)
         count += 1
 
 ensure_attrs = EnsureAttrs
+
+def SetAttr(Obj, Attr, Value):
+    if isinstance(Obj, list):
+        if isinstance(Attr, str):
+            Attr = int(Attr)
+        Obj[Attr] = Value
+    elif isinstance(Obj, dict):
+        Obj[Attr] = Value
+    elif hasattr(Obj, "__dict__"):
+        setattr(Obj, Attr, Value)
+    else:
+        raise Exception()
 
 def HasAttrs(Obj, attrs, *args, false_if_none=True):
     attrs = _ParseAttrs(attrs, *args)
@@ -117,7 +158,7 @@ def ListAttrs(Obj):
 
 list_attrs = ListAttrs
 
-def GetAttrs(Obj, attrs, *args):
+def GetAttrs(Obj, attrs=[], *args):
     attrs = _ParseAttrs(attrs, *args)
     attrs_reached = []
     for attr in attrs:
@@ -141,7 +182,7 @@ def GetAttrs(Obj, attrs, *args):
         return Obj.__value__
     return Obj
 
-get_attrs = GetAttrs
+Getattrs = GetAttrs
 
 def _ParseAttrs(attrs, *args):
     if isinstance(attrs, list):

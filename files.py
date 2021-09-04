@@ -8,7 +8,7 @@ def RemoveAllFiles(path, verbose=True):
     for file in GetAllFiles(path):
         file_path = os.path.join(path, file)
         os.remove(file_path)
-        utils_torch.add_log("utils_pytorch: removed file: %s"%file_path)
+        utils_torch.AddLog("utils_pytorch: removed file: %s"%file_path)
 
 def GetAllFiles(DirPath):
     if not os.path.exists(DirPath):
@@ -35,3 +35,5 @@ def GetAllDirs(DirPath):
         if os.path.isdir(os.path.join(DirPath, item)):
             Dirs.append(item)
     return Dirs
+
+ListAllDirs = GetAllDirs

@@ -12,7 +12,7 @@ class MultiLayerPerceptron(torch.nn.Module):
     def __init__(self, param):
         super(MultiLayerPerceptron, self).__init__()
         if param is not None:
-            self.InitFromParam(param)
+            self.param = param
     def InitFromParam(self, param):
         self.param = param
         self.Layers = []
