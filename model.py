@@ -25,8 +25,8 @@ def BuildModule(ModuleParam):
     elif ModuleParam.Type in ["SerialSender"]:
         pass
     else:
-        raise Exception("build_module: No such module: %s"%ModuleParam.Type)
-build_module = BuildModule
+        raise Exception("BuildModule: No such module: %s"%ModuleParam.Type)
+BuildModule = BuildModule
 
 def CreateSelfConnectionMask(Size):
     return torch.from_numpy(np.ones(Size, Size) - np.eye(Size))

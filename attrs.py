@@ -1,4 +1,3 @@
-
 from utils_torch.json import PyObj
 import utils_torch
 
@@ -155,6 +154,9 @@ has_attrs = HasAttrs
 
 def ListAttrs(Obj):
     return [(attr, value) for attr, value in Obj.__dict__.items()]
+
+def ListValues(Obj):
+    return Obj.__dict__.values()
 
 list_attrs = ListAttrs
 

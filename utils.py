@@ -4,8 +4,6 @@ import sys
 import functools
 import threading
 import time
-import math
-import cmath
 import warnings
 import pickle
 import importlib
@@ -25,32 +23,33 @@ from matplotlib import pyplot as plt
 # from utils_torch.files import *
 # from utils_torch.json import *
 from utils_torch.attrs import *
+from utils_torch.files import *
 # from utils_torch.python import *
 
-def AddLog(log, time_stamp=True):
-    logger = utils_torch.ArgsGlobal.logger
-    if logger is not None:
-        if time_stamp:
-            logger.debug("[%s]%s"%(GetTime(), log))
+def AddLog(Log, TimeStamp=True):
+    Logger = utils_torch.ArgsGlobal.Logger
+    if Logger is not None:
+        if TimeStamp:
+            Logger.debug("[%s]%s"%(GetTime(), Log))
         else:
-            logger.debug("%s"%log)
+            Logger.debug("%s"%Log)
 
-def AddWarning(log, logger=None, time_stamp=True):
-    logger = utils_torch.ArgsGlobal.logger
-    if logger is not None:
-        if time_stamp:
-            logger.warning("[%s][WARNING]%s"%(GetTime(), log))
+def AddWarning(Log, Logger=None, TimeStamp=True):
+    Logger = utils_torch.ArgsGlobal.Logger
+    if Logger is not None:
+        if TimeStamp:
+            Logger.warning("[%s][WARNING]%s"%(GetTime(), Log))
         else:
-            logger.warning("%s"%log)
-
-def SetLogger(logger):
-    utils_torch.ArgsGlobal.logger = logger
+            Logger.warning("%s"%Log)
+    
+def SetLogger(Logger):
+    utils_torch.ArgsGlobal.Logger = Logger
 
 def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
-    time_str = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
+    TimeStr = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
     if verbose:
-        print(time_str)
-    return time_str
+        print(TimeStr)
+    return TimeStr
 
 def ImplementInitializeTask(param, **kw):
     ObjRoot = kw.setdefault("ObjRoot", None)
@@ -64,7 +63,7 @@ def ImplementInitializeTask(param, **kw):
     
 def BuildObj(Args, **kw):
     Module = utils_torch.ImportModule(Args.ModulePath)
-    Obj = Module.__MainClass__(ParseAttr(Args.ParamPath, **kw))
+    Obj = Module.__MainClass__(utils_torch.parse.ParseAttr(Args.ParamPath, **kw))
     if Args.MountPath.startswith("&^"):
         MountObj(Obj, kw["ObjRoot"], Args.MountPath.replace("&^", ""))
     elif Args.MountPath.startswith("&"):
@@ -77,8 +76,8 @@ BuildObject = BuildObj
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
-def ComposeFunction(*function):
-    return functools.reduce(lambda f, g: lambda x: f(g(x)), function, lambda x: x)
+def ComposeFunction(*Functions):
+    return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions, lambda x: x)
 
 def CallFunctions(Functions, **kw):
     ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
@@ -98,18 +97,26 @@ def _CallFunction(Function, ContextInfo):
     EnsureAttrs(ContextInfo, "__PreviousFunctionOutput__", None)
     FunctionName = Function[0]
     FunctionArgs = Function[1]
-    Function = ParseAttrFromContextInfo(
+    Function = utils_torch.parse.ParseAttrFromContextInfo(
         FunctionName,
         ContextInfo
     )
-    PositionalArgs, KeyWordArgs = ParseFunctionArgs(FunctionArgs, ContextInfo)
+    PositionalArgs, KeyWordArgs = utils_torch.parse.ParseFunctionArgs(FunctionArgs, ContextInfo)
     FunctionOutput = Function(*PositionalArgs, **KeyWordArgs)    
     if FunctionOutput is not None:
-        print("aaa", FunctionOutput)
         SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
         print(ContextInfo.__PreviousFunctionOutput__)
     else:
         SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
+
+def CallGraph(Router):
+    States = Router.In
+    for Routing in Router.Routings:
+        Routing = utils_torch.parse.ParseRoutingDynamic(Routing, States)
+        for TimeIndex in range(Routing.RepeatTime):
+            InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
+            OutputList = Routing.Module(*InputList)
+            utils_torch.parse.RegisterList2PyObj(OutputList, States, Routing.Out)
 
 def RemoveStartEndEmptySpaceChars(Str):
     Str = re.match(r"\s*([\S].*)", Str).group(1)
@@ -118,114 +125,45 @@ def RemoveStartEndEmptySpaceChars(Str):
 
 RemoveHeadTailWhiteChars = RemoveStartEndEmptySpaceChars
 
-def ParseFunctionArgs(FunctionArgs, ContextInfo):
-    if type(FunctionArgs) is not list:
+
+def ToNpArray(data, DataType=np.float32):
+    if isinstance(data, np.ndarray):
+        return data
+    elif isinstance(data, list):
+        return np.array(data, dtype=DataType)
+    else:
         raise Exception()
-    PositionalArgs = []
-    KeyWordArgs = {}
-    for Arg in FunctionArgs:
-        if "=" in Arg:
-            Arg = Arg.split("=")
-            if not len(Arg) == 2:
-                raise Exception()
-            Key = RemoveHeadTailWhiteChars(Arg[0])
-            Value = RemoveHeadTailWhiteChars(Arg[1])
-            KeyWordArgs[Key] = ParseFunctionArg(Value, ContextInfo)
-        else:
-            ArgParsed = ParseFunctionArg(Arg, ContextInfo)
-            PositionalArgs.append(ArgParsed)
-    return PositionalArgs, KeyWordArgs
 
-def ParseFunctionArg(Arg, ContextInfo):
-    if isinstance(Arg, str):
-        if Arg.startswith("__") and Arg.endswith("__"):
-            return GetAttrs(ContextInfo, Arg)
-        elif "&" in Arg:
-            #ArgParsed = ParseAttr(Arg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
-            return ParseAttrFromContextInfo(Arg, ContextInfo)
-        else:
-            return Arg
+def ToList(data):
+    if isinstance(data, list):
+        return data
+    elif isinstance(data, np.ndarray):
+        return data.tolist()
     else:
-        return Arg
-
-def ParseAttr(Str, **kw):
-    ObjRoot = kw.setdefault("ObjRoot", None)
-    ObjCurrent = kw.setdefault("ObjCurrent", None)
-    if "&" in Str:
-        sentence = Str.replace("&^", "ObjRoot.").replace("&", "ObjCurrent.")
-        return eval(sentence)
-    else:
-        return Str
-
-def ParseAttrFromContextInfo(Str, ContextInfo):
-    EnsureAttrs(ContextInfo, "ObjRoot", None)
-    EnsureAttrs(ContextInfo, "ObjCurrent", None)
-    if "&" in Str:
-        sentence = Str.replace("&^", "GetAttrs(ContextInfo, 'ObjRoot').").\
-            replace("&", "GetAttrs(ContextInfo, 'ObjCurrent').")
-        return eval(sentence)
-    else:
-        return Str
+        raise Exception()
 
 # def GetFunction(FunctionName, ObjRoot=None, ObjCurrent=None, **kw):
 #     return eval(FunctionName.replace("&^", "ObjRoot.").replace("&", "ObjCurrent"))
 
-def contain(list, items):
-    if isinstance(items, Iterable) and not isinstance(items, str): # items is a list
-        sig = False
-        for item in items:
-            if item in list:
-                sig = True
-                break
-        return sig
-    else: # items is uniterable object
-        if items in list:
+def ContainAtLeastOne(List, Items, *args):
+    if isinstance(Items, list):
+        Items = [*Items, *args]
+    else:
+        Items = [Items, *args] 
+    for Item in Items:
+        if Item in List:
             return True
-        else:
+    return False
+
+def ContainAll(List, Items, *args):
+    if isinstance(Items, list):
+        Items = [*Items, *args]
+    else:
+        Items = [Items, *args]   
+    for Item in Items:
+        if Item not in List:
             return False
-
-def contain_all(list_, items):
-    if isinstance(items, Iterable): # items is a list
-        sig = True
-        for item in items:
-            if item in list_:
-                continue
-            else:
-                sig = False
-                break
-        return sig
-    else: # items is uniterable object
-        if items in list_:
-            return True
-        else:
-            return False    
-
-def Getrow_col(tot_num, row_num=None, col_num=None):
-    if row_num is None and col_num is not None:
-        row_num = tot_num // col_num
-        if tot_num % col_num > 0:
-            row_num += 1
-        return row_num, col_num
-    elif row_num is not None and col_num is None:
-        col_num = tot_num // row_num
-        if tot_num % row_num > 0:
-            col_num += 1
-        return row_num, col_num
-    else:
-        if tot_num != row_num * col_num:
-            raise Exception('Getrow_col: cannot simultaneouly fit row_num %d and col_num %d'%(row_num, col_num))
-        else:
-            return row_num, col_num
-
-def Getax(axes, row_index, col_index, row_num, col_num):
-    if row_num==1: # deal with degraded cases where col_num or row_num is 1.
-        if col_num>1:
-            ax = axes[col_index]
-        else:
-            ax = axes
-    else:
-        ax = axes[row_index, col_index]
-    return ax
+    return True
 
 #@timeout_decorator.timeout(15)
 def timeout_(timeout=5, daemon_threads_target=[], daemon_threads_args=[], daemon_threads_kwargs=[]):
@@ -235,11 +173,14 @@ def timeout_(timeout=5, daemon_threads_target=[], daemon_threads_args=[], daemon
         thread.start()
     time.sleep(timeout)
 
-def Getbest_gpu(timeout=15, default_device='cuda:0'):
+def WatchDogTimer(Seconds=10):
+    WatchDogTimerThread = threading.Thread(target=timeout_, args=(timeout, [Getbest_gpu_], [()], [{'dict_':{}}]))
+    WatchDogTimerThread.start()
+    WatchDogTimerThread.join()
+
+def GetGPUWithLargestRemainingMemory(TimeOutSeconds=15, default_device='cuda:0'):
     dict_ = {'device':None}
-    timeout_thread = threading.Thread(target=timeout_, args=(timeout, [Getbest_gpu_], [()], [{'dict_':{}}]))
-    timeout_thread.start()
-    timeout_thread.join()
+    WatchDogTimer(Seconds=TimeOutSeconds)
 
     if dict_['device'] is None:
         if default_device is None:
@@ -250,25 +191,26 @@ def Getbest_gpu(timeout=15, default_device='cuda:0'):
     else:
         return dict_['device']
 
-def Getbest_gpu_(dict_={}): # return torch.device with largest available gpu memory.
-    '''
-    pynvml.nvmlInit()
-    deviceCount = pynvml.nvmlDeviceGetCount()
-    deviceMemory = []
-    #print('aaa')
-    for i in range(deviceCount):
-        #print(i)
-        handle = pynvml.nvmlDeviceGetHandleByIndex(i) # sometimes stuck here.
-        # print('GPU', i, ':', pynvml.nvmlDeviceGetName(handle))
-        mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-        deviceMemory.append(mem_info.free)
-        #print(i)
-    deviceMemory = np.array(deviceMemory, dtype=np.int64)
-    best_device_index = np.argmax(deviceMemory)    
-    dict_['device'] = 'cuda:%d'%(best_device_index)
-    '''
-    return dict_
-    
+def _GetGPUWithLargestRemainingMemory(dict_={}): # return torch.device with largest available gpu memory.
+    try:
+        import pynvml
+        pynvml.nvmlInit()
+        deviceCount = pynvml.nvmlDeviceGetCount()
+        deviceMemory = []
+        for i in range(deviceCount):
+            #print(i)
+            handle = pynvml.nvmlDeviceGetHandleByIndex(i) # sometimes stuck here.
+            # print('GPU', i, ':', pynvml.nvmlDeviceGetName(handle))
+            mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
+            deviceMemory.append(mem_info.free)
+            #print(i)
+        deviceMemory = np.array(deviceMemory, dtype=np.int64)
+        best_device_index = np.argmax(deviceMemory)    
+        dict_['device'] = 'cuda:%d'%(best_device_index)
+        return dict_
+    except Exception:
+        return "gpu:0"
+
 def split_batch(data, batch_size): #data:(batch_size, image_size)
     sample_num = data.size(0)
     batch_sizes = [batch_size for _ in range(sample_num // batch_size)]
@@ -289,6 +231,8 @@ def cat_batch(dataloader): #data:(batch_num, batch_size, image_size)
     '''
     return torch.cat(dataloader, dim=0)
 
+
+
 def read_data(read_dir): #read data from file.
     if not os.path.exists(read_dir):
         return None
@@ -301,70 +245,6 @@ def save_data(data, save_path): # save data into given file path. existing file 
     f = open(save_path, 'wb')
     torch.save(data, f)
     f.close()
-
-
-def ExistsFile(FilePath):
-    return os.path.isfile(FilePath)
-
-def Path2AbsolutePath(Path):
-    return os.path.abspath(Path)
-
-def EnsureDirectory(DirPath):
-    #DirPathAbs = Path2AbsolutePath(DirPath)
-    if os.path.exists(DirPath):
-        if not os.path.isdir(DirPath):
-            raise Exception("%s Already Exists but Is NOT a Directory."%DirPath)
-    else:
-        if not DirPath.endswith("/"):
-            DirPath += "/"
-        os.makedirs(DirPath)
-
-EnsureDir = EnsureDirectory
-EnsureFolder = EnsureDirectory
-
-def EnsureFileDirectory(FilePath):
-    if FilePath.endswith("/"):
-        raise Exception()
-    FilePath = Path2AbsolutePath(FilePath)
-    FileDir = os.path.dirname(FilePath)
-    EnsureDir(FileDir)
-
-EnsureFileDir = EnsureFileDirectory
-
-EnsureFolder = EnsureDir
-
-def EnsurePath(path, isFolder=False): # check if given path exists. if not, create it.
-    if isFolder: # caller of this function makes sure that path is a directory/folder.
-        if not path.endswith('/'): # folder
-            warnings.warn('%s is a folder, and should ends with /.'%path)
-            path += '/'
-            #print(path)
-            #input()
-        if not os.path.exists(path):
-            os.makedirs(path)
-    else: # path can either be a directory or a folder. If path exists, then it is what it is (file or folder). If not, depend on whether it ends with '/'.
-        if os.path.exists(path): # path exists
-            if os.path.isdir(path):
-                if not path.endswith('/'): # folder
-                    path += '/'     
-            elif os.path.isfile(path):
-                raise Exception('file already exists: %s'%str(path))
-            else:
-                raise Exception('special file already exists: %s'%str(path))
-        else: # path does not exists
-            if path.endswith('/'): # path is a folder
-                path_strip = path.rstrip('/')
-            else:
-                path_strip = path
-            if os.path.exists(path_strip): # folder with same name exists
-                raise Exception('EnsurePath: homonymous file exists.')
-            else:
-                if not os.path.exists(path_strip):
-                    os.makedirs(path_strip)
-                    #os.mkdir(path) # os.mkdir does not support creating multi-level folders.
-                #filepath, filename = os.path.split(path)
-    return path
-
 
 def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     # path_rel: file path relevant to path_start
@@ -402,7 +282,7 @@ def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     print('file_path: %s'%file_path)
     #print('file_path_from_path_start: %s'%file_path_from_path_start)
     print('file_path_from_main_path: %s'%file_path_from_main_path)
-    print(tarGetpath_module(file_path_from_main_path))
+    print(TargetDir_module(file_path_from_main_path))
     '''
     #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
     return path_from_main
@@ -567,14 +447,6 @@ def update_key(dict_0, dict_1, prefix='', strip=False, strip_only=True, exempt=[
             else:
                 dict_0[trunc_key]=dict_1[key]
 
-def Getnp_stat(data, verbose=False):
-    return {
-        "min": np.min(data),
-        "max": np.max(data),
-        "mean": np.mean(data),
-        "std": np.std(data),
-        "var": np.var(data)
-    }
 
 
 def plot_train_curve(stat_dir, loss_only=False):
@@ -688,8 +560,7 @@ def print_dict(dict_):
         print('%s=%s'%(str(key), str(items)), end=' ')
     print('\n')
 
-
-def Getlast_model(model_prefix, base_dir='./', is_dir=True):
+def GetLastestModel(model_prefix, base_dir='./', is_dir=True):
     # search for directory or file of most recently saved models(model with biggest epoch index)
     if is_dir:
         max_epoch = None
@@ -815,14 +686,14 @@ def scan_files(path, pattern, ignore_folder=True, raise_not_found_error=False):
 
     return matched_files
 
-def copy_files(file_list, source_path='./', tarGetpath=None, sys_type='linux'):
-    if not source_path.endswith('/'):
-        source_path += '/'
+def copy_files(file_list, SourceDir='./', TargetDir=None, sys_type='linux'):
+    if not SourceDir.endswith('/'):
+        SourceDir += '/'
 
-    if not tarGetpath.endswith('/'):
-        tarGetpath += '/'
+    if not TargetDir.endswith('/'):
+        TargetDir += '/'
 
-    EnsurePath(tarGetpath)
+    EnsurePath(TargetDir)
 
     '''
     if subpath is not None:
@@ -831,7 +702,7 @@ def copy_files(file_list, source_path='./', tarGetpath=None, sys_type='linux'):
         path += subpath
     EnsurePath(path)
     '''
-    #print(tarGetpath)
+    #print(TargetDir)
     if sys_type in ['linux']:
         for file in file_list:
             file = file.lstrip('./')
@@ -839,28 +710,21 @@ def copy_files(file_list, source_path='./', tarGetpath=None, sys_type='linux'):
             #print(path)
             #print(file)
             #shutil.copy2(file, dest + file)
-            #print(source_path + file)
-            #print(tarGetpath + file)
-            EnsurePath(os.path.dirname(tarGetpath + file))
-            if os.path.exists(tarGetpath + file):
-                os.system('rm -r %s'%(tarGetpath + file))
+            #print(SourceDir + file)
+            #print(TargetDir + file)
+            EnsurePath(os.path.dirname(TargetDir + file))
+            if os.path.exists(TargetDir + file):
+                os.system('rm -r %s'%(TargetDir + file))
             #print('cp -r %s %s'%(file_path + file, path + file))
-            os.system('cp -r %s %s'%(source_path + file, tarGetpath + file))
+            os.system('cp -r %s %s'%(SourceDir + file, TargetDir + file))
     elif sys_type in ['windows']:
         # to be implemented 
         pass
     else:
         raise Exception('copy_files: Invalid sys_type: '%str(sys_type))
 
-def join_path(path_0, path_1):
-    if not path_0.endswith('/'):
-        path_0 += '/'
-    if path_1.startswith('./'):
-        path_1 = path_1.lstrip('./')
-    if path_1.startswith('/'):
-        raise Exception('join_path: path_1 is a absolute path: %s'%path_1)
-    return path_0 + path_1
-def tarGetpath_module(path):
+
+def TargetDir_module(path):
     path = path.lstrip('./')
     path = path.lstrip('/')
     if not path.endswith('/'):
@@ -967,72 +831,6 @@ def visit_path(args=None, func=None, recur=False, path=None):
 visit_dir = visit_path
 
 
-def copy_folder(source_path, tarGetpath, exceptions=[], verbose=True):
-    '''
-    if args.path is not None:
-        path = args.path
-    else:
-        path = '/data4/wangweifan/backup/'
-    '''
-    #EnsurePath(source_path)
-    EnsurePath(tarGetpath)
-    
-    for i in range(len(exceptions)):
-        exceptions[i] = os.path.abspath(exceptions[i])
-        if os.path.isdir(exceptions[i]):
-            exceptions[i] += '/'
-
-    source_path = os.path.abspath(source_path)
-    tarGetpath = os.path.abspath(tarGetpath)
-
-    if not source_path.endswith('/'):
-        source_path += '/'
-    if not tarGetpath.endswith('/'):
-        tarGetpath += '/'
-
-    if verbose:
-        print('Copying folder from %s to %s. Exceptions: %s'%(source_path, tarGetpath, exceptions))
-
-    if source_path + '/' in exceptions:
-        warnings.warn('copy_folder: neglected the entire root path. nothing will be copied')
-        if verbose:
-            print('neglected')
-    else:
-        copy_folder_recur(source_path, tarGetpath, subpath='', exceptions=exceptions)
-
-def copy_folder_recur(source_path, tarGetpath, subpath='', exceptions=[], verbose=True):
-    #EnsurePath(source_path + subpath)
-    EnsurePath(tarGetpath + subpath)
-    items = os.listdir(source_path + subpath)
-    for item in items:
-        #print(tarGetpath + subpath + item)
-        path = source_path + subpath + item
-        if os.path.isfile(path): # is a file
-            if path + '/' in exceptions:
-                if verbose:
-                    print('neglected file: %s'%path)
-            else:
-                if os.path.exists(tarGetpath + subpath + item):
-                    md5_source = Getmd5(source_path + subpath + item)
-                    md5_target = Getmd5(tarGetpath + subpath + item)
-                    if md5_target==md5_source: # same file
-                        #print('same file')
-                        continue
-                    else:
-                        #print('different file')
-                        os.system('rm -r "%s"'%(tarGetpath + subpath + item))
-                        os.system('cp -r "%s" "%s"'%(source_path + subpath + item, tarGetpath + subpath + item))     
-                else:
-                    os.system('cp -r "%s" "%s"'%(source_path + subpath + item, tarGetpath + subpath + item))
-        elif os.path.isdir(path): # is a folder.
-            if path + '/' in exceptions:
-                if verbose:
-                    print('neglected folder: %s'%(path + '/'))
-            else:
-                copy_folder_recur(source_path, tarGetpath, subpath + item + '/', verbose=verbose)
-        else:
-            warnings.warn('%s is neither a file nor a path.')
-
 def prep_title(title):
     if title is None:
         title = ''
@@ -1055,5 +853,5 @@ def GetAllMethodsOfModule(ModulePath):
 ListAllMethodsOfModule = GetAllMethodsOfModule
 
 ArgsGlobal = utils_torch.json.JsonObj2PyObj({
-    "logger": None
+    "Logger": None
 })

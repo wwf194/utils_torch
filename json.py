@@ -85,17 +85,20 @@ class PyObj(object):
     def __getitem__(self, key):
         return self.__dict__[key]
 
-def JsonObj2PyObj(json_obj):
-    if isinstance(json_obj, list):
-        return PyObj().FromList(json_obj)
-    elif isinstance(json_obj, dict):
-        return PyObj().FromDict(json_obj)
+def JsonObj2PyObj(JsonObj):
+    if isinstance(JsonObj, list):
+        return PyObj().FromList(JsonObj)
+    elif isinstance(JsonObj, dict):
+        return PyObj().FromDict(JsonObj)
     else:
         raise Exception()
+
+Dict2PyObj = JsonObj2PyObj
+
 json_obj_to_object = JsonObj2PyObj
 
-def JsonObj2JsonStr(json_obj):
-    return json5.dumps(json_obj)
+def JsonObj2JsonStr(JsonObj):
+    return json5.dumps(JsonObj)
 
 def PyObj2JsonObj(obj):
     return json.loads(PyObj2JsonStr(obj))
@@ -106,12 +109,13 @@ def PyObj2JsonFile(obj, path):
     JsonStr = PyObj2JsonStr(obj)
     JsonStr2JsonFile(JsonStr, path)
 
-def JsonStr2JsonFile(JsonStr, path):    
-    if path.endswith(".jsonc") or path.endswith(".json"):
+def JsonStr2JsonFile(JsonStr, FilePath):    
+    if FilePath.endswith(".jsonc") or FilePath.endswith(".json"):
         pass
     else:
-        path += ".jsnonc"
-    with open(path, "w") as f:
+        FilePath += ".jsnonc"
+    utils_torch.EnsureFileDir(FilePath)
+    with open(FilePath, "w") as f:
         f.write(JsonStr)
 
 object_to_json_obj = PyObj2JsonObj

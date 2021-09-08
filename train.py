@@ -1,3 +1,14 @@
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import pickle
+import time
+import os
+
+
+import utils_torch
+from utils_torch.attrs import *
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -15,14 +26,23 @@ import torchvision
 from torchvision.datasets import mnist
 import torchvision.transforms as transforms
 
-from mylib_param_config import *
+def Train(Args, **kw):
+    if Args.Type in ["SupervisedLearning"]:
+        if Args.SubType in ["EpochBatch"]:
+            TrainEpochBatch(Args, **kw)
+        else:
+            raise Exception()
+    else:
+        raise Exception()
 
-import matplotlib.pyplot as plt
-import pandas as pd
-import numpy as np
-import pickle
-import time
-import os
+def TrainEpochBatch(param, **kw):
+    kw["ObjCurrent"] = param
+    param = utils_torch.parse.ParsePyObjStatic(param, **kw)
+    param = utils_torch.parse.ParsePyObjDynamic(param, **kw)
+    for EpochIndex in range(param.Epoch.Num):
+        for BatchIndex in range(param.Batch.Num):
+            Router = utils_torch.parse.ParseRouter(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
+            utils_torch.CallGraph(Router)
 
 def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_list_0=[], val_loss_list_0=[], val_acc_list_0=[], save_dir="undefined", save=True, evaluate_before_train=True, save_interval=20, evaluate=None, logger=None, mode_name="model"):
     train_loss_list = [0.0 for _ in range(epoch_num)]
@@ -125,19 +145,16 @@ def pytorch_info():
 
     print("Torch version is "+torch.__version__)
 
-def prepare_MNIST(dataset_dir=MNIST_dir, augment=True, batch_size=64):    
+def ProcessMNIST(dataset_dir, augment=True, batch_size=64):    
     transform = transforms.Compose(
     [transforms.ToTensor()])
-
     trainset = torchvision.datasets.MNIST(root=dataset_dir, transform=transform, train=True, download=False)
     testset = torchvision.datasets.MNIST(root=dataset_dir, transform=transform, train=False, download=False)
-
     trainloader = DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
     testloader = DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-
     return trainloader, testloader
 
-def prepare_CIFAR10(dataset_dir=CIFAR10_dir,  norm=True, augment=False, batch_size=64, download=False):
+def ProcessCIFAR10(dataset_dir,  norm=True, augment=False, batch_size=64, download=False):
     if(augment==True):
         feature_map_width=24
     else:

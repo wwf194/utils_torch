@@ -1,7 +1,9 @@
 import math
 import numpy as np
-T = np.array([[0, -1], [1, 0]])
+import matplotlib as mpl
+from matplotlib import pyplot as plt
 
+T = np.array([[0, -1], [1, 0]])
 # @Reference https://blog.csdn.net/daming98/article/details/79561777
 # @Reference https://segmentfault.com/a/1190000004457595?ref=myread
 def HasIntersection(A, B, C, D, Threshold=1.0e-9): 
@@ -12,6 +14,19 @@ def HasIntersection(A, B, C, D, Threshold=1.0e-9):
     BC = C - B
     BD = D - B
     return (np.cross(AC, AD) * np.cross(BC, BD) <= Threshold) * (np.cross(AC, BC) * np.cross(AD, BD) <= Threshold)
+
+def DirectionsLengths2XYsNp(Directions, Lengths):
+    return np.stack([np.cos(Directions) * Lengths, np.sin(Directions) * Lengths], axis=1)
+DirectionsLengths2XYs = DirectionsLengths2XYsNp
+
+def FlipAroundNorms(Directions, Norms):
+    # @param Norms: must be of length 1. with shape [PointNum, 2]
+    Projections = np.sum(Directions * Norms, axis=1)
+    Verticals = Directions - Projections
+    return Verticals - Projections
+
+def FlipAroundNormsAngle(Directions, Norms):
+    return 2 * Norms - Directions
 
 def RectangleAContainsRectangleB(RectangleA, RectangelB, Strict=False):
     # @param RectangleA: list. [xMin, yMin, xMax, yMax]
@@ -37,11 +52,14 @@ def InterceptRatio(p1, p2, ref1, ref2, p1p2=None):
     Lambda = np.ones((PointNum), )
     hasIntersection = HasIntersection(p1, p2, ref1, ref2)
     hasIntersectionIndices = np.argwhere(hasIntersection)
-    p1WithIntersection = p1[hasIntersectionIndices, :]
-    intersectionPoins = IntersectionPoints(p1WithIntersection, p2[hasIntersectionIndices, :], ref1, ref2)
+    hasIntersectionNum = hasIntersectionIndices.shape[0]
+    hasIntersectionIndices = hasIntersectionIndices.reshape(hasIntersectionNum)
+    p1WithIntersection = p1[hasIntersectionIndices]
+    p2WithIntersection = p2[hasIntersectionIndices]
+    intersectionPoins = IntersectionPoints(p1WithIntersection, p2WithIntersection, ref1, ref2)
     if p1p2 is None:
         p1p2 = p2 - p1
-    LambdaWithIntersection = np.mean((intersectionPoins - p1WithIntersection) / p1p2, axis=1)
+    LambdaWithIntersection = np.mean((intersectionPoins - p1WithIntersection) / p1p2[hasIntersectionIndices], axis=1)
     Lambda[hasIntersectionIndices] = LambdaWithIntersection
     return Lambda
 
@@ -110,14 +128,14 @@ def _Perpendicular(a):
     b[:, 1] = a[:,0]
     return b
 
-def IntersectionPoints(P1, P2, Q1,Q2) :
+def IntersectionPoints(P1, P2, Q1, Q2) :
     P1P2 = P2 - P1
     Q1Q2 = Q2 - Q1
     Q1P1 = P1 - Q1
     P1P2Perpendicular = _Perpendicular(P1P2)
     Denominator = np.sum(P1P2Perpendicular * Q1Q2, axis=1)
     Numerator = np.sum(P1P2Perpendicular * Q1P1, axis=1)
-    return (Numerator / Denominator.astype(float)) * Q1Q2 + Q1
+    return (Numerator / Denominator.astype(float))[:, np.newaxis] * Q1Q2 + Q1
 
 def main():
 
@@ -206,7 +224,28 @@ def Distance2Edges(PointsNp, EdgeVerticesNp, EdgeNormsNp):
     Points2EdgeVertices = EdgeVerticesNp[np.newaxis, :, :] - PointsNp[:, np.newaxis, :] # [1, VertexNum, 2] - [PointNum, 1, 2] = [PointNum, VertexNum, 2]
     return np.sum(Points2EdgeVertices * EdgeNormsNp[np.newaxis, :, :], axis=2) # [PointNum, VertexNum, 2] * [1, VertexNum, 2]
 
+def StartEndPoints2VectorsNp(PointsStart, PointsEnd):
+    return PointsStart - PointsEnd
+
+def StartEndPoints2VectorsDirectionNp(PointsStart, PointsEnd):
+    Vectors = StartEndPoints2VectorsNp(PointsStart, PointsEnd)
+    return Vectors2DirectionsNp(Vectors)
+
+def StartEndPoints2VectorsNormNp(PointsStart, PointsEnd):
+    Vectors = StartEndPoints2VectorsNp(PointsStart, PointsEnd)
+    return Vectors2NormsNp(Vectors)
+
+def StartEndPoints2VectorsNormDirectionNp(PointsStart, PointsEnd):
+    Vectors = StartEndPoints2VectorsNp(PointsStart, PointsEnd)
+    return Vectors2NormsDirectionsNp(Vectors)
+
 Vectors2DirectionsNp = Vectors2RadiansNp
+
+def PlotIntersectionTest(SavePath=None, Num=10):
+    fig, ax = plt.subplots()
+
+
+     
 
 if __name__=="__main__":
     main()
