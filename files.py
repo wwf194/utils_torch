@@ -1,4 +1,6 @@
 import os
+import re
+from typing import Match
 import utils_torch
 
 def RemoveAllFiles(path, verbose=True):
@@ -20,14 +22,32 @@ def RemoveAllFilesDirs(path, verbose=True):
     for FileName in Files:
         FilePath = os.path.join(path, FileName)
         os.remove(FilePath)
-        utils_torch.AddLog("utils_pytorch: removed file: %s"%FilePath)
+        utils_torch.AddLog("utils_torch: removed file: %s"%FilePath)
     for DirName in Dirs:
         DirPath = os.path.join(path, DirName)
         #os.removedirs(DirPath) # Cannot delete subfolders
         import shutil
         shutil.rmtree(DirPath)
-        utils_torch.AddLog("utils_pytorch: removed directory: %s"%DirPath)
+        utils_torch.AddLog("utils_torch: removed directory: %s"%DirPath)
 
+def IsDir(DirPath):
+    return os.path.isdir(DirPath)
+
+def RemoveMatchedFiles(DirPath, Patterns):
+    if not os.path.isdir(DirPath):
+        raise Exception()
+    if not DirPath.endswith("/"):
+        DirPath += "/"
+    if not isinstance(Patterns, list):
+        Patterns = [Patterns]
+    for Pattern in Patterns:
+        FileNames = ListAllFiles(DirPath)
+        for FileName in FileNames:
+            MatchResult = re.match(Pattern, FileName)
+            if MatchResult is not None:
+                FilePath = os.path.join(DirPath, FileName)
+                os.remove(FilePath)
+                utils_torch.AddLog("utils_torch: removed file: %s"%FilePath)
 def GetAllFilesDirs(DirPath):
     if not os.path.exists(DirPath):
         raise Exception()
@@ -206,3 +226,41 @@ def _CopyFolder(SourceDir, TargetDir, subpath='', exceptions=[], verbose=True):
                 _CopyFolder(SourceDir, TargetDir, subpath + item + '/', verbose=verbose)
         else:
             utils_torch.AddWarning('%s is neither a file nor a path.')
+
+def ExistsPath(Path):
+    return os.path.exists(Path)
+
+def ParseNameSuffix(FilePath):
+    if FilePath.endswith("/"):
+        raise Exception()
+    MatchResult = re.match(r"(.*)\.(.*)", FilePath)
+    if MatchResult is None:
+        return FilePath, ""
+    else:
+        return MatchResult.group(1), MatchResult.group(2)
+
+def RenameFileIfPathExists(FilePath):
+    if FilePath.endswith("/"):
+        raise Exception()
+
+    FileName, Suffix = ParseNameSuffix(FilePath)
+
+    if ExistsPath(FilePath):
+        MatchResult = re.match(r"(.*)-(\d+)", FileName)
+        if MatchResult is None:
+            os.rename(FilePath, FileName + "-0" + "." + Suffix)
+            FileNameOrigin = FileName
+            Index = 1
+        else:
+            FileNameOrigin = MatchResult.group(1)
+            Index = int(MatchResult.group(2))
+        while True:
+            FilePath = FileNameOrigin + "-%d"%Index + "." + Suffix
+            if not ExistsPath(FilePath):
+                return FilePath
+            Index += 1
+    else:
+        return FilePath
+
+
+

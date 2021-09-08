@@ -20,27 +20,65 @@ ColorPlt = utils_torch.json.EmptyPyObj().FromDict({
     "Blue":  (0.0, 0.0, 1.0),
 })
 
-
-def PlotLinesPltNp(ax, PointsStart, PointsEnd, Width=2.0, Color=ColorPlt.Black):
-    LineNum = PointsStart.shape[0]
+def PlotLinesPlt(ax, XYsStart, XYsEnd=None, Width=1.0, Color=ColorPlt.Black):
+    if XYsEnd is None:
+        Edges = ToNpArray(XYsStart)
+        XYsStart = Edges[:, 0]
+        XYsEnd = Edges[:, 1]
+    else:
+        XYsStart = ToNpArray(XYsStart)
+        XYsEnd = ToNpArray(XYsEnd)
+    LineNum = XYsStart.shape[0]
     for Index in range(LineNum):
-        X = [PointsStart[Index, 0], PointsEnd[Index, 0]]
-        Y = [PointsStart[Index, 1], PointsEnd[Index, 1]]
-        ax.add_line(Line2D(X, Y, lineWidth=Width, Color=Color))
-PlotLines = PlotLinesPltNp
+        X = [XYsStart[Index, 0], XYsEnd[Index, 0]]
+        Y = [XYsStart[Index, 1], XYsEnd[Index, 1]]
+        ax.add_line(Line2D(X, Y, linewidth=Width, color=Color))
+PlotLines = PlotLinesPlt
 
-def PlotLinePlt(ax, PointStart, PointEnd, Width=2.0, Color=ColorPlt.Black):
+def SetHeightWidthRatio(ax, ratio):
+    ax.set_aspect(ratio)
+
+def PlotLineAndMarkVerticesXY(ax, PointStart, PointEnd, Width=1.0, Color=ColorPlt.Black):
+    PlotLinePlt(ax, PointStart, PointEnd, Width, Color)
+    PlotPointAndMarkXY(ax, PointStart)
+    PlotPointAndMarkXY(ax, PointEnd)
+
+def PlotArrowAndMarkVerticesXY(ax, PointStart, PointEnd, Width=0.001, Color=ColorPlt.Black):
+    PlotArrowFromVertexPairsPlt(ax, PointStart, PointEnd, Width=Width, Color=Color)
+    PlotPointAndMarkXY(ax, PointStart)
+    PlotPointAndMarkXY(ax, PointEnd)
+
+def PlotLinePlt(ax, PointStart, PointEnd, Width=1.0, Color=ColorPlt.Black, Style="-"):
     # @param Width: Line Width in points(?pixels)
     X = [PointStart[0], PointEnd[0]]
     Y = [PointStart[1], PointEnd[1]]
     line = ax.add_line(Line2D(X, Y))
     line.set_linewidth(Width)
     line.set_color(Color)
+    line.set_linestyle(Style)
 PlotLine = PlotLinePlt
 
-def PlotPoints2DNp(ax, Points, color=ColorPlt.Blue):
-    ax.scatter(Points[:, 0], Points[:, 1], color=color)
+def PlotDashedLinePlt(ax, PointStart, PointEnd, Width=1.0, Color=ColorPlt.Black):
+    PlotLinePlt(ax, PointStart, PointEnd, Width, Color, Style=(0, (5, 10)))
+PlotDashedLine = PlotDashedLinePlt
+
+def PlotPointAndAddText(ax, XY, PointColor=ColorPlt.Blue, Text="TextOnPoint", TextColor=None):
+    if TextColor is None:
+        TextColor = PointColor
+    PlotPoint(ax, XY, PointColor)
+    PlotText(ax, XY, Text, TextColor)
+
+def PlotText(ax, XY, Text, Color=ColorPlt.Blue):
+    ax.text(XY[0], XY[1], Text, color=Color)
+
+def PlotPoint(ax, XY, Color=ColorPlt.Blue):
+    ax.scatter([XY[0]], [XY[1]], color=Color)
+
+def PlotPointsPltNp(ax, Points, Color=ColorPlt.Blue):
+    Points = ToNpArray(Points)
+    ax.scatter(Points[:, 0], Points[:, 1], color=Color)
     return
+PlotPoints = PlotPointsPltNp
 
 def PlotDirectionsOnEdges(ax, Edges, Directions, **kw):
     Edges = ToNpArray(Edges)
@@ -51,7 +89,8 @@ def PlotDirectionsOnEdges(ax, Edges, Directions, **kw):
     MidPoints = utils_torch.geometry2D.Edges2MidPointsNp(Edges)
     PlotArrows(ax, MidPoints - 0.5 * Directions, Directions, **kw)
 
-PlotPoints2D = PlotPoints2DNp
+def PlotDirectionOnEdge(ax, Edge, Direction, **kw):
+    PlotDirectionsOnEdges(ax, [Edge], [Direction], **kw)
 
 def Map2Colors(data, ColorMap="jet", Method="MinMax", Alpha=False):
     data = ToNpArray(data)
@@ -119,15 +158,18 @@ def PixelIndices2XYs(Points, BoundaryBox, ResolutionX, ResolutionY):
     Ys = Points[:,1] / ResolutionY * (y1-y0) + y0 + pixel_half_y
     return np.stack([Xs, Ys], axis=1)
 
-def PlotXYs(ax, XYs, XYsPlot=None):
-    if XYsPlot is None:
-        XYsPlot = XYs
+def PlotPointsAndMarkXYs(ax, XYs, XYsMark=None):
+    if XYsMark is None:
+        XYsMark = XYs
     for Index, XY in enumerate(XYs):
-        ax.text(XY[0], XY[1], "(%.2f, %.2f)"%(XYsPlot[Index][0], XYsPlot[Index][1]))
+        PlotPointAndAddText(ax, XY, Text="(%.2f, %.2f)"%(XYsMark[Index][0], XYsMark[Index][1]))
+
+def PlotPointAndMarkXY(ax, XY):
+    PlotPointAndAddText(ax, XY, Text="(%.2f, %.2f)"%(XY[0], XY[1]))
 
 def ParseColorPlt(Color):
     if isinstance(Color, tuple):
-        if len(tuple)==3:
+        if len(Color)==3:
             return Color
         else:
             raise Exception()
@@ -145,16 +187,33 @@ def ParseColorMapPlt(ColorMap):
     else:
         raise Exception()
 
-def PlotArrows(ax, StartPoints, Vectors, Color=ColorPlt.Red):
-    PlotNum = len(StartPoints)
+def PlotArrows(ax, XYsStart, dXYs, Color=ColorPlt.Red):
+    PlotNum = len(XYsStart)
     for Index in range(PlotNum):
-        PlotArrowPlt(ax, StartPoints[Index], Vectors[Index], Color=Color)
-    
-def PlotArrowPlt(ax, StartPoint, Vector, Color=ColorPlt.Red):
+        PlotArrowPlt(ax, XYsStart[Index], dXYs[Index], Color=Color)
+
+def PlotArrowFromVertexPairsPlt(ax, XYStart, XYEnd, Width=0.001, Color=ColorPlt.Red, SizeScale=1.0):
+    XYStart = ToNpArray(XYStart)
+    XYEnd = ToNpArray(XYEnd)
+    PlotArrowPlt(ax, XYStart, XYEnd - XYStart, Width=Width, Color=Color, SizeScale=SizeScale)
+
+def PlotArrowPlt(ax, XYStart, dXY, Width=0.001, HeadWith=0.05, HeadLength=0.1, Color=ColorPlt.Red, SizeScale=None):
     Color = ParseColorPlt(Color)
-    StartPoint = ToList(StartPoint)
-    Vector = ToList(Vector)
-    ax.arrow(*StartPoint, *Vector, head_width=0.05, head_length=0.1, facecolor=Color, edgecolor=Color)
+    XYStart = ToList(XYStart)
+    dXY = ToList(dXY)
+    if SizeScale is not None:
+        Width = 0.001 * SizeScale
+        HeadWith = 0.05 * SizeScale
+        HeadLength = 0.1 * SizeScale
+    else:
+        SizeScale = 1.0
+    ax.arrow(*XYStart, *dXY, 
+        width=Width * SizeScale,
+        head_width=HeadWith * SizeScale,
+        head_length=HeadLength * SizeScale,
+        facecolor=Color,
+        edgecolor=Color
+    )
 
 def PlotPolyLineFromVerticesPlt(ax, Points, Color=ColorPlt.Black, Width=2.0, Closed=False):
     # @param Points: np.ndarray with shape [PointNum, (x,y)]
@@ -183,19 +242,19 @@ PlotPolyLine = PlotPolyLineFromVerticesPlt
     #             xs, ys = [ points[i][0], points[(i+1)%PointNum][0]], [ points[i][1], points[(i+1)%PointNum][1]]
     #             ratio = i / ( plot_num - 1 )
     #             color_now = tuple( ratio * color_end + (1.0 - ratio) * color_start )
-    #             ax.add_line(Line2D( xs, ys, lineWidth=Width, color=color_now ))
+    #             ax.add_line(Line2D(xs, ys, linewidth=Width, color=color_now ))
     #     elif method in ['given']:
     #         color = search_dict(color, ['content', 'data'])
     #         for i in range(plot_num):
     #             xs, ys = [ points[i][0], points[(i+1)%PointNum][0]], [ points[i][1], points[(i+1)%PointNum][1]]
-    #             ax.add_line(Line2D( xs, ys, lineWidth=Width, color=color[i] ))           
+    #             ax.add_line(Line2D(xs, ys, linewidth=Width, color=color[i] ))           
     #     else:
     #         raise Exception('PlotPolyLinePlt: invalid color mode:'+str(method))
         
     # elif isinstance(color, tuple):
     #     for i in range(plot_num):
     #         xs, ys = [ points[i][0], points[(i+1)%PointNum][0]], [ points[i][1], points[(i+1)%PointNum][1]]
-    #         ax.add_line(Line2D( xs, ys, lineWidth=Width, color=color ))
+    #         ax.add_line(Line2D(xs, ys, linewidth=Width, color=color ))
     # else:
     #     raise Exception('PlotPolyLinePlt: invalid color mode:'+str(method))
 
@@ -318,6 +377,14 @@ def ParseRowColNum(PlotNum, RowNum, ColNum):
         if PlotNum % RowNum > 0:
             ColNum += 1
         return RowNum, ColNum
+    elif RowNum is None and ColNum is None:
+        ColNum = int(PlotNum ** 0.5)
+        if ColNum == 0:
+            ColNum = 1
+        RowNum = PlotNum // ColNum
+        if PlotNum % ColNum > 0:
+            RowNum += 1
+        return RowNum, ColNum
     else:
         if PlotNum != RowNum * ColNum:
             raise Exception('PlotNum: %d != RowNum %d x ColumnNum %d'%(PlotNum, RowNum, ColNum))
@@ -326,12 +393,40 @@ def ParseRowColNum(PlotNum, RowNum, ColNum):
 
 def CreateFigurePlt(PlotNum, RowNum=None, ColNum=None, Width=None, Height=None):
     RowNum, ColNum = ParseRowColNum(PlotNum, RowNum, ColNum)
-    fig, axes = plt.subplots(nrows=RowNum, ncols=ColNum, )
+    if Width is None and Height is None:
+        Width = ColNum * 5.0 # inches
+        Height = RowNum * 5.0 # inches
+    elif Width is not None and Height is not None:
+        pass
+    else:
+        raise Exception()
+    fig, axes = plt.subplots(nrows=RowNum, ncols=ColNum, figsize=(Width, Height))
+    return fig, axes
+CreateFiture = CreateFigurePlt
 
-def GetAx(axes, RowIndex=None, ColIndex=None):
+def GetAxRowColNum(axes):
     if isinstance(axes, np.ndarray):
         Shape = axes.shape
         if len(Shape)==1:
+            return Shape[0], 1
+        elif len(Shape)==2:
+            return Shape[0], Shape[1]
+        else:
+            raise Exception()
+    # elif isinstance(axes, mpl.axes._subplots.AxesSubplot): # Shape is [1, 1]:
+    #     return 1, 1
+    else:
+        return 1, 1
+        # raise Exception()
+def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
+    RowNum, ColNum = GetAxRowColNum(axes)
+
+    if Index is not None:
+        RowIndex = Index // ColNum
+        ColIndex = Index % ColNum
+    
+    if RowNum>1 or ColNum>1:
+        if RowNum==1 or ColNum==1:
             if RowIndex==0 or RowIndex is None:
                 if isinstance(ColIndex, int):
                     return axes[ColIndex]
@@ -344,15 +439,13 @@ def GetAx(axes, RowIndex=None, ColIndex=None):
                     raise Exception()
             else:
                 raise Exception()
-        elif len(Shape)==2:
+        else:
             if RowIndex is None:
                 raise Exception()
             if ColIndex is None:
                 raise Exception()
             return axes[RowIndex, ColIndex]
-        else:
-            raise Exception()
-    elif isinstance(axes, mpl.axes._subplots.AxesSubplot): # Shape is [1, 1]
+    elif RowNum==1 and ColNum==1:
         if not (RowIndex is None or RowIndex==0):
             raise Exception()
         if not (RowIndex is None or RowIndex==0):

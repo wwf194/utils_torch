@@ -32,7 +32,7 @@ def SampleFromDistribution(param, Shape=None):
     else:
         raise Exception()
 
-def SampleFromGaussianDistribution(Mean, Std, Shape=100):
+def SampleFromGaussianDistribution(Mean=0.0, Std=1.0, Shape=100):
     return np.random.normal(loc=Mean, scale=Std, size=utils_torch.parse.ParseShape(Shape))
 
 def SamplesFromReyleighDistribution(Mean=1.0, Shape=100):

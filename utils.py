@@ -123,8 +123,9 @@ def RemoveStartEndEmptySpaceChars(Str):
     Str = re.match(r"(.*[\S])\s*", Str).group(1)
     return Str
 
-RemoveHeadTailWhiteChars = RemoveStartEndEmptySpaceChars
 
+
+RemoveHeadTailWhiteChars = RemoveStartEndEmptySpaceChars
 
 def ToNpArray(data, DataType=np.float32):
     if isinstance(data, np.ndarray):

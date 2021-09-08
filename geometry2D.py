@@ -26,7 +26,7 @@ def FlipAroundNorms(Directions, Norms):
     return Verticals - Projections
 
 def FlipAroundNormsAngle(Directions, Norms):
-    return 2 * Norms - Directions
+    return 2 * Norms - Directions + np.pi
 
 def RectangleAContainsRectangleB(RectangleA, RectangelB, Strict=False):
     # @param RectangleA: list. [xMin, yMin, xMax, yMax]
