@@ -152,8 +152,11 @@ def HasAttrs(Obj, attrs, *args, false_if_none=True):
 
 has_attrs = HasAttrs
 
-def ListAttrs(Obj):
+def ListAttrsAndValues(Obj):
     return [(attr, value) for attr, value in Obj.__dict__.items()]
+
+def ListAttrs(Obj):
+    return [attr for attr, value in Obj.__dict__.items()]
 
 def ListValues(Obj):
     return Obj.__dict__.values()

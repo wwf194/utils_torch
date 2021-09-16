@@ -13,12 +13,12 @@ def RemoveAllFiles(path, verbose=True):
         os.remove(file_path)
         utils_torch.AddLog("utils_pytorch: removed file: %s"%file_path)
 
-def RemoveAllFilesDirs(path, verbose=True):
+def RemoveAllFilesAndDirs(path, verbose=True):
     if not os.path.exists(path):
         raise Exception()
     if not os.path.isdir(path):
         raise Exception()
-    Files, Dirs= GetAllFilesDirs(path)
+    Files, Dirs= GetAllFilesAndDirs(path)
     for FileName in Files:
         FilePath = os.path.join(path, FileName)
         os.remove(FilePath)
@@ -32,6 +32,9 @@ def RemoveAllFilesDirs(path, verbose=True):
 
 def IsDir(DirPath):
     return os.path.isdir(DirPath)
+
+def IsFile(FilePath):
+    return os.path.isfile(FilePath)
 
 def RemoveMatchedFiles(DirPath, Patterns):
     if not os.path.isdir(DirPath):
@@ -48,7 +51,8 @@ def RemoveMatchedFiles(DirPath, Patterns):
                 FilePath = os.path.join(DirPath, FileName)
                 os.remove(FilePath)
                 utils_torch.AddLog("utils_torch: removed file: %s"%FilePath)
-def GetAllFilesDirs(DirPath):
+
+def GetAllFilesAndDirs(DirPath):
     if not os.path.exists(DirPath):
         raise Exception()
     if not os.path.isdir(DirPath):
@@ -60,7 +64,7 @@ def GetAllFilesDirs(DirPath):
             Files.append(item)
         elif os.path.isdir(os.path.join(DirPath, item)):
             Dirs.append(item)
-    return Files, Dirs       
+    return Files, Dirs
 
 def GetAllFiles(DirPath):
     if not os.path.exists(DirPath):

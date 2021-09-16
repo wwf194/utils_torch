@@ -57,11 +57,20 @@ def ImplementInitializeTask(param, **kw):
     if param.Type in ["BuildObject", "BuildObj"]:
         BuildObj(param.Args, **kw)
     elif param.Type in ["FunctionCall"]:
-        CallFunction(param.Args, **kw)
+        CallFunctions(param.Args, **kw)
     else:
         raise Exception()
     
 def BuildObj(Args, **kw):
+    if isinstance(Args, list):
+        for Arg in Args:
+            _BuildObj(Arg, **kw)
+    elif isinstance(Args, dict):
+        _BuildObj(Args, **kw)
+    else:
+        raise Exception()
+
+def _BuildObj(Args, **kw):
     Module = utils_torch.ImportModule(Args.ModulePath)
     Obj = Module.__MainClass__(utils_torch.parse.ParseAttr(Args.ParamPath, **kw))
     if Args.MountPath.startswith("&^"):
@@ -81,15 +90,21 @@ def ComposeFunction(*Functions):
 
 def CallFunctions(Functions, **kw):
     ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
+    Outputs = []
     if isinstance(Functions, dict): # Call one function
-        _CallFunction(Functions, ContextInfo)
+        Output = _CallFunction(Functions, ContextInfo)
+        Outputs.append(Output)
     elif isinstance(Functions, list): # Call a cascade of functions
         for Function in Functions:
-            _CallFunction(Function, ContextInfo)
+            Output = _CallFunction(Function, ContextInfo)
+            Outputs.append(Output)
     else:
         raise Exception()
+    return Outputs
 
-CallFunction = CallFunctions
+def CallFunction(Function, **kw):
+    ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
+    return _CallFunction(Function, ContextInfo)
 
 def _CallFunction(Function, ContextInfo):
     # kw.setdefault("ObjRoot", None)
@@ -105,25 +120,29 @@ def _CallFunction(Function, ContextInfo):
     FunctionOutput = Function(*PositionalArgs, **KeyWordArgs)    
     if FunctionOutput is not None:
         SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
-        print(ContextInfo.__PreviousFunctionOutput__)
+        return []
     else:
         SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
-
-def CallGraph(Router):
+        return FunctionOutput
+    
+def CallGraph(Router, **kw):
     States = Router.In
     for Routing in Router.Routings:
-        Routing = utils_torch.parse.ParseRoutingDynamic(Routing, States)
-        for TimeIndex in range(Routing.RepeatTime):
-            InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
-            OutputList = Routing.Module(*InputList)
-            utils_torch.parse.RegisterList2PyObj(OutputList, States, Routing.Out)
+        if isinstance(Routing, list):
+            CallFunction(Routing, **kw)
+        elif isinstance(Routing, utils_torch.json.PyObj):
+            Routing = utils_torch.parse.ParseRoutingDynamic(Routing, States)
+            for TimeIndex in range(Routing.RepeatTime):
+                InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
+                Output = Routing.Module(*InputList)
+                utils_torch.parse.Register2PyObj(Output, States, Routing.Out)
+        else:
+            raise Exception()
 
 def RemoveStartEndEmptySpaceChars(Str):
     Str = re.match(r"\s*([\S].*)", Str).group(1)
     Str = re.match(r"(.*[\S])\s*", Str).group(1)
     return Str
-
-
 
 RemoveHeadTailWhiteChars = RemoveStartEndEmptySpaceChars
 
@@ -179,7 +198,7 @@ def WatchDogTimer(Seconds=10):
     WatchDogTimerThread.start()
     WatchDogTimerThread.join()
 
-def GetGPUWithLargestRemainingMemory(TimeOutSeconds=15, default_device='cuda:0'):
+def GetGPUWithLargestUseableMemory(TimeOutSeconds=15, default_device='cuda:0'):
     dict_ = {'device':None}
     WatchDogTimer(Seconds=TimeOutSeconds)
 
@@ -192,7 +211,7 @@ def GetGPUWithLargestRemainingMemory(TimeOutSeconds=15, default_device='cuda:0')
     else:
         return dict_['device']
 
-def _GetGPUWithLargestRemainingMemory(dict_={}): # return torch.device with largest available gpu memory.
+def _GetGPUWithLargestUseableMemory(dict_={}): # return torch.device with largest available gpu memory.
     try:
         import pynvml
         pynvml.nvmlInit()

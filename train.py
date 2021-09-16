@@ -44,7 +44,7 @@ def TrainEpochBatch(param, **kw):
         for BatchIndex in range(param.Batch.Num):
             utils_torch.AddLog("Batch: %d"%BatchIndex)
             Router = utils_torch.parse.ParseRouter(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
-            utils_torch.CallGraph(Router)
+            utils_torch.CallGraph(Router, **kw)
 
 def train(net, epochs, trainloader, testloader, train_loss_list_0=[], train_acc_list_0=[], val_loss_list_0=[], val_acc_list_0=[], save_dir="undefined", save=True, evaluate_before_train=True, save_interval=20, evaluate=None, logger=None, mode_name="model"):
     train_loss_list = [0.0 for _ in range(epoch_num)]

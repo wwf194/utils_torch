@@ -10,6 +10,13 @@ from utils_torch.python import CheckIsLegalPyName
 def EmptyPyObj():
     return PyObj()
 
+def CheckIsPyObj(Obj):
+    if not IsPyObj(Obj):
+        raise Exception("Obj is not PyObj, but %s"%type(Obj))
+
+def IsPyObj(Obj):
+    return isinstance(Obj, PyObj)
+
 class PyObj(object):
     def __init__(self, param=None):
         if param is not None:
@@ -31,9 +38,11 @@ class PyObj(object):
             else:
                 ListParsed.append(Item)
         return ListParsed
-    def FromDict(self, dict_):
+    def FromDict(self, Dict):
         #self.__dict__ = {}
-        for key, value in dict_.items():
+        for key, value in Dict.items():
+            # if key in ["Batch.Internal"]:
+            #     print("aaa")
             if "." in key:
                 keys = key.split(".")
                 CheckIsLegalPyName(key[0])
@@ -43,7 +52,7 @@ class PyObj(object):
                         if hasattr(obj, key):
                             utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
                                 %(key, getattr(obj, key), value))
-                        setattr(obj, key, value)
+                        self.SetAttr(obj, key, value)
                     if hasattr(obj, key):
                         obj = getattr(obj, key)
                     else:
@@ -59,18 +68,20 @@ class PyObj(object):
                         obj = getattr(self, key)
             else:
                 CheckIsLegalPyName(key)
-                if type(value) is dict:
-                    if hasattr(self, key) and isinstance(getattr(self, key), PyObj):
-                        getattr(self, key).FromDict(value)
-                    else: # overwrite
-                        setattr(self, key, PyObj(value))
-                elif type(value) is list:
-                    # always overwrite
-                    setattr(self, key, self.FromList(value))
-                else:
-                    # alwayes overwrite
-                    setattr(self, key, value)
+                self.SetAttr(self, key, value)
         return self
+    def SetAttr(self, obj, attr, value):
+        if type(value) is dict:
+            if hasattr(obj, attr) and isinstance(getattr(obj, attr), PyObj):
+                getattr(obj, attr).FromDict(value)
+            else: # overwrite
+                setattr(obj, attr, PyObj(value))
+        elif type(value) is list:
+            # always overwrite
+            setattr(obj, attr, obj.FromList(value))
+        else:
+            # alwayes overwrite
+            setattr(obj, attr, value)
     def to_dict(self):
         d = {}
         for key, value in self.__dict__.items():
