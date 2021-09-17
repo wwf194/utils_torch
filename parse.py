@@ -102,33 +102,43 @@ def ParseAttrFromContextInfo(Str, ContextInfo):
     else:
         return Str
 
-def ParsePyObjDynamic(Obj, RaiseFailedParse=False, **kw):
+def ParsePyObjDynamic(Obj, RaiseFailedParse=False, InPlace=False, **kw):
     utils_torch.json.CheckIsPyObj(Obj)
-    ObjParsed = PyObj()
     if kw.get("ObjRefList") is not None:
-        return ParsePyObjDynamicWithMultipleRefs(Obj, RaiseFailedParse=RaiseFailedParse, **kw)
+        return ParsePyObjDynamicWithMultiRefs(
+            Obj, 
+            RaiseFailedParse=RaiseFailedParse, 
+            InPlace=InPlace, 
+            **kw
+        )
     else:
-        return _ParsePyObjDynamic(Obj, ObjParsed, [], RaiseFailedParse, **kw)
+        if InPlace:
+            _ParsePyObjDynamicInPlace(Obj, None, [], RaiseFailedParse, **kw)
+            return Obj
+        else:
+            return _ParsePyObjDynamic(Obj, [], RaiseFailedParse, **kw)
 
-def _ParsePyObjDynamic(Obj, ObjParsed, Attrs, RaiseFailedParse, **kw):
+def _ParsePyObjDynamic(Obj, Attrs, RaiseFailedParse, **kw):
+    ObjRoot= kw.get("ObjRoot")
+    ObjCurrent = kw.get("ObjCurrent")
     if isinstance(Obj, list):
         ObjParsed = []
         for Index, Item in enumerate(Obj):
-            ObjParsed.append(_ParsePyObjDynamic(Item, [*Attrs, Index], Obj, RaiseFailedParse, **kw))
+            ObjParsed.append(_ParsePyObjDynamic(Item, [*Attrs, Index], RaiseFailedParse, **kw))
     elif isinstance(Obj, dict):
         ObjParsed = {}
         for Key, Value in Obj.items():
-            ObjParsed[Key] = _ParsePyObjDynamic(Value, ObjParsed, [*Attrs, Key], RaiseFailedParse, **kw)
+            ObjParsed[Key] = _ParsePyObjDynamic(Value, [*Attrs, Key], RaiseFailedParse, **kw)
     elif isinstance(Obj, utils_torch.json.PyObj):
         ObjParsed = PyObj()
         for Attr, Value in Obj.__dict__.items():
-            setattr(ObjParsed, Attr, _ParsePyObjDynamic(Value, Obj, [*Attrs, Attr], RaiseFailedParse, **kw))
+            setattr(ObjParsed, Attr, _ParsePyObjDynamic(Value, [*Attrs, Attr], RaiseFailedParse, **kw))
     elif isinstance(Obj, str) and "&" in Obj:
         sentence = Obj
         if "&^" in sentence:
-            sentence = sentence.replace("&^", "kw['ObjRoot'].")
+            sentence = sentence.replace("&^", "ObjRoot.")
         if "&" in sentence:
-            sentence = sentence.replace("&", "kw['ObjCurrent'].")
+            sentence = sentence.replace("&", "ObjCurrent.")
         
         # Some Tricks
         if "|-->" in sentence:
@@ -146,9 +156,44 @@ def _ParsePyObjDynamic(Obj, ObjParsed, Attrs, RaiseFailedParse, **kw):
         ObjParsed = Obj
     return ObjParsed
 
-def ParsePyObjDynamicWithMultipleRefs(PyObj, RaiseFailedParse=False, **kw):
+def _ParsePyObjDynamicInPlace(Obj, parent, Attrs, RaiseFailedParse, **kw):
+    if isinstance(Obj, list):
+        for Index, Item in enumerate(Obj):
+            _ParsePyObjDynamic(Item, Obj, [*Attrs, Index], RaiseFailedParse, **kw)
+    elif isinstance(Obj, dict):
+        for Key, Value in Obj.items():
+            _ParsePyObjDynamic(Value, Obj, [*Attrs, Key], RaiseFailedParse, **kw)
+    elif isinstance(Obj, utils_torch.json.PyObj):
+        for Attr, Value in Obj.__dict__.items():
+            _ParsePyObjDynamic(Value, Obj, [*Attrs, Attr], RaiseFailedParse, **kw)
+    elif isinstance(Obj, str) and "&" in Obj:
+        ObjRoot= kw.get("ObjRoot")
+        ObjCurrent = kw.get("ObjCurrent")
+        sentence = Obj
+        if "&^" in sentence:
+            sentence = sentence.replace("&^", "ObjRoot.")
+        if "&" in sentence:
+            sentence = sentence.replace("&", "ObjCurrent.")
+        
+        # Some Tricks
+        if "|-->" in sentence:
+            return
+ 
+        if RaiseFailedParse:
+            ObjParsed = eval(sentence)
+        else: 
+            try:
+                ObjParsed = eval(sentence)
+            except Exception:
+                utils_torch.AddWarning("Failed to run: %s"%sentence)
+                return
+        parent[Attrs[-1]] = ObjParsed
+    else:
+        pass
+
+def ParsePyObjDynamicWithMultiRefs(Obj, RaiseFailedParse=False, InPlace=False, **kw):
     ObjRefList = kw["ObjRefList"]
-    # Traverse Attributes in PyObj, recursively
+    # Traverse Attributes in Obj, recursively
     # If an Attribute Value is str and begins with &, redirect this Attribute to Attribute in PyObjRef it points to.
     if not isinstance(ObjRefList, list):
         if hasattr(ObjRefList, "__dict__"):
@@ -156,31 +201,34 @@ def ParsePyObjDynamicWithMultipleRefs(PyObj, RaiseFailedParse=False, **kw):
         else:
             raise Exception()
     kw["ObjRefList"] = ObjRefList
-    return _ParsePyObjDynamicWithMultipleRefs(PyObj, None, RaiseFailedParse, **kw)
+    if InPlace:
+        _ParsePyObjDynamicWithMultiRefsInPlace(Obj, None, None, RaiseFailedParse=RaiseFailedParse, **kw)
+        return Obj
+    else:
+        return _ParsePyObjDynamicWithMultiRefs(Obj, None, RaiseFailedParse=RaiseFailedParse, **kw)
 
-def _ParsePyObjDynamicWithMultipleRefs(Obj, Attr, RaiseFailedParse, **kw):
-    ObjRoot = kw.get("ObjRoot")
-    ObjRef = kw.get("ObjRef")
+def _ParsePyObjDynamicWithMultiRefs(Obj, Attr, RaiseFailedParse, **kw):
     ObjRefList = kw["ObjRefList"]
     if isinstance(Obj, dict):
         ObjParsed = {}
         for Key, Value in Obj.items():
-            ObjParsed[Key] = _ParsePyObjDynamicWithMultipleRefs(Value, Key, RaiseFailedParse, **kw)
+            ObjParsed[Key] = _ParsePyObjDynamicWithMultiRefs(Value, Key, RaiseFailedParse, **kw)
     elif isinstance(Obj, list):
         ObjParsed = []
         for Index, Item in enumerate(Obj):
-            ObjParsed.append(_ParsePyObjDynamicWithMultipleRefs(Item, Index, RaiseFailedParse, **kw))
+            ObjParsed.append(_ParsePyObjDynamicWithMultiRefs(Item, Index, RaiseFailedParse, **kw))
     elif isinstance(Obj, utils_torch.json.PyObj):
         ObjParsed = PyObj()
         for Attr, Value in ListAttrsAndValues(Obj):
-            setattr(ObjParsed, Attr, _ParsePyObjDynamicWithMultipleRefs(getattr(Obj, Attr), Attr, RaiseFailedParse, **kw))
+            setattr(ObjParsed, Attr, _ParsePyObjDynamicWithMultiRefs(getattr(Obj, Attr), Attr, RaiseFailedParse, **kw))
     elif isinstance(Obj, str):
+        ObjRoot = kw.get("ObjRoot")
+        ObjRef = kw.get("ObjRef")
         sentence = Obj
         if "&" in sentence:
             success = False
-            if "&^" in sentence:
-                sentence = sentence.replace("&^", "ObjRoot.")
-                sentence = sentence.replace("&", "ObjRef.")
+            sentence = sentence.replace("&^", "ObjRoot.")
+            sentence = sentence.replace("&", "ObjRef.")
             for ObjRef in ObjRefList:
                 try:
                     ObjParsed = eval(sentence)
@@ -201,6 +249,48 @@ def _ParsePyObjDynamicWithMultipleRefs(Obj, Attr, RaiseFailedParse, **kw):
     else:
         ObjParsed = Obj
     return ObjParsed
+
+def _ParsePyObjDynamicWithMultiRefsInPlace(Obj, parent, Attr, RaiseFailedParse, **kw):
+    ObjRefList = kw["ObjRefList"]
+    if isinstance(Obj, dict):
+        for Key, Value in Obj.items():
+            _ParsePyObjDynamicWithMultiRefsInPlace(Value, Obj, Key, RaiseFailedParse, **kw)
+    elif isinstance(Obj, list):
+        for Index, Item in enumerate(Obj):
+            _ParsePyObjDynamicWithMultiRefsInPlace(Item, Obj, Index, RaiseFailedParse, **kw)
+    elif isinstance(Obj, utils_torch.json.PyObj):
+        ObjParsed = PyObj()
+        for Attr, Value in ListAttrsAndValues(Obj):
+            _ParsePyObjDynamicWithMultiRefsInPlace(Value, Obj, Attr, RaiseFailedParse, **kw)
+    elif isinstance(Obj, str):
+        ObjRoot = kw.get("ObjRoot")
+        ObjRef = kw.get("ObjRef")
+        sentence = Obj
+        if "&" in sentence:
+            success = False
+            sentence = sentence.replace("&^", "ObjRoot.")
+            sentence = sentence.replace("&", "ObjRef.")
+            for ObjRef in ObjRefList:
+                try:
+                    ObjParsed = eval(sentence)
+                    success = True
+                    break
+                except Exception:
+                    pass
+                    #utils_torch.AddLog("Failed to resoolve to current PyObjRef. Try redirecting to next PyObjRef.")
+            if not success:
+                report = "Failed to resolve to any PyObjRef in given ObjRefList by running: %s"%sentence
+                if RaiseFailedParse:
+                    raise Exception(report)
+                else:
+                    utils_torch.AddWarning(report)
+                    return
+            else:
+                parent[Attr] = ObjParsed
+        else:
+            ObjParsed = sentence
+    else:
+        pass
 
 def ProcessPyObj(Obj, Function=lambda x:(x, True), **kw):
     ObjParsed = PyObj()
@@ -378,15 +468,20 @@ def FilterFromPyObj(PyObj, Keys):
     return List
 
 def Register2PyObj(Obj, PyObj, NameList):
+    if isinstance(NameList, str):
+        NameList = [NameList]
+
     if isinstance(Obj, list):
-        RegisterList2PyObj(Obj, PyObj, NameList)
-    # elif isinstance(Obj, dict):
-    #     RegisterDict2PyObj(Obj, PyObj, Names)
+        if len(Obj)==len(NameList):
+            RegisterList2PyObj(Obj, PyObj, NameList)
+        else:
+            if len(NameList)==1:
+                setattr(PyObj, NameList[0], Obj)
+            else:
+                raise Exception()
     else:
-        if isinstance(NameList, list):
+        if len(NameList)==1:
             setattr(PyObj, NameList[0], Obj)
-        elif isinstance(NameList, str):
-            setattr(PyObj, NameList, Obj)
         else:
             raise Exception()
 
@@ -402,15 +497,23 @@ def RegisterList2PyObj(List, PyObj, attrs=None):
     for index in range(len(List)):
         setattr(PyObj, attrs[index], List[index])
 
-def ParseRouters(Routers):
-    RouterParsed = []
-    for Router in Routers:
-        RouterParsed.append(ParseRouter(Router))
-    return RouterParsed
+def ParseRouters(Routers, ObjRefList=[], **kw):
+    if isinstance(Routers, list):
+        RouterParsed = []
+        for Router in Routers:
+            RouterParsed.append(ParseRouter(Router, **kw))
+        return RouterParsed
+    elif isinstance(Routers, utils_torch.json.PyObj):
+        RouterParsed = EmptyPyObj()
+        for Name, Router in ListAttrsAndValues(Routers):
+            setattr(RouterParsed, Name, ParseRouter(Router, **kw))
+        return RouterParsed
+    else:
+        raise Exception()
 
-def ParseRouter(Router, ObjRefList=[], **kw):
+def ParseRouter(Router, ObjRefList=[], InPlace=False, **kw):
     SetAttrs(Router, "Routings", value=ParseRoutings(Router.Routings))
-    RouterParsed = utils_torch.parse.ParsePyObjDynamic(Router, ObjRefList=ObjRefList, RaiseFailedParse=True, **kw)
+    RouterParsed = utils_torch.parse.ParsePyObjDynamic(Router, ObjRefList=ObjRefList, InPlace=InPlace, RaiseFailedParse=True, **kw)
     return RouterParsed
 
 def ParseRoutingDynamic(Routing, States):

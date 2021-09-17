@@ -88,30 +88,33 @@ def MountObj(Obj, ObjRoot, MountPath):
 def ComposeFunction(*Functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions, lambda x: x)
 
-def CallFunctions(Functions, **kw):
+def CallFunctions(param, **kw):
     ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
     Outputs = []
-    if isinstance(Functions, dict): # Call one function
-        Output = _CallFunction(Functions, ContextInfo)
+    if isinstance(param, dict): # Call one function
+        Output = _CallFunction(param, ContextInfo)
         Outputs.append(Output)
-    elif isinstance(Functions, list): # Call a cascade of functions
-        for Function in Functions:
-            Output = _CallFunction(Function, ContextInfo)
+    elif isinstance(param, list): # Call a cascade of functions
+        for _param in param:
+            Output = _CallFunction(_param, ContextInfo)
             Outputs.append(Output)
     else:
         raise Exception()
     return Outputs
 
-def CallFunction(Function, **kw):
+def CallFunction(param, **kw):
     ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
-    return _CallFunction(Function, ContextInfo)
+    return _CallFunction(param, ContextInfo)
 
-def _CallFunction(Function, ContextInfo):
-    # kw.setdefault("ObjRoot", None)
-    # kw.setdefault("ObjCurrent", None)
+def _CallFunction(param, ContextInfo):
     EnsureAttrs(ContextInfo, "__PreviousFunctionOutput__", None)
-    FunctionName = Function[0]
-    FunctionArgs = Function[1]
+    if isinstance(param, str):
+        param = [param]
+    if len(param)==1:
+        param.append([])
+    
+    FunctionName = param[0]
+    FunctionArgs = param[1]
     Function = utils_torch.parse.ParseAttrFromContextInfo(
         FunctionName,
         ContextInfo
@@ -124,7 +127,7 @@ def _CallFunction(Function, ContextInfo):
     else:
         SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
         return FunctionOutput
-    
+
 def CallGraph(Router, **kw):
     States = Router.In
     for Routing in Router.Routings:

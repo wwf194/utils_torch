@@ -12,9 +12,6 @@ def InitFromParam(param):
     model.InitFromParam(param)
     return model
 
-def load_model(args):
-    return 
-
 class SingleLayer(nn.Module):
     def __init__(self, param=None):
         super(SingleLayer, self).__init__()

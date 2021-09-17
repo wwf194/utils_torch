@@ -15,17 +15,17 @@ from utils_torch.attrs import *
 from utils_torch.LRSchedulers import LinearLR
 from utils_torch.Router import *
 
-def BuildModule(ModuleParam):
-    if ModuleParam.Type in ["SingleLayer"]:
-        return utils_torch.Models.SingleLayer(ModuleParam)
-    elif ModuleParam.Type in ["MultiLayerPerceptron", "MLP", "mlp"]:
-        return utils_torch.Models.MultiLayerPerceptron(ModuleParam)
-    elif ModuleParam.Type in ["SerialReceiver"]:
-        pass
-    elif ModuleParam.Type in ["SerialSender"]:
-        pass
+def BuildModule(param):
+    if param.Type in ["SingleLayer"]:
+        return utils_torch.Models.SingleLayer(param)
+    elif param.Type in ["MultiLayerPerceptron", "MLP", "mlp"]:
+        return utils_torch.Models.MultiLayerPerceptron(param)
+    elif param.Type in ["SerialReceiver"]:
+        return utils_torch.Models.SerialReceiver(param)
+    elif param.Type in ["SerialSender"]:
+        return utils_torch.Models.SerialSender(param)
     else:
-        raise Exception("BuildModule: No such module: %s"%ModuleParam.Type)
+        raise Exception("BuildModule: No such module: %s"%param.Type)
 BuildModule = BuildModule
 
 def CreateSelfConnectionMask(Size):

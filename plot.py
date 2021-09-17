@@ -158,7 +158,7 @@ def PixelIndices2XYs(Points, BoundaryBox, ResolutionX, ResolutionY):
     Ys = Points[:,1] / ResolutionY * (y1-y0) + y0 + pixel_half_y
     return np.stack([Xs, Ys], axis=1)
 
-def PlotPointsAndMarkXYs(ax, XYs, XYsMark=None):
+def PlotXYs(ax, XYs, XYsMark=None):
     if XYsMark is None:
         XYsMark = XYs
     for Index, XY in enumerate(XYs):
