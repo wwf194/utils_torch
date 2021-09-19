@@ -72,24 +72,29 @@ def BuildObj(Args, **kw):
 
 def _BuildObj(Args, **kw):
     Module = utils_torch.ImportModule(Args.ModulePath)
-    Obj = Module.__MainClass__(utils_torch.parse.ParseAttr(Args.ParamPath, **kw))
-    if Args.MountPath.startswith("&^"):
-        MountObj(Obj, kw["ObjRoot"], Args.MountPath.replace("&^", ""))
-    elif Args.MountPath.startswith("&"):
-        MountObj(Obj, kw["ObjCurrent"], Args.MountPath.replace("&", ""))
-    else:
-        raise Exception()
+    Obj = Module.__MainClass__(utils_torch.parse.Resolve(Args.ParamPath, **kw))
+
+    MountPath = Args.MountPath
+    ObjRoot = kw.get("ObjRoot")
+    ObjCurrent = kw.get("ObjCurrent")
+    
+    MountPath = MountPath.replace("&^", "ObjRoot.")
+    MountPath = MountPath.replace("&*", "ObjCurrent.__object__.")
+    MountPath = MountPath.replace("&", "ObjCurrent.")
+
+    MountPathList = MountPath.split(".")
+    SetAttrs(eval(MountPathList[0]), MountPathList[1:], Obj)
 
 BuildObject = BuildObj
 
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
-def ComposeFunction(*Functions):
+def StackFunction(*Functions):
     return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions, lambda x: x)
 
 def CallFunctions(param, **kw):
-    ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
+    ContextInfo = kw
     Outputs = []
     if isinstance(param, dict): # Call one function
         Output = _CallFunction(param, ContextInfo)
@@ -102,12 +107,11 @@ def CallFunctions(param, **kw):
         raise Exception()
     return Outputs
 
-def CallFunction(param, **kw):
-    ContextInfo = utils_torch.json.JsonObj2PyObj(kw)
+def CallFunction(param, ContextInfo):
     return _CallFunction(param, ContextInfo)
 
 def _CallFunction(param, ContextInfo):
-    EnsureAttrs(ContextInfo, "__PreviousFunctionOutput__", None)
+    ContextInfo.setdefault("__PreviousFunctionOutput__", None)
     if isinstance(param, str):
         param = [param]
     if len(param)==1:
@@ -115,21 +119,23 @@ def _CallFunction(param, ContextInfo):
     
     FunctionName = param[0]
     FunctionArgs = param[1]
-    Function = utils_torch.parse.ParseAttrFromContextInfo(
+    Function = utils_torch.parse.Resolve2Dict(
         FunctionName,
         ContextInfo
     )
     PositionalArgs, KeyWordArgs = utils_torch.parse.ParseFunctionArgs(FunctionArgs, ContextInfo)
     FunctionOutput = Function(*PositionalArgs, **KeyWordArgs)    
-    if FunctionOutput is not None:
-        SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
+    ContextInfo["__PreviousFunctionOutput__"] = FunctionOutput
+    if FunctionOutput is None:
+        #SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
         return []
     else:
-        SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
+        #SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
         return FunctionOutput
 
-def CallGraph(Router, **kw):
-    States = Router.In
+def CallGraph(Router, In, **kw):
+    States = utils_torch.json.EmptyPyObj()
+    utils_torch.parse.Register2PyObj(In, States, Router.In)
     for Routing in Router.Routings:
         if isinstance(Routing, list):
             CallFunction(Routing, **kw)

@@ -18,3 +18,5 @@ class SerialReceiver(nn.Module):
         return ContentList
     def SendWithoutFlush(self):
         return self.ContentList
+
+__MainClass__ = SerialReceiver

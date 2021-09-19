@@ -1,4 +1,3 @@
-from attrs import EnsureAttrs
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -13,11 +12,12 @@ class SerialSender(nn.Module):
     def InitFromParam(self):
         param = self.param
         self.ContentList = []
-        EnsureAttrs(param, "ExtractMethod.Initialize", default="Default")
-        if GetAttrs(param.ExtractMethod.Initialize) in ["Default"]:
+        EnsureAttrs(param, "ExtractMethod.Initialize.Method", default="Default")
+        method = GetAttrs(param.ExtractMethod.Initialize.Method)
+        if method in ["Default"]:
             self.ExtractMethod = self.DefaultExtractMethod
-        elif param.ExtractMethod.Initialize in ["eval"]:
-            self.ExtractMethod = eval(GetAttrs(param.ExtractMethod))
+        elif method in ["eval"]:
+            self.ExtractMethod = eval(GetAttrs(param.ExtractMethod.Initialize.Args))
         else:
             raise Exception()
         return
@@ -32,3 +32,5 @@ class SerialSender(nn.Module):
         Content = self.ExtractMethod(Index=self.NextSendIndex)
         self.NextSendIndex += 1
         return Content
+
+__MainClass__ = SerialSender

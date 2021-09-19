@@ -18,8 +18,8 @@ from utils_torch.Router import *
 def BuildModule(param):
     if param.Type in ["SingleLayer"]:
         return utils_torch.Models.SingleLayer(param)
-    elif param.Type in ["MultiLayerPerceptron", "MLP", "mlp"]:
-        return utils_torch.Models.MultiLayerPerceptron(param)
+    elif param.Type in ["MLP", "MLP", "mlp"]:
+        return utils_torch.Models.MLP(param)
     elif param.Type in ["SerialReceiver"]:
         return utils_torch.Models.SerialReceiver(param)
     elif param.Type in ["SerialSender"]:

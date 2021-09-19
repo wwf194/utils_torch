@@ -8,9 +8,9 @@ def InitFromParam(param):
 def load_model(param):
     return
 
-class MultiLayerPerceptron(torch.nn.Module):
+class MLP(torch.nn.Module):
     def __init__(self, param):
-        super(MultiLayerPerceptron, self).__init__()
+        super(MLP, self).__init__()
         if param is not None:
             self.param = param
     def InitFromParam(self, param):

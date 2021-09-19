@@ -127,7 +127,7 @@ def ParseResolutionXY(Resolution, Width, Height):
         ResolutionX = int( res * Width / Height )
     return ResolutionX, ResolutionY
 
-def Floats2PixelIndex(x, y, BoundaryBox, ResolutionX, ResolutionY):
+def XYs2PixelIndex(x, y, BoundaryBox, ResolutionX, ResolutionY):
     #return int( (x / box_Width + 0.5) * ResolutionX ), int( (y / box_Height+0.5) * ResolutionY )
     x0, y0, x1, y1 = BoundaryBox
     return int( ((x-BoundaryBox.xMin)/(x1-x0)) * ResolutionX ), int( (y-y0)/(y1-y0) * ResolutionY )

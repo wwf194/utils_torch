@@ -1,4 +1,3 @@
-from utils_torch.json import PyObj
 import utils_torch
 
 def CheckAttrs(Obj, attrs=[], *args, **kw):
@@ -74,7 +73,7 @@ def EnsureAttrs(Obj, attrs=[], *args, **kw):
     count = 0
 
     if len(attrs) == 0:
-        if isinstance(Obj, PyObj):
+        if isinstance(Obj, utils_torch.json.PyObj):
             if kw.get("WriteDefault")==True:
                 setattr(Obj, "__value__", default)
         return
@@ -88,14 +87,14 @@ def EnsureAttrs(Obj, attrs=[], *args, **kw):
                 if hasattr(Obj, attr):
                     Obj = getattr(Obj, attr)
                 else:
-                    setattr(Obj, attr, utils_torch.PyObj())
+                    setattr(Obj, attr, utils_torch.json.PyObj())
                     Obj = getattr(Obj, attr)               
             else:
                 SetAttr(parent, parentAttr, utils_torch.json.PyObj({"__value__": Obj}))
                 Obj = getattr(parent, parentAttr)
                 parent = Obj
                 parentAttr = attr
-                setattr(Obj, attr, utils_torch.PyObj())
+                setattr(Obj, attr, utils_torch.json.PyObj())
                 Obj = getattr(Obj, attr)                    
         else:
             if hasattr(Obj, "__dict__"):
@@ -113,7 +112,7 @@ def EnsureAttrs(Obj, attrs=[], *args, **kw):
                     if parent is None:
                         raise Exception("EnsureAttrs: Cannot redirect parent attribute.")
                     SetAttr(parent, parentAttr, 
-                        utils_torch.PyObj({
+                        utils_torch.json.PyObj({
                             "__value__": Obj,
                         }))
                     

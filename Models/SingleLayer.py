@@ -4,7 +4,7 @@ import torch.nn.functional as F
 
 from utils_torch.model import *
 from utils_torch.utils import *
-from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, ComposeFunction, SetAttrs
+from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, StackFunction, SetAttrs
 from utils_torch.model import GetNonLinearFunction, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, Create2DWeight
 
 def InitFromParam(param):
@@ -78,4 +78,6 @@ class SingleLayer(nn.Module):
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
             self.SelfConnectionMask = CreateSelfConnectionMask(param.Weight.Size[0])            
             GetWeight_function.append(lambda Weight:Weight * self.SelfConnectionMask)
-        self.GetWeight = ComposeFunction(GetWeight_function)
+        self.GetWeight = StackFunction(GetWeight_function)
+    
+__MainClass__ = SingleLayer

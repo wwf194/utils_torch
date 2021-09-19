@@ -5,6 +5,7 @@ from typing import List
 
 import utils_torch
 from utils_torch.python import CheckIsLegalPyName
+from utils_torch.attrs import *
 # from utils_torch.utils import ListAttrs # leads to recurrent reference.
 
 def EmptyPyObj():
@@ -41,47 +42,90 @@ class PyObj(object):
     def FromDict(self, Dict):
         #self.__dict__ = {}
         for key, value in Dict.items():
-            # if key in ["Batch.Internal"]:
-            #     print("aaa")
+            if key in ["Initialize.Method"]:
+                print("aaa")
             if "." in key:
                 keys = key.split(".")
-                CheckIsLegalPyName(key[0])
-                obj = self
-                for index, key in enumerate(keys):
-                    if index == len(keys) - 1:
-                        if hasattr(obj, key):
+            else:
+                keys = [key]
+            CheckIsLegalPyName(key[0])
+            obj = self
+            parent, parentAttr = None, None
+            for index, key in enumerate(keys):
+                if index == len(keys) - 1:
+                    if hasattr(obj, key):
+                        if isinstance(getattr(obj, key), PyObj):
+                            if isinstance(value, PyObj):
+                                getattr(obj, key).FromPyObj(value)
+                            elif isinstance(value, dict):
+                                getattr(obj, key).FromDict(value)
+                            else:
+                                if hasattr(getattr(obj, key), "__value__"):
+                                    utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
+                                        %(key, getattr(obj, key), value))                                       
+                                setattr(getattr(obj, key), "__value__", value)
+                        else:
                             utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
                                 %(key, getattr(obj, key), value))
-                        self.SetAttr(obj, key, value)
+                            setattr(obj, key, self.ProcessValue(value))
+                    else:
+                        if isinstance(obj, PyObj):
+                            setattr(obj, key, self.ProcessValue(value))
+                        else:
+                            setattr(parent, parentAttr, PyObj({
+                                "__value__": obj,
+                                key: self.ProcessValue(value)
+                            }))
+                else:
                     if hasattr(obj, key):
+                        parent, parentAttr = obj, key
                         obj = getattr(obj, key)
                     else:
-                        # if index == len(keys) - 1:
-                        #     setattr(obj, key, PyObj({
-                        #         keys[index]: value
-                        #     }))
-                        # else:
-                        #     setattr(obj, key, PyObj({
-                        #         ".".join(keys[index + 1:]): value
-                        #     }))
-                        setattr(obj, key, PyObj())
-                        obj = getattr(self, key)
-            else:
-                CheckIsLegalPyName(key)
-                self.SetAttr(self, key, value)
+                        if isinstance(obj, PyObj):
+                            setattr(obj, key, PyObj())
+                            parent, parentAttr = obj, key
+                            obj = getattr(obj, key)
+                        else:
+                            setattr(parent, parentAttr, PyObj({
+                                "__value__": obj,
+                                key: PyObj()
+                            }))
+                            parent, parentAttr = obj, key
+                            obj = getattr(obj, key)
+            # else:
+            #     CheckIsLegalPyName(key)
+            #     value = self.ProcessValue(value)
+            #     if isinstance(value, PyObj):
+            #         self.FromPyObj(value)
+            #     else:
+
+            #     setattr(self, key, self.ProcessValue(value))
+            # self.SetAttr(self, key, value)
         return self
-    def SetAttr(self, obj, attr, value):
-        if type(value) is dict:
-            if hasattr(obj, attr) and isinstance(getattr(obj, attr), PyObj):
-                getattr(obj, attr).FromDict(value)
-            else: # overwrite
-                setattr(obj, attr, PyObj(value))
-        elif type(value) is list:
-            # always overwrite
-            setattr(obj, attr, obj.FromList(value))
+    def FromPyObj(self, Obj):
+        self.FromDict(Obj.__dict__)
+    # def SetAttr(self, obj, attr, value):
+    #     if type(value) is dict:
+    #         if hasattr(obj, attr) and isinstance(getattr(obj, attr), PyObj):
+    #             getattr(obj, attr).FromDict(value)
+    #         else: # overwrite
+    #             setattr(obj, attr, PyObj(value))
+    #     elif type(value) is list:
+    #         # always overwrite
+    #         setattr(obj, attr, obj.FromList(value))
+    #     else:
+    #         # alwayes overwrite
+    #         setattr(obj, attr, value)
+    def ProcessValue(self, value):
+        if isinstance(value, dict):
+            return PyObj(value)
+        elif isinstance(value, list):
+            return PyObj().FromList(value)
+        elif type(value) is PyObj:
+            return value
         else:
-            # alwayes overwrite
-            setattr(obj, attr, value)
+            return value
+
     def to_dict(self):
         d = {}
         for key, value in self.__dict__.items():
@@ -109,10 +153,29 @@ Dict2PyObj = JsonObj2PyObj
 json_obj_to_object = JsonObj2PyObj
 
 def JsonObj2JsonStr(JsonObj):
-    return json5.dumps(JsonObj)
+    return json.dumps(JsonObj, indent=4, sort_keys=False)
 
-def PyObj2JsonObj(obj):
-    return json.loads(PyObj2JsonStr(obj))
+def PyObj2JsonObj(Obj):
+    if isinstance(Obj, list) or isinstance(Obj, tuple):
+        JsonObj = []
+        for Index, Item in enumerate(Obj):
+            JsonObj.append(PyObj2JsonObj(Item))
+        return JsonObj
+    elif isinstance(Obj, PyObj):
+        JsonObj = {}
+        for attr, value in Obj.__dict__.items():
+            JsonObj[attr] = PyObj2JsonObj(value)
+        return JsonObj
+    elif isinstance(Obj, dict):
+        JsonObj = {}
+        for key, value in Obj.items():
+            JsonObj[key] = PyObj2JsonObj(value)
+        return JsonObj   
+    elif type(Obj) in [str, int, bool, float]:
+        return Obj
+    else:
+        return "UnserializableObject"
+    #return json.loads(PyObj2JsonStr(obj))
 
 def PyObj2JsonFile(obj, path):
     # JsonObj = PyObj2JsonObj(obj)
@@ -131,11 +194,20 @@ def JsonStr2JsonFile(JsonStr, FilePath):
 
 object_to_json_obj = PyObj2JsonObj
 
-def PyObj2JsonStr(obj):
+def JsonDumpsLambda(obj):
+    if hasattr(obj, "__dict__"):
+        return obj.__dict__
+    else:
+        return "UnserializableObject"
+
+def PyObj2JsonStr(Obj):
     # return json.dumps(obj.__dict__, cls=change_type,indent=4)
     # why default=lambda o: o.__dict__?
-    return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
-    
+    #return json.dumps(obj, default=lambda o: o.__dict__, sort_keys=False, indent=4)
+    JsonObj = PyObj2JsonObj(Obj)
+    return JsonObj2JsonStr(JsonObj)
+    #return json.dumps(obj, default=JsonDumpsLambda, sort_keys=False, indent=4)
+
 def PyObj2JsonStrHook(Obj):
     # to be implemented
     return

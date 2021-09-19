@@ -1,4 +1,5 @@
 import math
+import cmath
 import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
@@ -29,8 +30,8 @@ def FlipAroundNormsAngle(Directions, Norms):
     return 2 * Norms - Directions + np.pi
 
 def RectangleAContainsRectangleB(RectangleA, RectangelB, Strict=False):
-    # @param RectangleA: list. [xMin, yMin, xMax, yMax]
-    # @param RectangleB: list. [xMin, yMin, xMax, yMax]
+    # @param RectangleA: list. [XMin, YMin, YMax, YMax]
+    # @param RectangleB: list. [XMin, YMin, YMax, YMax]
     if not Strict:
         Condition1 = RectangleA[0] <= RectangelB[0]
         Condition2 = RectangleA[1] <= RectangelB[1]
@@ -98,30 +99,6 @@ def IsLineSegmentCross(P1, P2, Q1, Q2): # 跨立实验
     else:
        return False
 
-
-# #
-# # line segment intersection using vectors
-# # see Computer Graphics by F.S. Hill
-# #
-# from numpy import *
-# def perp( a ) :
-#     b = empty_like(a)
-#     b[0] = -a[1]
-#     b[1] = a[0]
-#     return b
-
-# # line segment a given by endpoints a1, a2
-# # line segment b given by endpoints b1, b2
-# # return 
-# def seg_intersect(a1,a2, b1,b2) :
-#     da = a2-a1
-#     db = b2-b1
-#     dp = a1-b1
-#     dap = perp(da)
-#     denom = dot( dap, db)
-#     num = dot( dap, dp )
-#     return (num / denom.astype(float))*db + b1
-
 def _Perpendicular(a):
     b = np.empty_like(a)
     b[:, 0] = -a[:, 1]
@@ -137,12 +114,9 @@ def IntersectionPoints(P1, P2, Q1, Q2) :
     Numerator = np.sum(P1P2Perpendicular * Q1P1, axis=1)
     return (Numerator / Denominator.astype(float))[:, np.newaxis] * Q1Q2 + Q1
 
-def main():
-
-
-
-    return
-
+def XYsPair2Distance(A, B):
+    AB = A[:, np.newaxis, :] - B[np.newaxis, :, :] # [A.PointNum, B.PointNum, (x, y)]
+    return Vectors2Lengths(AB) # [A.PointNum, B.PointNum]
 
 def Polar2XY(Radius, Direction):
     # Direction: [-pi, pi)
@@ -198,8 +172,11 @@ def Vectors2GivenLengths(Vectors, Lengths):
 
 Vectors2GivenLength = Vectors2GivenLengths
 
-def Vectors2Lengths(VectorsNp): 
-    return np.linalg.norm(VectorsNp, axis=1, keepdims=False)
+def Vectors2LengthsNp(VectorsNp): 
+    # @VectorsNp: np.ndarray with shape [..., VectorSize]
+    return np.linalg.norm(VectorsNp, axis=-1, keepdims=False)
+
+Vectors2Lengths = Vectors2LengthsNp
 
 def Vectors2NormsNp(VectorsNp):  # Calculate Norm Vectors Pointing From Inside To Outside Of Polygon
     VectorNum = VectorsNp.shape[0]
@@ -244,8 +221,76 @@ Vectors2DirectionsNp = Vectors2RadiansNp
 def PlotIntersectionTest(SavePath=None, Num=10):
     fig, ax = plt.subplots()
 
+def LatticeXYs(self, BoundaryBox, ResolutionX, ResolutionY, Flatten=True):
+    XYs = np.zeros((ResolutionX, ResolutionY), dtype=np.float32)
+    Indices = np.zeros((ResolutionX, ResolutionY, 2), dtype=np.int32)
+    for i in range(ResolutionX):
+        Indices[i, :, 0] = i
+    for i in range(ResolutionY):
+        Indices[:, i, 1] = i
 
-     
+    Ys = PixelIndices2XYs(Indices[0, :, :], BoundaryBox, ResolutionX, ResolutionY)[:, 1]
+    Xs = PixelIndices2XYs(Indices[:, 0, :], BoundaryBox, ResolutionX, ResolutionY)[:, 0]
 
-if __name__=="__main__":
-    main()
+    for i in range(ResolutionX):
+        XYs[i, :, 0] = Xs[i]
+    for i in range(ResolutionY):
+        XYs[i, :, 1] = Ys[i]
+
+    if Flatten:
+        return XYs.reshape(ResolutionX * ResolutionY, 2)
+    else:
+        return XYs
+
+def XY2PixelIndex(X, Y, BoundaryBox, ResolutionX, ResolutionY):
+    #return int( (x / box_Width + 0.5) * ResolutionX ), int( (y / box_Height+0.5) * ResolutionY )
+    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = YMax - XMin
+    YRange = YMax - YMin
+    PixelWidth = XRange / ResolutionX
+    PixelHeight = YRange / ResolutionY
+    PixelHalfWidth = PixelWidth / 2
+    PixelHalfHeight = PixelHeight / 2
+    XIndex = (X - XMin - PixelHalfWidth) / PixelWidth
+    YIndex = (Y - YMin - PixelHalfHeight) / PixelHeight 
+    return round(XIndex), round(YIndex)
+
+def XYs2PixelIndices(XYs, BoundaryBox, ResolutionX, ResolutionY):
+    #return int( (x / box_Width + 0.5) * ResolutionX ), int( (y / box_Height+0.5) * ResolutionY )
+    #print('points shape:'+str(points.shape))
+    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = YMax - XMin
+    YRange = YMax - YMin
+    PixelWidth = XRange / ResolutionX
+    PixelHeight = YRange / ResolutionY
+    PixelHalfWidth = PixelWidth / 2
+    PixelHalfHeight = PixelHeight / 2
+    Xs, Ys = XYs[:, 0], XYs[:, 1]
+    XIndices = (Xs - XMin - PixelHalfWidth) / PixelWidth 
+    YIndices = (Ys - YMin - PixelHalfHeight) / PixelHeight
+    XYIndices =  np.stack( [XIndices, YIndices], axis=1)
+    return np.around(XYIndices).astype(np.int32) # np.astype(np.int) do floor, not round.
+
+def PixelIndex2XYs(xIndex, yIndex, BoundaryBox, ResolutionX, ResolutionY):
+    # @param Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
+    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = YMax - XMin
+    YRange = YMax - YMin
+    PixelWidth = XRange / ResolutionX
+    PixelHeight = YRange / ResolutionY
+    PixelHalfWidth = PixelWidth / 2
+    PixelHalfHeight = PixelHeight / 2
+    return xIndex * PixelWidth + XMin + PixelHalfWidth, yIndex * PixelHeight  + YMin + PixelHalfHeight
+
+def PixelIndices2XYs(Indices, BoundaryBox, ResolutionX, ResolutionY):
+    # @param Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
+    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = YMax - XMin
+    YRange = YMax - YMin
+    PixelWidth = XRange / ResolutionX
+    PixelHeight = YRange / ResolutionY
+    PixelHalfWidth = PixelWidth / 2
+    PixelHalfHeight = PixelHeight / 2
+    Xs = Indices[:, 0] * PixelWidth + XMin + PixelHalfWidth
+    Ys = Indices[:, 1] * PixelHeight  + YMin + PixelHalfHeight
+    return np.stack([Xs, Ys], axis=1)
