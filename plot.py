@@ -1,3 +1,4 @@
+from re import L
 import numpy as np
 import cv2 as cv
 import matplotlib as mpl
@@ -8,7 +9,7 @@ from numpy.core.fromnumeric import shape
 default_res=60
 
 import utils_torch
-from utils_torch.utils import EnsurePath, ToNpArray, ToList
+from utils_torch.utils import ToNpArray, ToList
 from utils_torch.attrs import *
 from enum import Enum
 
@@ -71,8 +72,21 @@ def PlotPointAndAddText(ax, XY, PointColor=ColorPlt.Blue, Text="TextOnPoint", Te
 def PlotText(ax, XY, Text, Color=ColorPlt.Blue):
     ax.text(XY[0], XY[1], Text, color=Color)
 
-def PlotPoint(ax, XY, Color=ColorPlt.Blue):
-    ax.scatter([XY[0]], [XY[1]], color=Color)
+def ParsePointTypePlt(Type):
+    if isinstance(Type, str):
+        if Type in ["Circ", "Circle"]:
+            return "o"
+        elif Type in ["Triangle"]:
+            return "^"
+        else:
+            raise Exception(Type)
+    else:
+        raise Exception(Type)
+
+def PlotPoint(ax, XY, Color=ColorPlt.Blue, Type="Circle"):
+    Color = ParseColorPlt(Color)
+    Type = ParsePointTypePlt(Type)
+    ax.scatter([XY[0]], [XY[1]], color=Color, marker=Type)
 
 def PlotPointsPltNp(ax, Points, Color=ColorPlt.Blue):
     Points = ToNpArray(Points)
@@ -118,45 +132,16 @@ def norm(data, ):
     # to be implemented
     return
 
+
+
 def ParseResolutionXY(Resolution, Width, Height):
     if Width >= Height:
         ResolutionX = Resolution
         ResolutionY = int( Resolution * Height / Width )
     else:
         ResolutionY = Resolution
-        ResolutionX = int( res * Width / Height )
+        ResolutionX = int(Resolution * Width / Height )
     return ResolutionX, ResolutionY
-
-def XYs2PixelIndex(x, y, BoundaryBox, ResolutionX, ResolutionY):
-    #return int( (x / box_Width + 0.5) * ResolutionX ), int( (y / box_Height+0.5) * ResolutionY )
-    x0, y0, x1, y1 = BoundaryBox
-    return int( ((x-BoundaryBox.xMin)/(x1-x0)) * ResolutionX ), int( (y-y0)/(y1-y0) * ResolutionY )
-
-def XY2PixelIndex(points, BoundaryBox, ResolutionX, ResolutionY):
-    #return int( (x / box_Width + 0.5) * ResolutionX ), int( (y / box_Height+0.5) * ResolutionY )
-    #print('points shape:'+str(points.shape))
-    x0, y0, x1, y1 = BoundaryBox
-    pixel_half_x = (x1 - x0) / ( 2 * ResolutionX )
-    pixel_half_y = (y1 - y0) / ( 2 * ResolutionY )
-    pixel_Width_x = (x1 - x0) / ResolutionX
-    pixel_Width_y = (y1 - y0) / ResolutionY
-    x, y = points[:, 0], points[:, 1]
-    #print(x.shape)
-    #print(y.shape)
-    #return np.stack( [ ( ((x-x0-pixel_half_x)/(x1-x0)) * (ResolutionX-1) ).astype(np.int), ( (y-y0-pixel_half_y)/(y1-y0) * (ResolutionY-1) ).astype(np.int) ], axis=1)
-    coords_int =  np.stack( [ ( (x-x0-pixel_half_x)/pixel_Width_x ), ( (y-y0-pixel_half_y)/pixel_Width_y )], axis=1)
-    return np.around(coords_int).astype(np.int) # np.astype(np.int) do floor, not round.
-def PixelIndex2XY(xIndex, yIndex, BoundaryBox, ResolutionX, ResolutionY):
-    x0, y0, x1, y1 = BoundaryBox
-    return xIndex * (BoundaryBox.xMax - BoundaryBox.xMin) / ResolutionX + BoundaryBox.xMin, yIndex / ResolutionY * (BoundaryBox.yMax - BoundaryBox.yMin) + BoundaryBox.yMin
-
-def PixelIndices2XYs(Points, BoundaryBox, ResolutionX, ResolutionY):
-    x0, y0, x1, y1 = BoundaryBox
-    pixel_half_x = (x1 - x0) / ( 2 * ResolutionX )
-    pixel_half_y = (y1 - y0) / ( 2 * ResolutionY )
-    Xs = Points[:,0] / ResolutionX * (x1-x0) + x0 + pixel_half_x
-    Ys = Points[:,1] / ResolutionY * (y1-y0) + y0 + pixel_half_y
-    return np.stack([Xs, Ys], axis=1)
 
 def PlotXYs(ax, XYs, XYsMark=None):
     if XYsMark is None:
@@ -229,7 +214,7 @@ def PlotPolyLineFromVerticesPlt(ax, Points, Color=ColorPlt.Black, Width=2.0, Clo
         pass
     else:
         for Index in range(LineNum):
-            utils_torch.AddLog("%s %s"%(Points[Index], Points[(Index + 1)%PointNum]))
+            # utils_torch.AddLog("(%.3f %.3f) (%.3f %.3f)"%(Points[Index][0], Points[Index][1], Points[(Index + 1)%PointNum][0], Points[(Index + 1)%PointNum][1]))
             PlotLinePlt(ax, Points[Index], Points[(Index + 1)%PointNum], Color=Color, Width=Width)
 
 PlotPolyLine = PlotPolyLineFromVerticesPlt
@@ -258,6 +243,15 @@ PlotPolyLine = PlotPolyLineFromVerticesPlt
     # else:
     #     raise Exception('PlotPolyLinePlt: invalid color mode:'+str(method))
 
+def ParseResolution(Width, Height, Resolution):
+    if Width < Height:
+        ResolutionX = Resolution
+        ResolutionY = round(ResolutionX * Height / Width)
+    else:
+        ResolutionY = Resolution
+        ResolutionX = round(ResolutionY * Width / Height)
+    return ResolutionX, ResolutionY
+
 def PlotPolyLineFromVerticesCV(img, points, closed=False, Color=(0,0,0), Width=2, Type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]): #points:[PointNum, (x,y)]
     if isinstance(points, list):
         points = np.array(points)
@@ -268,33 +262,57 @@ def PlotPolyLineFromVerticesCV(img, points, closed=False, Color=(0,0,0), Width=2
     else:
         line_num = points.shape[0]
 
-    x_res, y_res = img.shape[0], img.shape[1]
+    ResolutionX, ResolutionY = img.shape[0], img.shape[1]
 
     for i in range(line_num):
-        point_0 = Getint_coords(points[i%PointNum][0], points[i%PointNum][1], BoundaryBox, x_res, y_res)
-        point_1 = Getint_coords(points[(i+1)%PointNum][0], points[(i+1)%PointNum][1], BoundaryBox, x_res, y_res)
-        cv.line(img, point_0, point_1, color, Width, type)
+        point_0 = utils_torch.geometry2D.XY2PixelIndex(points[i%PointNum][0], points[i%PointNum][1], BoundaryBox, ResolutionX, ResolutionY)
+        point_1 = utils_torch.geometry2D.XY2PixelIndex(points[(i+1)%PointNum][0], points[(i+1)%PointNum][1], BoundaryBox, ResolutionX, ResolutionY)
+        cv.line(img, point_0, point_1, Color, Width, type)
 
-def PlotMatrix(ax, data, Save=True, SavePath='./MatrixPlot.png', title=None, colorbar=True):
-    im = ax.imshow(data)
+def SetAxRangeFromBoundaryBox(ax, BoundaryBox):
+    ax.set_xlim(BoundaryBox.XMin, BoundaryBox.XMax)
+    ax.set_ylim(BoundaryBox.YMin, BoundaryBox.YMax)
+    ax.set_xticks(np.linspace(BoundaryBox.XMin, BoundaryBox.XMax, 5))
+    ax.set_yticks(np.linspace(BoundaryBox.YMin, BoundaryBox.YMax, 5))
 
-    if title is not None:
-        ax.set_title(title)
-    ax.axis('off')
+def PlotMatrix(ax, data, ColorMap="jet", XYRange=None, Save=False, SavePath=None, Coordinate="Math"):
+    data = Map2Color(data, ColorMap)
+    if XYRange is not None:
+        extent = [XYRange.XMin, XYRange.XMax, XYRange.YMin, XYRange.YMax]
+    else:
+        extent = None
 
-    if colorbar:
-        max = np.max(data)
-        min = np.min(data)
-        
+    if Coordinate in ["Math"]:
+        data = data.transpose(1, 0, 2)
+        data = data[::-1, :, :]
+        pass
+
+    ax.imshow(data, extent=extent)
     if Save:
         utils_torch.EnsureFileDir(SavePath)
         plt.savefig(SavePath)
-    return
+    return ax
+
+# def PlotMatrix(ax, data, Save=True, SavePath='./MatrixPlot.png', title=None, colorbar=True):
+#     im = ax.imshow(data)
+
+#     if title is not None:
+#         ax.set_title(title)
+#     ax.axis('off')
+
+#     if colorbar:
+#         max = np.max(data)
+#         min = np.min(data)
+        
+#     if Save:
+#         utils_torch.EnsureFileDir(SavePath)
+#         plt.savefig(SavePath)
+#     return
 
 def PlotLineCv(img, points, line_color=(0,0,0), line_Width=2, line_type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]):
-    x_res, y_res = img.shape[0], img.shape[1]
-    point_0 = Getint_coords(points[0][0], points[0][1], BoundaryBox, x_res, y_res)
-    point_1 = Getint_coords(points[1][0], points[1][1], BoundaryBox, x_res, y_res)
+    ResolutionX, ResolutionY = img.shape[0], img.shape[1]
+    point_0 = Getint_coords(points[0][0], points[0][1], BoundaryBox, ResolutionX, ResolutionY)
+    point_1 = Getint_coords(points[1][0], points[1][1], BoundaryBox, ResolutionX, ResolutionY)
     cv.line(img, point_0, point_1, line_color, line_Width, line_type)
 
 def GetRandomColors(Num=5):
@@ -367,6 +385,10 @@ def cat_imgs(imgs, ColNum=10, space_Width=4): # images: [num, Width, Height, cha
 
 def ParseRowColNum(PlotNum, RowNum, ColNum):
     # @param ColNum: int. Column Number.
+    if RowNum in ["Auto", "auto"]:
+        RowNum = None
+    if ColNum in ["Auto", "auto"]:
+        ColNum = None
     if RowNum is None and ColNum is not None:
         RowNum = PlotNum // ColNum
         if PlotNum % ColNum > 0:
@@ -400,9 +422,10 @@ def CreateFigurePlt(PlotNum, RowNum=None, ColNum=None, Width=None, Height=None):
         pass
     else:
         raise Exception()
+    plt.close()
     fig, axes = plt.subplots(nrows=RowNum, ncols=ColNum, figsize=(Width, Height))
     return fig, axes
-CreateFiture = CreateFigurePlt
+CreateFigure = CreateCanvasPlt = CreateFigurePlt
 
 def GetAxRowColNum(axes):
     if isinstance(axes, np.ndarray):
@@ -425,7 +448,7 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
         RowIndex = Index // ColNum
         ColIndex = Index % ColNum
     
-    if RowNum>1 or ColNum>1:
+    if RowNum > 1 or ColNum > 1:
         if RowNum==1 or ColNum==1:
             if RowIndex==0 or RowIndex is None:
                 if isinstance(ColIndex, int):

@@ -250,7 +250,7 @@ def RenameFileIfPathExists(FilePath):
     FileName, Suffix = ParseNameSuffix(FilePath)
 
     if ExistsPath(FilePath):
-        MatchResult = re.match(r"(.*)-(\d+)", FileName)
+        MatchResult = re.match(r"^(.*)-(\d+)$", FileName)
         if MatchResult is None:
             os.rename(FilePath, FileName + "-0" + "." + Suffix)
             FileNameOrigin = FileName

@@ -30,8 +30,8 @@ def FlipAroundNormsAngle(Directions, Norms):
     return 2 * Norms - Directions + np.pi
 
 def RectangleAContainsRectangleB(RectangleA, RectangelB, Strict=False):
-    # @param RectangleA: list. [XMin, YMin, YMax, YMax]
-    # @param RectangleB: list. [XMin, YMin, YMax, YMax]
+    # @param RectangleA: list. [XMin, YMin, XMax, YRange]
+    # @param RectangleB: list. [XMin, YMin, XMax, YRange]
     if not Strict:
         Condition1 = RectangleA[0] <= RectangelB[0]
         Condition2 = RectangleA[1] <= RectangelB[1]
@@ -115,8 +115,11 @@ def IntersectionPoints(P1, P2, Q1, Q2) :
     return (Numerator / Denominator.astype(float))[:, np.newaxis] * Q1Q2 + Q1
 
 def XYsPair2Distance(A, B):
+    # if B.shape[0]==512:
+    #     print("aaa")
     AB = A[:, np.newaxis, :] - B[np.newaxis, :, :] # [A.PointNum, B.PointNum, (x, y)]
-    return Vectors2Lengths(AB) # [A.PointNum, B.PointNum]
+    Lengths = Vectors2Lengths(AB) # [A.PointNum, B.PointNum]
+    return Lengths # [A.PointNum, B.PointNum]
 
 def Polar2XY(Radius, Direction):
     # Direction: [-pi, pi)
@@ -174,7 +177,8 @@ Vectors2GivenLength = Vectors2GivenLengths
 
 def Vectors2LengthsNp(VectorsNp): 
     # @VectorsNp: np.ndarray with shape [..., VectorSize]
-    return np.linalg.norm(VectorsNp, axis=-1, keepdims=False)
+    Lengths = np.linalg.norm(VectorsNp, axis=-1, ord=2, keepdims=False)
+    return Lengths
 
 Vectors2Lengths = Vectors2LengthsNp
 
@@ -221,8 +225,8 @@ Vectors2DirectionsNp = Vectors2RadiansNp
 def PlotIntersectionTest(SavePath=None, Num=10):
     fig, ax = plt.subplots()
 
-def LatticeXYs(self, BoundaryBox, ResolutionX, ResolutionY, Flatten=True):
-    XYs = np.zeros((ResolutionX, ResolutionY), dtype=np.float32)
+def LatticeXYs(BoundaryBox, ResolutionX, ResolutionY, Flatten=True):
+    XYs = np.zeros((ResolutionX, ResolutionY, 2), dtype=np.float32)
     Indices = np.zeros((ResolutionX, ResolutionY, 2), dtype=np.int32)
     for i in range(ResolutionX):
         Indices[i, :, 0] = i
@@ -235,7 +239,7 @@ def LatticeXYs(self, BoundaryBox, ResolutionX, ResolutionY, Flatten=True):
     for i in range(ResolutionX):
         XYs[i, :, 0] = Xs[i]
     for i in range(ResolutionY):
-        XYs[i, :, 1] = Ys[i]
+        XYs[:, i, 1] = Ys[i]
 
     if Flatten:
         return XYs.reshape(ResolutionX * ResolutionY, 2)
@@ -244,8 +248,8 @@ def LatticeXYs(self, BoundaryBox, ResolutionX, ResolutionY, Flatten=True):
 
 def XY2PixelIndex(X, Y, BoundaryBox, ResolutionX, ResolutionY):
     #return int( (x / box_Width + 0.5) * ResolutionX ), int( (y / box_Height+0.5) * ResolutionY )
-    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
-    XRange = YMax - XMin
+    XMin, XMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.XMax, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = XMax - XMin
     YRange = YMax - YMin
     PixelWidth = XRange / ResolutionX
     PixelHeight = YRange / ResolutionY
@@ -258,8 +262,8 @@ def XY2PixelIndex(X, Y, BoundaryBox, ResolutionX, ResolutionY):
 def XYs2PixelIndices(XYs, BoundaryBox, ResolutionX, ResolutionY):
     #return int( (x / box_Width + 0.5) * ResolutionX ), int( (y / box_Height+0.5) * ResolutionY )
     #print('points shape:'+str(points.shape))
-    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
-    XRange = YMax - XMin
+    XMin, XMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.XMax, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = XMax - XMin
     YRange = YMax - YMin
     PixelWidth = XRange / ResolutionX
     PixelHeight = YRange / ResolutionY
@@ -273,8 +277,8 @@ def XYs2PixelIndices(XYs, BoundaryBox, ResolutionX, ResolutionY):
 
 def PixelIndex2XYs(xIndex, yIndex, BoundaryBox, ResolutionX, ResolutionY):
     # @param Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
-    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
-    XRange = YMax - XMin
+    XMin, XMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YRange, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = XMax - XMin
     YRange = YMax - YMin
     PixelWidth = XRange / ResolutionX
     PixelHeight = YRange / ResolutionY
@@ -284,8 +288,8 @@ def PixelIndex2XYs(xIndex, yIndex, BoundaryBox, ResolutionX, ResolutionY):
 
 def PixelIndices2XYs(Indices, BoundaryBox, ResolutionX, ResolutionY):
     # @param Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
-    XMin, YMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YMax, BoundaryBox.YMin, BoundaryBox.YMax
-    XRange = YMax - XMin
+    XMin, XMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.XMax, BoundaryBox.YMin, BoundaryBox.YMax
+    XRange = XMax - XMin
     YRange = YMax - YMin
     PixelWidth = XRange / ResolutionX
     PixelHeight = YRange / ResolutionY

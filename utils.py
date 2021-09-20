@@ -6,6 +6,7 @@ import threading
 import time
 import warnings
 import pickle
+import random
 import importlib
 from typing import Iterable, List
 #import pynvml
@@ -20,19 +21,24 @@ import torch.nn as nn
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
+from inspect import getframeinfo, stack
+
 # from utils_torch.files import *
 # from utils_torch.json import *
 from utils_torch.attrs import *
 from utils_torch.files import *
 # from utils_torch.python import *
 
-def AddLog(Log, TimeStamp=True):
+def AddLog(log, TimeStamp=True, File=True, LineNum=True):
     Logger = utils_torch.ArgsGlobal.Logger
-    if Logger is not None:
-        if TimeStamp:
-            Logger.debug("[%s]%s"%(GetTime(), Log))
-        else:
-            Logger.debug("%s"%Log)
+    Caller = getframeinfo(stack()[1][0])
+    if TimeStamp:
+        log = "[%s]%s"%(GetTime(), log)
+    if File:
+        log = "%s File \"%s\""%(log, Caller.filename)
+    if LineNum:
+        log = "%s, line %d"%(log, Caller.lineno)
+    Logger.debug(log)
 
 def AddWarning(Log, Logger=None, TimeStamp=True):
     Logger = utils_torch.ArgsGlobal.Logger
@@ -90,8 +96,13 @@ BuildObject = BuildObj
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
-def StackFunction(*Functions):
-    return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions, lambda x: x)
+def StackFunction(*Functions, Inverse=False):
+    if not Inverse:
+        # Function at head is called earlier.
+        return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions, lambda x: x)
+    else:
+        # Function at tail is called earlier
+        return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions, lambda x: x)
 
 def CallFunctions(param, **kw):
     ContextInfo = kw
@@ -884,3 +895,6 @@ ListAllMethodsOfModule = GetAllMethodsOfModule
 ArgsGlobal = utils_torch.json.JsonObj2PyObj({
     "Logger": None
 })
+
+def RandomSelect(List, SelectNum):
+    return random.sample(List, SelectNum)

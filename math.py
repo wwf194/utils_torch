@@ -101,22 +101,22 @@ GaussianCoefficient = 1.0 / (2 * np.pi) ** 0.5
 
 def GetGaussianProbDensityMethod(Mean, Std):
     # return Gaussian Probability Density Function
-    CalculateExponent = lambda data: 0.5 * ((data - Mean) / Std) ** 2
+    CalculateExponent = lambda data: - 0.5 * ((data - Mean) / Std) ** 2
     Coefficient = GaussianCoefficient / Std
     ProbDensity = lambda data: Coefficient * np.exp(CalculateExponent(data))
     return ProbDensity
 
 def GetGaussianCurveMethod(Amp, Mean, Std):
     # return Gaussian Curve Function.
-    CalculateExponent = lambda data: 0.5 * ((data - Mean) / Std) ** 2
+    CalculateExponent = lambda data: - 0.5 * ((data - Mean) / Std) ** 2
     GaussianCurve = lambda data: Amp * np.exp(CalculateExponent(data))
     return GaussianCurve
 
 def GaussianProbDensity(data, Mean, Std):
-    Exponent = 0.5 * ((data - Mean) / Std) ** 2
+    Exponent = - 0.5 * ((data - Mean) / Std) ** 2
     return GaussianCoefficient / Std * np.exp(Exponent)
 
 def GaussianCurveValue(data, Amp, Mean, Std):
-    Exponent = 0.5 * ((data - Mean) / Std) ** 2
+    Exponent = - 0.5 * ((data - Mean) / Std) ** 2
     return Amp * np.exp(Exponent)
 
