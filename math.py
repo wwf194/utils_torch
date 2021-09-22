@@ -35,6 +35,11 @@ def SampleFromDistribution(param, Shape=None):
 def SampleFromGaussianDistribution(Mean=0.0, Std=1.0, Shape=100):
     return np.random.normal(loc=Mean, scale=Std, size=utils_torch.parse.ParseShape(Shape))
 
+def SampleFromGaussianDistributionTorch(Mean=0.0, Std=1.0, Shape=100):
+    data = SampleFromGaussianDistribution(Mean, Std, Shape)
+    data = utils_torch.NpArray2Tensor(data)
+    return data
+
 def SamplesFromReyleighDistribution(Mean=1.0, Shape=100):
     # p(x) ~ x^2 / sigma^2 * exp( - x^2 / (2 * sigma^2))
     # E[X] = 1.253 * sigma

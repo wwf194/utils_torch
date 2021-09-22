@@ -577,77 +577,9 @@ def ParseJsonObj(JsonObj): # Obj can either be dict or list.
     
 JsonObj2ParsedJsonObj = ParseJsonObj
 
-def parse_param_JsonObj(JsonObj, overwrite=True):
-    PyObj = JsonObj2PyObj(JsonObj)
-    for name, Obj in utils_torch.ListAttrs(PyObj):
-        setattr(Obj, "__ResolveBase__", "root.%s."%name)
-    JsonDictsParsed = ParsePyObjStatic(PyObj)
-    for Value in JsonDictsParsed.Values():
-        Value.pop("__ResolveBase__")
-    for name, Obj in utils_torch.ListAttrs(PyObj):
-        delattr(Obj, "__ResolveBase__")
-    return JsonDictsParsed
-
-def parse_param_PyObj(PyObj, overwrite=True):
-    for name, Obj in utils_torch.ListAttrs(PyObj):
-        setattr(Obj, "__ResolveBase__", "root.%s."%name)
-    PyObjParsed = ParsePyObjStatic(PyObj)
-    for name, Obj in utils_torch.ListAttrs(PyObjParsed):
-        delattr(Obj, "__ResolveBase__")
-    return PyObjParsed
-
 def JsonObj2ParsedPyObj(JsonObj):
     return JsonObj2PyObj(JsonObj2ParsedJsonObj(JsonObj))
 
-def ParseRoutings(Routings):
-    RoutingsParsed = []
-    if not isinstance(Routings, list):
-        _ParseRouting(Routings)
-    else:
-        for Index, Routing in enumerate(Routings):
-            RoutingsParsed.append(_ParseRouting(Routing))
-    return RoutingsParsed
-
-def _ParseRouting(Routing):
-    if not isinstance(Routing, str):
-        return Routing
-    Routing = re.sub(" ", "", Routing) # remove all spaces
-    param = utils_torch.json.EmptyPyObj()
-    Routing = Routing.split("||")
-    MainRouting = Routing[0] 
-    if len(Routing) > 1:
-        Params = Routing[1:]
-    else:
-        Params = []
-
-    MainRouting = MainRouting.split("|-->")
-    if len(MainRouting) != 3:
-        raise Exception("Routing Must Be In Form Of ... |--> ... |--> ...")
-    In = MainRouting[0]
-    Module = MainRouting[1]
-    Out = MainRouting[2]
-
-    param.In = In.rstrip(",").split(",")
-    param.Out = Out.rstrip(",").split(",")
-    param.Module = Module
-
-    for Param in Params:
-        Param = Param.split("=")
-        if len(Param)!=2:
-            raise Exception()
-        attr, value = Param[0], Param[1]
-        if attr in ["repeat"]:
-            attr = "RepeatTime"
-        setattr(param, attr, value)
-    EnsureAttrs(param, "RepeatTime", value=1)
-
-    param.DynamicParseAttrs = []
-    for attr, value in ListAttrsAndValues(param):
-        if isinstance(value, str):
-            #if "%" in value:
-            if value[0]=="%": # Dynamic Parse
-                param.DynamicParseAttrs.append(attr)
-    return param
 
 def FilterFromPyObj(PyObj, Keys):
     List = []
@@ -668,6 +600,8 @@ def Register2PyObj(Obj, PyObj, NameList):
                 setattr(PyObj, NameList[0], Obj)
             else:
                 raise Exception()
+    elif Obj is None:
+        return
     else:
         if len(NameList)==1:
             setattr(PyObj, NameList[0], Obj)
@@ -685,38 +619,6 @@ def RegisterList2PyObj(List, PyObj, attrs=None):
         raise Exception()
     for index in range(len(List)):
         setattr(PyObj, attrs[index], List[index])
-
-def ParseRoutersDynamic(Routers, ObjRefList=[], **kw):
-    if isinstance(Routers, list):
-        RouterParsed = []
-        for Router in Routers:
-            RouterParsed.append(ParseRouterDynamic(Router, **kw))
-        return RouterParsed
-    elif isinstance(Routers, utils_torch.json.PyObj):
-        RoutersParsed = EmptyPyObj()
-        for Name, Router in ListAttrsAndValues(Routers):
-            setattr(RoutersParsed, Name, ParseRouterDynamic(Router, **kw))
-        return RoutersParsed
-    else:
-        raise Exception()
-
-def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
-    RouterParsed = utils_torch.json.EmptyPyObj()
-    for Index, Routing in enumerate(Router.Routings):
-        
-
-    SetAttrs(Router, "Routings", value=ParseRoutings(Router.Routings))
-    RouterParsed = utils_torch.parse.ParsePyObjDynamic(Router, ObjRefList=ObjRefList, InPlace=InPlace, RaiseFailedParse=True, **kw)
-    return RouterParsed
-
-def ParseRoutingOnline(Routing, States):
-    #utils_torch.parse.RedirectPyObj(Routing, States)
-    for attr in Routing.DynamicParseAttrs:
-        value = GetAttrs(Routing, attr)    
-        #value = re.sub("(%\w+)", lambda matchedStr:"getattr(States, %s)"%matchedStr[1:], value)
-        value = eval(value.replace("%", "States."))     
-        SetAttrs(Routing, attr, value)
-    return Routing
 
 def SeparateArgs(ArgsString):
     # ArgsString = ArgsString.strip() # remove empty chars at front and end.

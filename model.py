@@ -1,4 +1,5 @@
 
+from typing import Set
 import torch
 import torch.optim as optim
 import torch.nn as nn
@@ -16,9 +17,15 @@ from utils_torch.LRSchedulers import LinearLR
 from utils_torch.Router import *
 
 def BuildModule(param):
+    if not HasAttrs(param, "Type"):
+        if HasAttrs(param, "Name"):
+            SetAttrs(param, "Type", GetAttrs(param.Name))
+        else:
+            raise Exception()
+
     if param.Type in ["SingleLayer"]:
         return utils_torch.Models.SingleLayer(param)
-    elif param.Type in ["MLP", "MLP", "mlp"]:
+    elif param.Type in ["MLP", "MultiLayerPerceptron", "mlp"]:
         return utils_torch.Models.MLP(param)
     elif param.Type in ["SerialReceiver"]:
         return utils_torch.Models.SerialReceiver(param)
@@ -26,9 +33,14 @@ def BuildModule(param):
         return utils_torch.Models.SerialSender(param)
     elif param.Type in ["Lambda", "LambdaLayer"]:
         return utils_torch.Models.LambdaLayer(param)
+    elif param.Type in ["RecurrentLIFLayer"]:
+        return utils_torch.Models.RecurrentLIFLayer(param)
+    elif param.Type in ["NoiseGenerator"]:
+        return utils_torch.Models.NoiseGenerator(param)
+    elif param.Type in ["NonLinear"]:
+        return utils_torch.Models.NonLinear(param)
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
-BuildModule = BuildModule
 
 def ListParameter(model):
     for name, param in model.named_parameters():
@@ -108,7 +120,8 @@ def parse_non_linear_function_description(description):
     elif isinstance(description, object):
         return description
     else:
-        raise Exception("parse_non_linear_function_description: invalid description Type: %s"%Type(description))
+        raise Exception("parse_non_linear_function_description: invalid description Type: %s"%type(description))
+    
 def CreateWeight2D(param, DataType=torch.float32):
     Init = param.Init
     if Init.Method in ["kaiming", "he"]:

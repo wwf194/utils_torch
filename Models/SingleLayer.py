@@ -28,8 +28,7 @@ class SingleLayer(nn.Module):
             self.param = param
             self.data = utils_torch.json.EmptyPyObj()
             self.cache = utils_torch.json.EmptyPyObj()
-        super(SingleLayer, self).__init__()
-
+        
         cache.ParamIndices = []
         SetAttrs(param, "Type", value="SingleLayer")
         EnsureAttrs(param, "Subtype", default="f(Wx+b)")
@@ -86,7 +85,7 @@ class SingleLayer(nn.Module):
         cache.ParamIndices.append([data, "Weight", data.Weight])
 
         GetWeightFunction = [lambda :data.Weight]
-        if MatchAttrs(param.Weight, "isExciInhi", value=True):
+        if MatchAttrs(param.Weight, "IsExciInhi", value=True):
             self.ExciInhiMask = CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.excitatory.Num, param.Weight.inhibitory.Num)
             GetWeightFunction.append(lambda Weight:Weight * self.ExciInhiMask)
             EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")

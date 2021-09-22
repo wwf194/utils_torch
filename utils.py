@@ -66,7 +66,7 @@ def ProcessInitTask(param, **kw):
         CallFunctions(param.Args, **kw)
     else:
         raise Exception()
-    
+
 def BuildObj(Args, **kw):
     if isinstance(Args, list):
         for Arg in Args:
@@ -158,11 +158,11 @@ def _CallFunction(param, ContextInfo):
 def CallGraph(Router, In, **kw):
     States = utils_torch.json.EmptyPyObj()
     utils_torch.parse.Register2PyObj(In, States, Router.In)
-    for Routing in Router.Routings:
+    for RoutingIndex, Routing in enumerate(Router.Routings):
         if isinstance(Routing, list):
             CallFunction(Routing, **kw)
         elif isinstance(Routing, utils_torch.json.PyObj):
-            Routing = utils_torch.parse.ParseRoutingOnline(Routing, States)
+            Routing = utils_torch.router.ParseRoutingAttrsDynamic(Routing, States)
             for TimeIndex in range(Routing.RepeatTime):
                 InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
                 if isinstance(Routing.Module, utils_torch.json.PyObj):
@@ -181,6 +181,10 @@ def RemoveStartEndEmptySpaceChars(Str):
     return Str
 
 RemoveHeadTailWhiteChars = RemoveStartEndEmptySpaceChars
+
+def RemoveWhiteChars(Str):
+    Str = re.sub(r"\s+", "", Str)
+    return Str
 
 def TensorType(data):
     return data.dtype

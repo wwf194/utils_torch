@@ -151,7 +151,7 @@ def HasAttrs(Obj, attrs, *args, false_if_none=True):
 
 has_attrs = HasAttrs
 
-def ListAttrsAndValues(Obj, Exceptions=[]):
+def ListAttrsAndValues(Obj, Exceptions=["__ResolveBase__"]):
     AttrsAndValues = []
     for attr, value in Obj.__dict__.items():
         if attr not in Exceptions:

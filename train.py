@@ -43,7 +43,7 @@ def TrainEpochBatch(param, **kw):
         utils_torch.AddLog("Epoch: %d"%EpochIndex)
         for BatchIndex in range(param.Batch.Num):
             utils_torch.AddLog("Batch: %d"%BatchIndex)
-            Router = utils_torch.parse.ParseRouter(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
+            Router = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
             In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
             utils_torch.CallGraph(Router, In=In)
 
