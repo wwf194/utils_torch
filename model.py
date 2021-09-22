@@ -37,6 +37,9 @@ def BuildModule(param):
         return utils_torch.Models.NoiseGenerator(param)
     elif param.Type in ["NonLinear"]:
         return GetNonLinearMethod(param)
+    elif param.Type in ["Internal"]:
+        utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
+        return None
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
 
@@ -80,17 +83,23 @@ def GetConstraintFunction(Method):
 
 def GetNonLinearMethod(param):
     param = ParseNonLinearMethod(param)
-    if param.Type in ["relu", "ReLU"]:
+    if param.Type in ["NonLinear"]:
+        if hasattr(param, "Subtype"):
+            Type = param.Subtype
+    else:
+        Type = param.Type
+
+    if Type in ["relu", "ReLU"]:
         if param.Coefficient==1.0:
             return F.relu
         else:
             return lambda x:param.Coefficient * F.relu(x)
-    elif param.Type in ["tanh"]:
+    elif Type in ["tanh"]:
         if param.Coefficient==1.0:
             return F.tanh
         else:
             return lambda x:param.Coefficient * F.tanh(x)       
-    elif param.Type in ["sigmoid"]:
+    elif Type in ["sigmoid"]:
         if param.Coefficient==1.0:
             return F.tanh
         else:
@@ -102,24 +111,27 @@ Getactivation_function = GetNonLinearMethod
 
 def ParseNonLinearMethod(param):
     if isinstance(param, str):
-        return JsonObj2PyObj({
-            "Type":param,
+        param = utils_torch.PyObj({
+            "Type": param,
             "Coefficient": 1.0
         })
     elif isinstance(param, list):
         if len(param)==2:
-            return JsonObj2PyObj({
+            param = utils_torch.PyObj({
                 "Type": param[0],
                 "Coefficient": param[1]
             })
         else:
             # to be implemented
             pass
-    elif isinstance(param, object):
-        return param
+    elif isinstance(param, utils_torch.PyObj):
+        if not hasattr(param, "Coefficient"):
+            param.Coefficient = 1.0
     else:
         raise Exception("ParseNonLinearMethod: invalid param Type: %s"%type(param))
     
+    return param
+
 def CreateWeight2D(param, DataType=torch.float32):
     Init = param.Init
     if Init.Method in ["kaiming", "he"]:

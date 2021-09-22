@@ -35,6 +35,10 @@ class RecurrentLIFLayer(nn.Module):
             self.cache = utils_torch.json.EmptyPyObj()
         
         self.cache.Modules = utils_torch.json.EmptyPyObj()
+        
+        EnsureAttrs(param, "IsExciInhi", default=False)
+        
+        
         cache.ParamIndices = []
         self.BuildModules()
         self.InitModules()
@@ -43,7 +47,7 @@ class RecurrentLIFLayer(nn.Module):
     def BuildModules(self):
         param = self.param
         cache = self.cache
-        for Name, ModuleParam in ListAttrsAndValues(param.Modules):
+        for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveRef__"]):
             setattr(ModuleParam, "Name", Name)
             Module = utils_torch.model.BuildModule(ModuleParam)
             setattr(cache.Modules, Name, Module)

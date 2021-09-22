@@ -71,6 +71,7 @@ def ParseRoutingAttrsDynamic(Routing, States):
 def ParseRoutingStatic(Routing):
     if not isinstance(Routing, str):
         return Routing
+    _Routing = Routing
     Routing = re.sub(" ", "", Routing) # remove all spaces
     param = utils_torch.json.EmptyPyObj()
     Routing = Routing.split("||")
@@ -79,10 +80,18 @@ def ParseRoutingStatic(Routing):
         Params = Routing[1:]
     else:
         Params = []
-
+    _MainRouting = MainRouting
     MainRouting = MainRouting.split("|-->")
     if len(MainRouting) != 3:
-        raise Exception("Routing Must Be In Form Of ... |--> ... |--> ...")
+        if len(MainRouting)==2:
+            if MainRouting[0].startswith("&") and not MainRouting[1].startswith("&"):
+                MainRouting = ["", MainRouting[0], MainRouting[1]]
+            elif not MainRouting[0].startswith("&") and MainRouting[1].startswith("&"):
+                MainRouting = [MainRouting[0], MainRouting[1], ""]
+            else:
+                raise Exception("Cannot parse routing: %s"%_Routing)
+        else:
+            raise Exception("Cannot parse routing: %s"%_Routing)
     In = MainRouting[0]
     Module = MainRouting[1]
     Out = MainRouting[2]
