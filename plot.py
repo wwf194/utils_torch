@@ -275,8 +275,20 @@ def SetAxRangeFromBoundaryBox(ax, BoundaryBox):
     ax.set_xticks(np.linspace(BoundaryBox.XMin, BoundaryBox.XMax, 5))
     ax.set_yticks(np.linspace(BoundaryBox.YMin, BoundaryBox.YMax, 5))
 
-def PlotMatrix(ax, data, ColorMap="jet", XYRange=None, Save=False, SavePath=None, Coordinate="Math"):
-    data = Map2Color(data, ColorMap)
+def PlotMatrix(ax, data, ApplyColorMap=None, ColorMap="jet", XYRange=None, Save=False, SavePath=None, Coordinate="Math"):
+    if ApplyColorMap is None:
+        DimData = len(data.shape)
+        if DimData==2:
+            ApplyColorMap = True
+        elif DimData==3:
+            ApplyColorMap = False
+        else:
+            raise Exception(DimData)
+    
+    if ApplyColorMap:
+        data = Map2Color(data, ColorMap)
+    else:
+        pass
     if XYRange is not None:
         extent = [XYRange.XMin, XYRange.XMax, XYRange.YMin, XYRange.YMax]
     else:

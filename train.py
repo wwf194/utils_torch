@@ -37,8 +37,8 @@ def Train(Args, **kw):
 
 def TrainEpochBatch(param, **kw):
     kw["ObjCurrent"] = param
-    param = utils_torch.parse.ParsePyObjStatic(param, **kw)
-    param = utils_torch.parse.ParsePyObjDynamic(param, **kw)
+    param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
+    param = utils_torch.parse.ParsePyObjDynamic(param, InPlace=False, **kw)
     for EpochIndex in range(param.Epoch.Num):
         utils_torch.AddLog("Epoch: %d"%EpochIndex)
         for BatchIndex in range(param.Batch.Num):

@@ -12,12 +12,12 @@ class SerialSender(nn.Module):
     def InitFromParam(self):
         param = self.param
         self.ContentList = []
-        EnsureAttrs(param, "ExtractMethod.Initialize.Method", default="Default")
-        method = GetAttrs(param.ExtractMethod.Initialize.Method)
+        EnsureAttrs(param, "ExtractMethod.Init.Method", default="Default")
+        method = GetAttrs(param.ExtractMethod.Init.Method)
         if method in ["Default"]:
             self.ExtractMethod = self.DefaultExtractMethod
         elif method in ["eval"]:
-            self.ExtractMethod = eval(GetAttrs(param.ExtractMethod.Initialize.Args))
+            self.ExtractMethod = eval(GetAttrs(param.ExtractMethod.Init.Args))
         else:
             raise Exception()
         return

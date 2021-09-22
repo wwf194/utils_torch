@@ -7,3 +7,6 @@ import utils_torch.json as json
 import utils_torch.train as train
 import utils_torch.math as math
 import utils_torch.plot as plot
+import utils_torch.model as model
+
+from utils_torch.json import EmptyPyObj as EmptyPyObj

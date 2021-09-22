@@ -57,7 +57,7 @@ def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
         print(TimeStr)
     return TimeStr
 
-def ImplementInitializeTask(param, **kw):
+def ProcessInitTask(param, **kw):
     ObjRoot = kw.setdefault("ObjRoot", None)
     ObjCurrent = kw.setdefault("ObjCurrent", None)
     if param.Type in ["BuildObject", "BuildObj"]:
@@ -96,13 +96,24 @@ BuildObject = BuildObj
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
-def StackFunction(*Functions, Inverse=False):
+def StackFunction(FunctionList, *Functions, Inverse=False):
+    if isinstance(FunctionList, list):
+        if len(Functions)>0:
+            raise Exception()
+        Functions = FunctionList
+    else:
+        Functions = [FunctionList, *Functions]
+    
+    if len(Functions)==1:
+        return Functions[0]
+
     if not Inverse:
         # Function at head is called earlier.
-        return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions, lambda x: x)
+        #return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions, lambda x: x)
+        return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions)
     else:
         # Function at tail is called earlier
-        return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions, lambda x: x)
+        return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions)
 
 def CallFunctions(param, **kw):
     ContextInfo = kw
@@ -151,13 +162,18 @@ def CallGraph(Router, In, **kw):
         if isinstance(Routing, list):
             CallFunction(Routing, **kw)
         elif isinstance(Routing, utils_torch.json.PyObj):
-            Routing = utils_torch.parse.ParseRoutingDynamic(Routing, States)
+            Routing = utils_torch.parse.ParseRoutingOnline(Routing, States)
             for TimeIndex in range(Routing.RepeatTime):
                 InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
-                Output = Routing.Module(*InputList)
+                if isinstance(Routing.Module, utils_torch.json.PyObj):
+                    CallGraph(Routing.Module, InputList)
+                #if hasattr(Routing.Module, "forward"):
+                else:
+                    Output = Routing.Module(*InputList)
                 utils_torch.parse.Register2PyObj(Output, States, Routing.Out)
         else:
             raise Exception()
+    return utils_torch.parse.FilterFromPyObj(States, Router.Out)
 
 def RemoveStartEndEmptySpaceChars(Str):
     Str = re.match(r"\s*([\S].*)", Str).group(1)
@@ -166,6 +182,14 @@ def RemoveStartEndEmptySpaceChars(Str):
 
 RemoveHeadTailWhiteChars = RemoveStartEndEmptySpaceChars
 
+def TensorType(data):
+    return data.dtype
+
+def NpArrayType(data):
+    if not isinstance(data, np.ndarray):
+        return "Not an np.ndarray, but %s"%type(data)
+    return data.dtype
+
 def ToNpArray(data, DataType=np.float32):
     if isinstance(data, np.ndarray):
         return data
@@ -173,6 +197,33 @@ def ToNpArray(data, DataType=np.float32):
         return np.array(data, dtype=DataType)
     else:
         raise Exception()
+
+def NpArray2Tensor(data, Location="cpu", DataType=torch.float32):
+    data = torch.from_numpy(data)
+    data = Tensor2GivenDataType(data, DataType)
+    data = data.to(Location)
+    return data
+
+def ToStandardizeTorchDataType(DataType):
+    if DataType in ["Float", "float"]:
+        return torch.float32
+    elif DataType in ["Double", "double"]:
+        return torch.float64
+
+def Tensor2GivenDataType(data, DataType=torch.float32):
+    if data.dtype==DataType:
+        return data
+    else:
+        return data.to(DataType)
+
+def NpArray2List(data):
+    return data.tolist()
+
+def List2NpArray(data, Type=None):
+    if Type is not None:
+        return np.ndarray(data, dtype=Type)
+    else:
+        return np.ndarray(data)
 
 def ToList(data):
     if isinstance(data, list):
@@ -205,51 +256,65 @@ def ContainAll(List, Items, *args):
             return False
     return True
 
-#@timeout_decorator.timeout(15)
-def timeout_(timeout=5, daemon_threads_target=[], daemon_threads_args=[], daemon_threads_kwargs=[]):
-    for target, args, kw in zip(daemon_threads_target, daemon_threads_args, daemon_threads_kwargs):
-        thread = threading.Thread(target=target, args=args, kwargs=kw)
-        thread.setDaemon(True)
-        thread.start()
-    time.sleep(timeout)
+def CallFunctionWithTimeLimit(TimeLimit, Function, *Args, **ArgsKw):
+    # @param TimeLimit: in seconds.
+    event = threading.Event()
 
-def WatchDogTimer(Seconds=10):
-    WatchDogTimerThread = threading.Thread(target=timeout_, args=(timeout, [Getbest_gpu_], [()], [{'dict_':{}}]))
-    WatchDogTimerThread.start()
-    WatchDogTimerThread.join()
+    FunctionThread = threading.Thread(target=NotifyWhenFunctionReturn, args=(event, Function, *Args), kwargs=ArgsKw)
+    FunctionThread.setDaemon(True)
+    FunctionThread.start()
 
-def GetGPUWithLargestUseableMemory(TimeOutSeconds=15, default_device='cuda:0'):
-    dict_ = {'device':None}
-    WatchDogTimer(Seconds=TimeOutSeconds)
+    TimerThread = threading.Thread(target=NotifyWhenFunctionReturn, args=(event, ReturnInGivenTime, TimeLimit))
+    TimerThread.setDaemon(True)
+    TimerThread.start()
 
-    if dict_['device'] is None:
-        if default_device is None:
-            raise Exception('Getbest_gpu: Time Out.')
-        else:
-            warnings.warn('Getbest_gpu: Time out. Using default device.')
-            return default_device
-    else:
-        return dict_['device']
+    event.wait()
+    return 
 
-def _GetGPUWithLargestUseableMemory(dict_={}): # return torch.device with largest available gpu memory.
+def NotifyWhenFunctionReturn(event, Function, *Args, **ArgsKw):
+    Function(*Args, **ArgsKw)
+    event.set()
+
+def ReturnInGivenTime(TimeLimit, Verbose=True):
+    # @param TimeLimit: float or int. In Seconds.
+    if Verbose:
+        utils_torch.AddLog("Start counding down. TimeLimit=%d."%TimeLimit)
+    time.sleep(TimeLimit)
+    if Verbose:
+        utils_torch.AddLog("TimeLimit reached. TimeLimit=%d."%TimeLimit)
+    return
+
+def GetGPUWithLargestUseableMemory(TimeLimit=10, Default='cuda:0'):
+    GPU = [Default]
+    CallFunctionWithTimeLimit(TimeLimit, __GetGPUWithLargestUseableMemory, GPU)
+    return GPU[0]
+
+def __GetGPUWithLargestUseableMemory(List):
+    GPU= _GetGPUWithLargestUseableMemory()
+    List[0] = GPU
+    utils_torch.AddLog("Selected GPU: %s"%List[0])
+
+def _GetGPUWithLargestUseableMemory(Verbose=True): # return torch.device with largest available gpu memory.
     try:
         import pynvml
         pynvml.nvmlInit()
-        deviceCount = pynvml.nvmlDeviceGetCount()
-        deviceMemory = []
-        for i in range(deviceCount):
-            #print(i)
-            handle = pynvml.nvmlDeviceGetHandleByIndex(i) # sometimes stuck here.
-            # print('GPU', i, ':', pynvml.nvmlDeviceGetName(handle))
-            mem_info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-            deviceMemory.append(mem_info.free)
-            #print(i)
-        deviceMemory = np.array(deviceMemory, dtype=np.int64)
-        best_device_index = np.argmax(deviceMemory)    
-        dict_['device'] = 'cuda:%d'%(best_device_index)
-        return dict_
+        GPUNum = pynvml.nvmlDeviceGetCount()
+        GPUUseableMemory = []
+        for GPUIndex in range(GPUNum):
+            Handle = pynvml.nvmlDeviceGetHandleByIndex(GPUIndex) # sometimes stuck here.
+            MemoryInfo = pynvml.nvmlDeviceGetMemoryInfo(Handle)
+            GPUUseableMemory.append(MemoryInfo.free)
+        GPUUseableMemory = np.array(GPUUseableMemory, dtype=np.int64)
+        GPUWithLargestUseableMemoryIndex = np.argmax(GPUUseableMemory)    
+        if Verbose:
+            utils_torch.AddLog("Available GPU Num: %d"%GPUNum)
+            report = "Useable GPU Memory: "
+            for GPUIndex in range(GPUNum):
+                report += "GPU%d: %.2fGB "%(GPUIndex, GPUUseableMemory[GPUIndex] * 1.0 / 1024 ** 3)
+            utils_torch.AddLog(report)
+        return 'cuda:%d'%(GPUWithLargestUseableMemoryIndex)
     except Exception:
-        return "gpu:0"
+        return "cuda:0"
 
 def split_batch(data, batch_size): #data:(batch_size, image_size)
     sample_num = data.size(0)

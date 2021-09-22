@@ -24,9 +24,15 @@ def BuildModule(param):
         return utils_torch.Models.SerialReceiver(param)
     elif param.Type in ["SerialSender"]:
         return utils_torch.Models.SerialSender(param)
+    elif param.Type in ["Lambda", "LambdaLayer"]:
+        return utils_torch.Models.LambdaLayer(param)
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
 BuildModule = BuildModule
+
+def ListParameter(model):
+    for name, param in model.named_parameters():
+        utils_torch.AddLog("%s: Shape: %s"%(name, param.size()))
 
 def CreateSelfConnectionMask(Size):
     return torch.from_numpy(np.ones(Size, Size) - np.eye(Size))
@@ -103,40 +109,40 @@ def parse_non_linear_function_description(description):
         return description
     else:
         raise Exception("parse_non_linear_function_description: invalid description Type: %s"%Type(description))
-def Create2DWeight(Param):
-    Initialize = Param.Initialize
-    if Initialize.Method in ["kaiming", "he"]:
-        Initialize.Method = "kaiming"
-        EnsureAttrs(Initialize, "mode", default="in")
-        EnsureAttrs(Initialize, "Distribution", default="uniform")
-        EnsureAttrs(Initialize, "Coefficient", default=1.0)
-        if Initialize.mode in ["in"]:
-            if Initialize.Distribution in ["uniform"]:
+def CreateWeight2D(param, DataType=torch.float32):
+    Init = param.Init
+    if Init.Method in ["kaiming", "he"]:
+        Init.Method = "kaiming"
+        EnsureAttrs(Init, "Mode", default="In")
+        EnsureAttrs(Init, "Distribution", default="uniform")
+        EnsureAttrs(Init, "Coefficient", default=1.0)
+        if Init.Mode in ["In"]:
+            if Init.Distribution in ["uniform"]:
                 range = [
-                    - Initialize.Coefficient * 6 ** 0.5 / Param.Size[0] ** 0.5,
-                    Initialize.Coefficient * 6 ** 0.5 / Param.Size[0] ** 0.5
+                    - Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5,
+                    Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
                 ]
-                weight = np.random.uniform(*range, tuple(Param.Size))
-            elif Initialize.Distribution in ["uniform+"]:
+                weight = np.random.uniform(*range, tuple(param.Size))
+            elif Init.Distribution in ["uniform+"]:
                 range = [
                     0.0,
-                    2.0 * Initialize.Coefficient * 6 ** 0.5 / Param.Size[0] ** 0.5
+                    2.0 * Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
                 ]
-                weight = np.random.uniform(*range, tuple(Param.Size))
+                weight = np.random.uniform(*range, tuple(param.Size))
             else:
                 # to be implemented
                 raise Exception()
         else:
             raise Exception()
             # to be implemented
-    elif Initialize.Method in ["xaiver", "glorot"]:
-        Initialize.Method = "xaiver"
+    elif Init.Method in ["xaiver", "glorot"]:
+        Init.Method = "xaiver"
         raise Exception()
         # to be implemented
     else:
         raise Exception()
         # to be implemented
-    return torch.from_numpy(weight)
+    return utils_torch.NpArray2Tensor(weight, DataType=DataType)
 
 def GetLossFunction(LossFunctionDescription, truth_is_label=False, num_class=None):
     if LossFunctionDescription in ['MSE', 'mse']:

@@ -18,6 +18,17 @@ def CheckIsPyObj(Obj):
 def IsPyObj(Obj):
     return isinstance(Obj, PyObj)
 
+def IsJsonObj(Obj):
+    return \
+    isinstance(Obj, PyObj) or \
+    isinstance(Obj, str) or \
+    isinstance(Obj, bool) or \
+    isinstance(Obj, int) or \
+    isinstance(Obj, float) or \
+    isinstance(Obj, list) or \
+    isinstance(Obj, dict) or \
+    isinstance(Obj, tuple)  
+
 class PyObj(object):
     def __init__(self, param=None):
         if param is not None:
@@ -42,8 +53,14 @@ class PyObj(object):
     def FromDict(self, Dict):
         #self.__dict__ = {}
         for key, value in Dict.items():
-            if key in ["Initialize.Method"]:
-                print("aaa")
+            # if key in ["Init.Method"]:
+            #     print("aaa")
+
+            if key in ["__ResolveRef__"]:
+                if not hasattr(self, "__ResolveRef__"):
+                    setattr(self, key, value)
+                continue
+
             if "." in key:
                 keys = key.split(".")
             else:
@@ -90,6 +107,7 @@ class PyObj(object):
                                 "__value__": obj,
                                 key: PyObj()
                             }))
+                            obj = getattr(parent, parentAttr)
                             parent, parentAttr = obj, key
                             obj = getattr(obj, key)
             # else:
@@ -104,18 +122,6 @@ class PyObj(object):
         return self
     def FromPyObj(self, Obj):
         self.FromDict(Obj.__dict__)
-    # def SetAttr(self, obj, attr, value):
-    #     if type(value) is dict:
-    #         if hasattr(obj, attr) and isinstance(getattr(obj, attr), PyObj):
-    #             getattr(obj, attr).FromDict(value)
-    #         else: # overwrite
-    #             setattr(obj, attr, PyObj(value))
-    #     elif type(value) is list:
-    #         # always overwrite
-    #         setattr(obj, attr, obj.FromList(value))
-    #     else:
-    #         # alwayes overwrite
-    #         setattr(obj, attr, value)
     def ProcessValue(self, value):
         if isinstance(value, dict):
             return PyObj(value)
@@ -125,10 +131,9 @@ class PyObj(object):
             return value
         else:
             return value
-
     def to_dict(self):
         d = {}
-        for key, value in self.__dict__.items():
+        for key, value in ListAttrsAndValues(self, Exceptions=["__ResolveRef__"]):
             if type(value) is PyObj:
                 value = value.to_dict()
             d[key] = value
@@ -158,12 +163,14 @@ def JsonObj2JsonStr(JsonObj):
 def PyObj2JsonObj(Obj):
     if isinstance(Obj, list) or isinstance(Obj, tuple):
         JsonObj = []
-        for Index, Item in enumerate(Obj):
+        for Item in Obj:
             JsonObj.append(PyObj2JsonObj(Item))
         return JsonObj
     elif isinstance(Obj, PyObj):
         JsonObj = {}
-        for attr, value in Obj.__dict__.items():
+        for attr, value in ListAttrsAndValues(Obj, Exceptions=[]):
+            if attr in ["__ResolveRef__"]:
+                continue
             JsonObj[attr] = PyObj2JsonObj(value)
         return JsonObj
     elif isinstance(Obj, dict):

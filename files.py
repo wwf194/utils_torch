@@ -249,15 +249,22 @@ def RenameFileIfPathExists(FilePath):
 
     FileName, Suffix = ParseNameSuffix(FilePath)
 
-    if ExistsPath(FilePath):
-        MatchResult = re.match(r"^(.*)-(\d+)$", FileName)
-        if MatchResult is None:
+    Sig = True
+    MatchResult = re.match(r"^(.*)-(\d+)$", FileName)
+    if MatchResult is None:
+        if ExistsPath(FilePath):
             os.rename(FilePath, FileName + "-0" + "." + Suffix)
             FileNameOrigin = FileName
             Index = 1
+        elif ExistsPath(FileName + "-0" + "." + Suffix):
+            FileNameOrigin = FileName
+            Index = 1
         else:
-            FileNameOrigin = MatchResult.group(1)
-            Index = int(MatchResult.group(2))
+            Sig = False
+    else:
+        FileNameOrigin = MatchResult.group(1)
+        Index = int(MatchResult.group(2))
+    if Sig:
         while True:
             FilePath = FileNameOrigin + "-%d"%Index + "." + Suffix
             if not ExistsPath(FilePath):
