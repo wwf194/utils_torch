@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from utils_torch.model import *
 from utils_torch.utils import *
 from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, StackFunction, SetAttrs
-from utils_torch.model import GetNonLinearFunction, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, CreateWeight2D
+from utils_torch.model import GetNonLinearMethod, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, CreateWeight2D
 
 def InitFromParam(param):
     model = SingleLayer()
@@ -43,12 +43,12 @@ class SingleLayer(nn.Module):
         if param.Subtype in ["f(Wx+b)"]:
             self.CreateWeight()
             self.CreateBias()
-            self.NonLinear = GetNonLinearFunction(param.NonLinear)
+            self.NonLinear = GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + data.Bias)
         elif param.Subtype in ["f(Wx)+b"]:
             self.CreateWeight()
             self.CreateBias()
-            self.NonLinear = GetNonLinearFunction(param.NonLinear)
+            self.NonLinear = GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight())) + data.Bias
         elif param.Subtype in ["Wx"]:
             self.CreateWeight()

@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from utils_torch.model import *
 from utils_torch.utils import *
 from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, StackFunction, SetAttrs
-from utils_torch.model import GetNonLinearFunction, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, CreateWeight2D
+from utils_torch.model import GetNonLinearMethod, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, CreateWeight2D
 
 DefaultRoutings = [
     "&GetBias |--> bias",
@@ -44,6 +44,7 @@ class RecurrentLIFLayer(nn.Module):
         param = self.param
         cache = self.cache
         for Name, ModuleParam in ListAttrsAndValues(param.Modules):
+            setattr(ModuleParam, "Name", Name)
             Module = utils_torch.model.BuildModule(ModuleParam)
             setattr(cache.Modules, Name, Module)
     def InitModules(self):

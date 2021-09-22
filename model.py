@@ -14,7 +14,6 @@ import utils_torch
 from utils_torch.json import *
 from utils_torch.attrs import *
 from utils_torch.LRSchedulers import LinearLR
-from utils_torch.Router import *
 
 def BuildModule(param):
     if not HasAttrs(param, "Type"):
@@ -22,7 +21,6 @@ def BuildModule(param):
             SetAttrs(param, "Type", GetAttrs(param.Name))
         else:
             raise Exception()
-
     if param.Type in ["SingleLayer"]:
         return utils_torch.Models.SingleLayer(param)
     elif param.Type in ["MLP", "MultiLayerPerceptron", "mlp"]:
@@ -38,7 +36,7 @@ def BuildModule(param):
     elif param.Type in ["NoiseGenerator"]:
         return utils_torch.Models.NoiseGenerator(param)
     elif param.Type in ["NonLinear"]:
-        return utils_torch.Models.NonLinear(param)
+        return GetNonLinearMethod(param)
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
 
@@ -80,47 +78,47 @@ def GetConstraintFunction(Method):
     else:
         raise Exception("GetConstraintFunction: Invalid consraint Method: %s"%Method)
 
-def GetNonLinearFunction(description):
-    Param = parse_non_linear_function_description(description)
-    if Param.Type in ["relu", "ReLU"]:
-        if Param.Coefficient==1.0:
+def GetNonLinearMethod(param):
+    param = ParseNonLinearMethod(param)
+    if param.Type in ["relu", "ReLU"]:
+        if param.Coefficient==1.0:
             return F.relu
         else:
-            return lambda x:Param.Coefficient * F.relu(x)
-    elif Param.Type in ["tanh"]:
-        if Param.Coefficient==1.0:
+            return lambda x:param.Coefficient * F.relu(x)
+    elif param.Type in ["tanh"]:
+        if param.Coefficient==1.0:
             return F.tanh
         else:
-            return lambda x:Param.Coefficient * F.tanh(x)       
-    elif Param.Type in ["sigmoid"]:
-        if Param.Coefficient==1.0:
+            return lambda x:param.Coefficient * F.tanh(x)       
+    elif param.Type in ["sigmoid"]:
+        if param.Coefficient==1.0:
             return F.tanh
         else:
-            return lambda x:Param.Coefficient * F.tanh(x)         
+            return lambda x:param.Coefficient * F.tanh(x)         
     else:
-        raise Exception("GetNonLinearFunction: Invalid nonlinear function description: %s"%description)
+        raise Exception("GetNonLinearMethod: Invalid nonlinear function Type: %s"%param.Type)
 
-Getactivation_function = GetNonLinearFunction
+Getactivation_function = GetNonLinearMethod
 
-def parse_non_linear_function_description(description):
-    if isinstance(description, str):
+def ParseNonLinearMethod(param):
+    if isinstance(param, str):
         return JsonObj2PyObj({
-            "Type":description,
+            "Type":param,
             "Coefficient": 1.0
         })
-    elif isinstance(description, list):
-        if len(description)==2:
+    elif isinstance(param, list):
+        if len(param)==2:
             return JsonObj2PyObj({
-                "Type": description[0],
-                "Coefficient": description[1]
+                "Type": param[0],
+                "Coefficient": param[1]
             })
         else:
             # to be implemented
             pass
-    elif isinstance(description, object):
-        return description
+    elif isinstance(param, object):
+        return param
     else:
-        raise Exception("parse_non_linear_function_description: invalid description Type: %s"%type(description))
+        raise Exception("ParseNonLinearMethod: invalid param Type: %s"%type(param))
     
 def CreateWeight2D(param, DataType=torch.float32):
     Init = param.Init
