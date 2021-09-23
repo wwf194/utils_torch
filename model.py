@@ -35,6 +35,8 @@ def BuildModule(param):
         return utils_torch.Models.RecurrentLIFLayer(param)
     elif param.Type in ["NoiseGenerator"]:
         return utils_torch.Models.NoiseGenerator(param)
+    elif param.Type in ["Bias"]:
+        return utils_torch.Models.Bias(param)
     elif param.Type in ["NonLinear"]:
         return GetNonLinearMethod(param)
     elif param.Type in ["Internal"]:

@@ -16,6 +16,7 @@ class Bias(nn.Module):
         param = self.param
         data = self.data
         cache = self.cache
+        cache.ParamIndices =[]
         data.Bias = torch.nn.Parameter(torch.zeros(param.Size))
         cache.ParamIndices.append([data, "Bias", data.Bias])
     def forward(self):
@@ -25,6 +26,6 @@ class Bias(nn.Module):
         cache.TensorLocation = Location
         for ParamIndex in cache.ParamIndices:
             setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location))
-    def GetTensorLocation(self, Location):
+    def GetTensorLocation(self):
         return self.cache.TensorLocation
 __MainClass__ = Bias

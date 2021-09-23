@@ -13,7 +13,7 @@ class SerialReceiver(nn.Module):
         self.ContentList = []
         return
     def Receive(self, content):
-        self.ContentList.append()
+        self.ContentList.append(content)
     def Send(self):
         ContentList = self.ContentList
         self.ContentList = []

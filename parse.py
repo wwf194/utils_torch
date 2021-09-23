@@ -249,6 +249,8 @@ def _ParsePyObjDynamicWithMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
         ObjRoot = kw.get("ObjRoot")
         ObjRef = kw.get("ObjRef")
         sentence = Obj
+        # if "CellStateDecay" in sentence:
+        #     print("aaa")
         if "&" in sentence:
             success = False
             sentence = sentence.replace("&^", "ObjRoot.")
@@ -593,13 +595,17 @@ def Register2PyObj(Obj, PyObj, NameList):
         NameList = [NameList]
 
     if isinstance(Obj, list):
-        if len(Obj)==len(NameList):
+        ObjNum = len(Obj)
+        NameNum = len(NameList)
+        if ObjNum==NameNum:
             RegisterList2PyObj(Obj, PyObj, NameList)
         else:
-            if len(NameList)==1:
+            if NameNum==1:
                 setattr(PyObj, NameList[0], Obj)
             else:
-                raise Exception()
+                report = "ObjNum: %d NameNum: %d\n"%(ObjNum, NameNum)
+                report += "NameList: %s"%NameList
+                raise Exception(report)
     elif Obj is None:
         return
     else:

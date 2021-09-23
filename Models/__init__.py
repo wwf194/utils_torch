@@ -5,3 +5,5 @@ from utils_torch.Models.SerialSender import SerialSender
 from utils_torch.Models.LambdaLayer import LambdaLayer
 from utils_torch.Models.RecurrentLIFLayer import RecurrentLIFLayer
 from utils_torch.Models.NoiseGenerator import NoiseGenerator
+from utils_torch.Models.Bias import Bias
+from utils_torch.Models.Operators import Operators

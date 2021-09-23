@@ -104,6 +104,6 @@ class SingleLayer(nn.Module):
         utils_torch.model.ListParameter(self)
         for ParamIndex in cache.ParamIndices:
             setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location))
-    def GetTensorLocation(self, Location):
+    def GetTensorLocation(self):
         return self.cache.TensorLocation
 __MainClass__ = SingleLayer

@@ -65,15 +65,17 @@ def ParseRoutingAttrsDynamic(Routing, States):
         value = GetAttrs(Routing, attr)    
         #value = re.sub("(%\w+)", lambda matchedStr:"getattr(States, %s)"%matchedStr[1:], value)
         value = eval(value.replace("%", "States."))     
-        SetAttrs(Routing, attr, value)
+        SetAttrs(Routing.cache, attr, value)
     return Routing
 
 def ParseRoutingStatic(Routing):
     if not isinstance(Routing, str):
         return Routing
     _Routing = Routing
-    Routing = re.sub(" ", "", Routing) # remove all spaces
     param = utils_torch.json.EmptyPyObj()
+    param.cache = utils_torch.json.EmptyPyObj()
+    SetAttrs(param, "Str", _Routing.replace("&", "(At)"))
+    Routing = re.sub(" ", "", Routing) # remove all spaces
     Routing = Routing.split("||")
     MainRouting = Routing[0] 
     if len(Routing) > 1:
@@ -117,6 +119,8 @@ def ParseRoutingStatic(Routing):
             attr = "RepeatTime"
         setattr(param, attr, value)
     EnsureAttrs(param, "RepeatTime", value=1)
+
+    param.cache.RepeatTime = param.RepeatTime
 
     param.DynamicParseAttrs = []
     for attr, value in ListAttrsAndValues(param):

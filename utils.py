@@ -163,7 +163,7 @@ def CallGraph(Router, In, **kw):
             CallFunction(Routing, **kw)
         elif isinstance(Routing, utils_torch.json.PyObj):
             Routing = utils_torch.router.ParseRoutingAttrsDynamic(Routing, States)
-            for TimeIndex in range(Routing.RepeatTime):
+            for TimeIndex in range(Routing.cache.RepeatTime):
                 InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
                 if isinstance(Routing.Module, utils_torch.json.PyObj):
                     CallGraph(Routing.Module, InputList)
