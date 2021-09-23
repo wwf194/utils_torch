@@ -939,19 +939,6 @@ def visit_path(args=None, func=None, recur=False, path=None):
 
 visit_dir = visit_path
 
-
-def prep_title(title):
-    if title is None:
-        title = ''
-    else:
-        if title.endswith(':'):
-            title += ' '
-        elif title.endswith(': '):
-            pass
-        else:
-            title += ': '
-    return title
-
 from utils_torch.Router import BuildRouter
 
 def GetAllMethodsOfModule(ModulePath):

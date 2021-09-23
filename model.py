@@ -21,8 +21,10 @@ def BuildModule(param):
             SetAttrs(param, "Type", GetAttrs(param.Name))
         else:
             raise Exception()
-    if param.Type in ["SingleLayer"]:
-        return utils_torch.Models.SingleLayer(param)
+    if param.Type in ["LinearLayer"]:
+        return utils_torch.Models.LinearLayer(param)
+    elif param.Type in ["NonLinearLayer"]:
+        return utils_torch.Models.NonLinearLayer(param)
     elif param.Type in ["MLP", "MultiLayerPerceptron", "mlp"]:
         return utils_torch.Models.MLP(param)
     elif param.Type in ["SerialReceiver"]:

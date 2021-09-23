@@ -1,4 +1,3 @@
-from utils_torch.Models.SingleLayer import SingleLayer
 from utils_torch.Models.MLP import MLP
 from utils_torch.Models.SerialReceiver import SerialReceiver
 from utils_torch.Models.SerialSender import SerialSender
@@ -7,3 +6,6 @@ from utils_torch.Models.RecurrentLIFLayer import RecurrentLIFLayer
 from utils_torch.Models.NoiseGenerator import NoiseGenerator
 from utils_torch.Models.Bias import Bias
 from utils_torch.Models.Operators import Operators
+from utils_torch.Models.SingleLayer import SingleLayer
+from utils_torch.Models.NonLinearLayer import NonLinearLayer
+from utils_torch.Models.LinearLayer import LinearLayer

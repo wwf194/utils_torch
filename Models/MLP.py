@@ -32,7 +32,7 @@ class MLP(torch.nn.Module):
             EnsureAttrs(param.Layers, "Num", default=len(param.Neurons.Num) - 1)
             for LayerIndex in range(param.Layers.Num):
                 LayerParam = utils_torch.json.EmptyPyObj()
-                SetAttrs(LayerParam, "Type", "SingleLayer")
+                SetAttrs(LayerParam, "Type", "NonLinearLayer")
                 SetAttrs(LayerParam, "Subtype", param.Layers.Type)
                 SetAttrs(LayerParam, "Bias", param.Layers.Bias)
                 SetAttrs(LayerParam, "Input.Num", value=param.Neurons.Num[LayerIndex])

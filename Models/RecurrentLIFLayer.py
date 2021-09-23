@@ -113,13 +113,19 @@ class RecurrentLIFLayer(nn.Module):
     def ParseRouter(self):
         param = self.param
         cache = self.cache
-        utils_torch.router.ParseRouterStatic(param.Router)
-        cache.Router = utils_torch.router.ParseRouterDynamic(param.Router, 
-            ObjRefList=[self.cache.Modules, self.cache, self.param, self, utils_torch.Models.Operators])
+        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+            utils_torch.router.ParseRouterStatic(RouterParam)
+        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+            Router = utils_torch.router.ParseRouterDynamic(param.Dynamics, 
+                ObjRefList=[self.cache.Modules, self.cache, self.param, self, utils_torch.Models.Operators])
+            setattr(cache, Name, Router)
+        if not HasAttrs(param.Dynamics, "__Entry__"):
+            SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
+        cache.__Entry__ = utils_torch.parse.Resolve(param.Dynamics.__Entry__, ObjRefList=[param])
         return
     def forward(self, CellState, RecurrentInput, Input):
         cache = self.cache
-        return utils_torch.CallGraph(cache.Router, [CellState, RecurrentInput, Input])
+        return utils_torch.CallGraph(cache.__Entry__, [CellState, RecurrentInput, Input])
     def SetTensorLocation(self, Location):
         cache = self.cache
         cache.TensorLocation = Location
