@@ -18,6 +18,12 @@ def CheckIsPyObj(Obj):
 def IsPyObj(Obj):
     return isinstance(Obj, PyObj)
 
+def IsPyObjAndDictLike(Obj):
+    return isinstance(Obj, PyObj) and not Obj.IsListLike()
+
+def IsPyObjAndListLike(Obj):
+    return isinstance(Obj, PyObj) and Obj.IsListLike()
+
 def IsJsonObj(Obj):
     return \
     isinstance(Obj, PyObj) or \
@@ -29,8 +35,18 @@ def IsJsonObj(Obj):
     isinstance(Obj, dict) or \
     isinstance(Obj, tuple)  
 
+class PyObjCache(object):
+    def __init__(self):
+        return
+
 class PyObj(object):
     def __init__(self, param=None):
+        # if param in ["cache"]:
+        #     self.IsCache = True
+        #     return
+        # else:
+        #     self.IsCache = False
+        self.cache = PyObjCache()
         if param is not None:
             if type(param) is dict:
                 self.FromDict(param)
@@ -58,7 +74,7 @@ class PyObj(object):
 
             if key in ["__ResolveRef__"]:
                 if not hasattr(self, "__ResolveRef__"):
-                    setattr(self, key, value)
+                    setattr(self.cache, key, value)
                 continue
 
             if "." in key:
@@ -131,19 +147,33 @@ class PyObj(object):
             return value
         else:
             return value
-    def to_dict(self):
+    def IsListLike(self):
+        return hasattr(self, "__value__") and isinstance(self.__value__, list)
+    def append(self, content):
+        if not self.IsListLike():
+            raise Exception()
+        self.__value__.append(content)
+    def ToDict(self):
         d = {}
         for key, value in ListAttrsAndValues(self, Exceptions=["__ResolveRef__"]):
             if type(value) is PyObj:
-                value = value.to_dict()
+                value = value.ToDict()
             d[key] = value
         return d
     def __repr__(self):
-        return str(self.to_dict())
+        return str(self.ToDict())
     def __setitem__(self, key, value):
-        self.__dict__[key] = value
-    def __getitem__(self, key):
-        return self.__dict__[key]
+        if hasattr(self, "__value__") and isinstance(self.__value__, list):
+            self.__value__[key] = value
+        else:
+            self.__dict__[key] = value
+    def __getitem__(self, index):
+        if hasattr(self, "__value__") and isinstance(self.__value__, list):
+            return self.__value__[index]
+        else:
+            return self.__dict__[index]
+    def __len__(self):
+        return len(self.__value__)
 
 def JsonObj2PyObj(JsonObj):
     if isinstance(JsonObj, list):

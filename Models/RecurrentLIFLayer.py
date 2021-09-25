@@ -2,10 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils_torch.model import *
-from utils_torch.utils import *
-from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, StackFunction, SetAttrs
-from utils_torch.model import GetNonLinearMethod, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, CreateWeight2D
+import utils_torch
+from utils_torch.attrs import *
 
 DefaultRoutings = [
     "&GetBias |--> bias",
@@ -22,8 +20,8 @@ class RecurrentLIFLayer(nn.Module):
         super(RecurrentLIFLayer, self).__init__()
         if param is not None:
             self.param = param
-            self.data = utils_torch.json.EmptyPyObj()
-            self.cache = utils_torch.json.EmptyPyObj()
+            self.data = utils_torch.EmptyPyObj()
+            self.cache = utils_torch.EmptyPyObj()
     def InitFromParam(self, param=None):
         if param is None:
             param = self.param
@@ -31,22 +29,24 @@ class RecurrentLIFLayer(nn.Module):
             cache = self.cache
         else:
             self.param = param
-            self.data = utils_torch.json.EmptyPyObj()
-            self.cache = utils_torch.json.EmptyPyObj()
+            self.data = utils_torch.EmptyPyObj()
+            self.cache = utils_torch.EmptyPyObj()
         
-        self.cache.Modules = utils_torch.json.EmptyPyObj()
+        self.cache.Modules = utils_torch.EmptyPyObj()
         
         EnsureAttrs(param, "IsExciInhi", default=False)
         cache.ParamIndices = []
         self.BuildModules()
         self.InitModules()
         self.SetInternalMethods()
-        self.ParseRouter()
+        self.ParseRouters()
 
     def BuildModules(self):
         param = self.param
         cache = self.cache
         for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveRef__"]):
+            # if Name in ["GetBias"]:
+            #     print("aaa")
             if hasattr(ModuleParam, "Type") and ModuleParam.Type in ["Internal"]:
                 continue
             setattr(ModuleParam, "Name", Name)
@@ -110,22 +110,23 @@ class RecurrentLIFLayer(nn.Module):
             Modules.ProcessTotalInput = lambda TotalInput: (1.0 - TimeConst) * TotalInput
             Modules.ProcessCellStateAndTotalInput = lambda CellState, TotalInput: \
                 CellState + Modules.ProcessTotalInput(TotalInput)
-    def ParseRouter(self):
+    def ParseRouters(self):
         param = self.param
         cache = self.cache
+        cache.Dynamics = utils_torch.EmptyPyObj()
         for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
             utils_torch.router.ParseRouterStatic(RouterParam)
         for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-            Router = utils_torch.router.ParseRouterDynamic(param.Dynamics, 
-                ObjRefList=[self.cache.Modules, self.cache, self.param, self, utils_torch.Models.Operators])
-            setattr(cache, Name, Router)
+            Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
+                ObjRefList=[cache.Modules, cache.Dynamics, cache, param, self, utils_torch.Models.Operators])
+            setattr(cache.Dynamics, Name, Router)
         if not HasAttrs(param.Dynamics, "__Entry__"):
             SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-        cache.__Entry__ = utils_torch.parse.Resolve(param.Dynamics.__Entry__, ObjRefList=[param])
+        cache.Dynamics.__Entry__ = utils_torch.parse.Resolve(param.Dynamics.__Entry__, ObjRefList=[cache, self])
         return
     def forward(self, CellState, RecurrentInput, Input):
         cache = self.cache
-        return utils_torch.CallGraph(cache.__Entry__, [CellState, RecurrentInput, Input])
+        return utils_torch.CallGraph(cache.Dynamics.__Entry__, [CellState, RecurrentInput, Input])
     def SetTensorLocation(self, Location):
         cache = self.cache
         cache.TensorLocation = Location

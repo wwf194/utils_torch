@@ -1,9 +1,10 @@
-from utils_torch.attrs import GetAttrs
+import torch
 import numpy as np
-
 import utils_torch
 
-def NpStatistics(data, verbose=False):
+from utils_torch.attrs import GetAttrs
+
+def NpArrayStatistics(data, verbose=False):
     return utils_torch.json.Dict2PyObj({
         "Min": np.min(data),
         "Max": np.max(data),
@@ -11,6 +12,16 @@ def NpStatistics(data, verbose=False):
         "Std": np.std(data),
         "Var": np.var(data)
     })
+NpStatistics = NpArrayStatistics
+
+def TorchTensorStatistics(tensor, verbose=False):
+    return {
+        "min": torch.min(tensor),
+        "max": torch.max(tensor),
+        "mean": torch.mean(tensor),
+        "std": torch.std(tensor),
+        "var": torch.var(tensor)
+    }
 
 def CreateNpArray(Shape, Value, DataType):
     return np.full(tuple(Shape), Value, dtype=DataType)

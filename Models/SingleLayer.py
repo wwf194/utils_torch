@@ -2,10 +2,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils_torch.model import *
-from utils_torch.utils import *
-from utils_torch.utils import HasAttrs, EnsureAttrs, MatchAttrs, StackFunction, SetAttrs
-from utils_torch.model import GetNonLinearMethod, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, CreateWeight2D
+import utils_torch
+from utils_torch.attrs import *
 
 class SingleLayer(nn.Module):
     def __init__(self):
@@ -47,24 +45,24 @@ class SingleLayer(nn.Module):
         EnsureAttrs(param, "Weight.Init", default=utils_torch.json.PyObj(
             {"Method":"kaiming", "Coefficient":1.0})
         )
-        data.Weight = torch.nn.Parameter(CreateWeight2D(param.Weight))
+        data.Weight = torch.nn.Parameter(utils_torch.model.CreateWeight2D(param.Weight))
         cache.ParamIndices.append([data, "Weight", data.Weight])
         GetWeightFunction = [lambda :data.Weight]
 
         EnsureAttrs(param.Weight, "IsExciInhi", default=param.ExciInhi)
         EnsureAttrs(param.Weight, "NoSelfConnection", default=False)
         if param.Weight.IsExciInhi:
-            self.ExciInhiMask = CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.excitatory.Num, param.Weight.inhibitory.Num)
+            self.ExciInhiMask = utils_torch.model.CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.excitatory.Num, param.Weight.inhibitory.Num)
             GetWeightFunction.append(lambda Weight:Weight * self.ExciInhiMask)
             EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")
-            data.WeightConstraintMethod = GetConstraintFunction(param.Weight.ConstraintMethod)
+            data.WeightConstraintMethod = utils_torch.model.GetConstraintFunction(param.Weight.ConstraintMethod)
             GetWeightFunction.append(data.WeightConstraintMethod)
         if GetAttrs(param.Weight, "NoSelfConnection")==True:
             if param.Weight.Size[0] != param.Weight.Size[1]:
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
-            self.SelfConnectionMask = CreateSelfConnectionMask(param.Weight.Size[0])            
+            self.SelfConnectionMask = utils_torch.model.CreateSelfConnectionMask(param.Weight.Size[0])            
             GetWeightFunction.append(lambda Weight:Weight * self.SelfConnectionMask)
-        self.GetWeight = StackFunction(GetWeightFunction)
+        self.GetWeight = utils_torch.StackFunction(GetWeightFunction)
         return
     def SetTensorLocation(self, Location):
         cache = self.cache

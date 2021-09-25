@@ -5,7 +5,9 @@ from utils_torch.Models.LambdaLayer import LambdaLayer
 from utils_torch.Models.RecurrentLIFLayer import RecurrentLIFLayer
 from utils_torch.Models.NoiseGenerator import NoiseGenerator
 from utils_torch.Models.Bias import Bias
-from utils_torch.Models.Operators import Operators
+import utils_torch.Models.Operators as Operators
 from utils_torch.Models.SingleLayer import SingleLayer
 from utils_torch.Models.NonLinearLayer import NonLinearLayer
 from utils_torch.Models.LinearLayer import LinearLayer
+from utils_torch.Models.L2Loss import L2Loss
+import utils_torch.Models.Loss as Loss

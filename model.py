@@ -41,9 +41,17 @@ def BuildModule(param):
         return utils_torch.Models.Bias(param)
     elif param.Type in ["NonLinear"]:
         return GetNonLinearMethod(param)
+    elif param.Type in ["L2Loss"]:
+        return utils_torch.Models.L2Loss(param)
+    elif param.Type in ["MSE", "MeanSquareError"]:
+        return utils_torch.Models.Loss.GetLossMethod(param)
+    elif param.Type in ["GradientDescend"]:
+        return utils_torch.Models.Operators.GradientDescend(param)
     elif param.Type in ["Internal"]:
         utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
         return None
+    elif utils_torch.Models.Operators.IsLegalType(param.Type):
+        return utils_torch.Models.Operators.BuildModule(param)
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
 
@@ -568,17 +576,20 @@ def Gettensor_info(tensor, name='', verbose=True, complete=True):
         print(report)
     return report
 
-def Gettensor_stat(tensor, verbose=False):
-    return {
-        "min": torch.min(tensor),
-        "max": torch.max(tensor),
-        "mean": torch.mean(tensor),
-        "std": torch.std(tensor),
-        "var": torch.var(tensor)
-    }
 
-def print_optimizer_Params(optimizer):
+def PrintStateDict(optimizer):
     dict_ = optimizer.state_dict()
     for key, value in dict_.items():
         print('%s: %s'%(key, value))
 
+def SetTrainWeightForModel(self):
+    cache = self.cache
+    cache.TrainWeight = {}
+    for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
+        if hasattr(Module,"SetTrainWeight"):
+            TrainWeight = Module.SetTrainWeight()
+            for name, weight in TrainWeight.items():
+                cache[ModuleName + "." + name] = weight
+        else:
+            if isinstance(Module, nn.Module):
+                utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method.")

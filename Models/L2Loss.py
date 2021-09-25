@@ -10,26 +10,29 @@ class L2Loss(nn.Module):
         if param is not None:
             self.param = param
             self.data = utils_torch.EmptyPyObj()
+            self.cache = utils_torch.EmptyPyObj()
     def InitFromParam(self):
         param = self.param
         data = self.data
         cache = self.cache
 
-        data.CoefficientList = []
+        data.CoefficientHistory = []
         Coefficient = GetAttrs(param.Coefficient)
-        if Coefficient in ["Adaptive"]:
+        
+        if Coefficient in ["Adaptive", "Dynamic"]:
             if param.Coefficient.Method in ["Ratio2RefLoss"]:
-                self.GetCoefficient = self.GetCoefficientDefault
-                if isinstance(param.Coefficient.Ratio, list):
+                cache.Coefficient = 1.0
+                self.GetCoefficient = self.GetCoefficientRatio2RefLoss
+                if isinstance(GetAttrs(param.Coefficient.Ratio), list):
                     SetAttrs(param, "Coefficient.Ratio.Min", GetAttrs(param.Coefficient.Ratio)[0])
                     SetAttrs(param, "Coefficient.Ratio.Max", GetAttrs(param.Coefficient.Ratio)[1])
                 elif isinstance(param.Coefficient.Ratio, utils_torch.PyObj):
                     pass    
                 else:
                     raise Exception()
-                cache.RaiotMin = param.Coefficient.Ratio.Min
+                cache.RatioMin = param.Coefficient.Ratio.Min
                 cache.RatioMax = param.Coefficient.Ratio.Max
-                cache.RatioMid = (cache.RatioMin + cache.RatioMid) / 2.0
+                cache.RatioMid = (cache.RatioMin + cache.RatioMin) / 2.0
             else:
                 raise Exception()
         elif isinstance(Coefficient, float):
@@ -38,7 +41,6 @@ class L2Loss(nn.Module):
         else:
             raise Exception(Coefficient)
         return
-    
     def GetCoefficientDefault(self, *Args):
         return self.cache.Coefficient
     def GetCoefficientRatio2RefLoss(self, Loss, LossRef):
@@ -51,7 +53,7 @@ class L2Loss(nn.Module):
         else:
             # Coeff * Loss = RaioMid * LossRef
             data.CoefficientHistory.append(cache.Coefficient)
-            cache.Coefficient = cache.Mid * LossRefFloat / LossFloat
+            cache.Coefficient = cache.RatioMid * LossRefFloat / LossFloat
             return cache.Coefficient
     def forward(self, InputList, *Args):
         param = self.param

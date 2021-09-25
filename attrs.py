@@ -81,6 +81,7 @@ def EnsureAttrs(Obj, attrs=[], *args, **kw):
     parent, parentAttr = None, None
     for index, attr in enumerate(attrs):
         if index < len(attrs) - 1:
+            #if utils_torch.json.IsPyObj(Obj):
             if hasattr(Obj, "__dict__"):
                 parent = Obj
                 parentAttr = attr
@@ -124,13 +125,19 @@ ensure_attrs = EnsureAttrs
 
 def SetAttr(Obj, Attr, Value):
     if isinstance(Obj, list):
-        if isinstance(Attr, str):
-            Attr = int(Attr)
-        Obj[Attr] = Value
+        Obj[int(Attr)] = Value
     elif isinstance(Obj, dict):
         Obj[Attr] = Value
-    elif hasattr(Obj, "__dict__"):
+    elif utils_torch.json.IsPyObj(Obj):
         setattr(Obj, Attr, Value)
+    else:
+        raise Exception(type(Obj))
+
+def GetAttr(Obj, Attr):
+    if isinstance(Obj, list) or isinstance(Obj, dict):
+        return Obj[Attr]
+    elif isinstance(Obj, utils_torch.PyObj):
+        return getattr(Obj, Attr)
     else:
         raise Exception()
 
@@ -151,7 +158,9 @@ def HasAttrs(Obj, attrs, *args, false_if_none=True):
 
 has_attrs = HasAttrs
 
-def ListAttrsAndValues(Obj, Exceptions=["__ResolveBase__"]):
+def ListAttrsAndValues(Obj, Exceptions=[], ExcludeCache=True):
+    if ExcludeCache:
+        Exceptions = [*Exceptions, "cache"]
     AttrsAndValues = []
     for attr, value in Obj.__dict__.items():
         if attr not in Exceptions:

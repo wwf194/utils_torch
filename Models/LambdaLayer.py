@@ -11,7 +11,7 @@ class LambdaLayer(nn.Module):
             self.param = param
     def InitFromParam(self):
         param = self.param
-        self.forward = utils_torch.parse.Resolve(param.Lambda, ObjCurrent=param.__ResolveRef__)
+        self.forward = utils_torch.parse.Resolve(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)
         return
 
 __MainClass__ = LambdaLayer

@@ -12,22 +12,18 @@ from typing import Iterable, List
 #import pynvml
 #from pynvml.nvml import nvmlDeviceOnSameBoard
 from types import SimpleNamespace
-from numpy import linalg
-import timeout_decorator
+
+#import timeout_decorator
 import numpy as np
 import torch
 import torch.nn as nn
-
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
 from inspect import getframeinfo, stack
 
-# from utils_torch.files import *
-# from utils_torch.json import *
 from utils_torch.attrs import *
 from utils_torch.files import *
-# from utils_torch.python import *
 
 def AddLog(log, TimeStamp=True, File=True, LineNum=True):
     Logger = utils_torch.ArgsGlobal.Logger
@@ -40,14 +36,17 @@ def AddLog(log, TimeStamp=True, File=True, LineNum=True):
         log = "%s, line %d"%(log, Caller.lineno)
     Logger.debug(log)
 
-def AddWarning(Log, Logger=None, TimeStamp=True):
+def AddWarning(log, TimeStamp=True, File=True, LineNum=True):
     Logger = utils_torch.ArgsGlobal.Logger
-    if Logger is not None:
-        if TimeStamp:
-            Logger.warning("[%s][WARNING]%s"%(GetTime(), Log))
-        else:
-            Logger.warning("%s"%Log)
-    
+    Caller = getframeinfo(stack()[1][0])
+    if TimeStamp:
+        log = "[%s][WARNING]%s"%(GetTime(), log)
+    if File:
+        log = "%s File \"%s\""%(log, Caller.filename)
+    if LineNum:
+        log = "%s, line %d"%(log, Caller.lineno)
+    Logger.debug(log)
+
 def SetLogger(Logger):
     utils_torch.ArgsGlobal.Logger = Logger
 
@@ -63,15 +62,18 @@ def ProcessInitTask(param, **kw):
     if param.Type in ["BuildObject", "BuildObj"]:
         BuildObj(param.Args, **kw)
     elif param.Type in ["FunctionCall"]:
-        CallFunctions(param.Args, **kw)
+        utils_torch.CallFunctions(param.Args, **kw)
     else:
         raise Exception()
 
 def BuildObj(Args, **kw):
+    if isinstance(Args, utils_torch.PyObj):
+        Args = GetAttrs(Args)
+
     if isinstance(Args, list):
         for Arg in Args:
             _BuildObj(Arg, **kw)
-    elif isinstance(Args, dict):
+    elif isinstance(Args, utils_torch.PyObj):
         _BuildObj(Args, **kw)
     else:
         raise Exception()
@@ -85,7 +87,7 @@ def _BuildObj(Args, **kw):
     ObjCurrent = kw.get("ObjCurrent")
     
     MountPath = MountPath.replace("&^", "ObjRoot.")
-    MountPath = MountPath.replace("&*", "ObjCurrent.__object__.")
+    MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
     MountPath = MountPath.replace("&", "ObjCurrent.")
 
     MountPathList = MountPath.split(".")
@@ -96,84 +98,13 @@ BuildObject = BuildObj
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
-def StackFunction(FunctionList, *Functions, Inverse=False):
-    if isinstance(FunctionList, list):
-        if len(Functions)>0:
-            raise Exception()
-        Functions = FunctionList
+def IsListLike(List):
+    if isinstance(List, list):
+        return True
+    elif isinstance(List, utils_torch.PyObj) and List.IsListLike():
+        return True
     else:
-        Functions = [FunctionList, *Functions]
-    
-    if len(Functions)==1:
-        return Functions[0]
-
-    if not Inverse:
-        # Function at head is called earlier.
-        #return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions, lambda x: x)
-        return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions)
-    else:
-        # Function at tail is called earlier
-        return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions)
-
-def CallFunctions(param, **kw):
-    ContextInfo = kw
-    Outputs = []
-    if isinstance(param, dict): # Call one function
-        Output = _CallFunction(param, ContextInfo)
-        Outputs.append(Output)
-    elif isinstance(param, list): # Call a cascade of functions
-        for _param in param:
-            Output = _CallFunction(_param, ContextInfo)
-            Outputs.append(Output)
-    else:
-        raise Exception()
-    return Outputs
-
-def CallFunction(param, ContextInfo):
-    return _CallFunction(param, ContextInfo)
-
-def _CallFunction(param, ContextInfo):
-    ContextInfo.setdefault("__PreviousFunctionOutput__", None)
-    if isinstance(param, str):
-        param = [param]
-    if len(param)==1:
-        param.append([])
-    
-    FunctionName = param[0]
-    FunctionArgs = param[1]
-    Function = utils_torch.parse.Resolve2Dict(
-        FunctionName,
-        ContextInfo
-    )
-    PositionalArgs, KeyWordArgs = utils_torch.parse.ParseFunctionArgs(FunctionArgs, ContextInfo)
-    FunctionOutput = Function(*PositionalArgs, **KeyWordArgs)    
-    ContextInfo["__PreviousFunctionOutput__"] = FunctionOutput
-    if FunctionOutput is None:
-        #SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
-        return []
-    else:
-        #SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
-        return FunctionOutput
-
-def CallGraph(Router, In, **kw):
-    States = utils_torch.json.EmptyPyObj()
-    utils_torch.parse.Register2PyObj(In, States, Router.In)
-    for RoutingIndex, Routing in enumerate(Router.Routings):
-        if isinstance(Routing, list):
-            CallFunction(Routing, **kw)
-        elif isinstance(Routing, utils_torch.json.PyObj):
-            Routing = utils_torch.router.ParseRoutingAttrsDynamic(Routing, States)
-            for TimeIndex in range(Routing.cache.RepeatTime):
-                InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
-                if isinstance(Routing.Module, utils_torch.json.PyObj):
-                    CallGraph(Routing.Module, InputList)
-                #if hasattr(Routing.Module, "forward"):
-                else:
-                    Output = Routing.Module(*InputList)
-                utils_torch.parse.Register2PyObj(Output, States, Routing.Out)
-        else:
-            raise Exception()
-    return utils_torch.parse.FilterFromPyObj(States, Router.Out)
+        return False
 
 def RemoveStartEndEmptySpaceChars(Str):
     Str = re.match(r"\s*([\S].*)", Str).group(1)
@@ -954,3 +885,24 @@ ArgsGlobal = utils_torch.json.JsonObj2PyObj({
 
 def RandomSelect(List, SelectNum):
     return random.sample(List, SelectNum)
+
+import subprocess
+def runcmd(command):
+    ret = subprocess.run(command,shell=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,encoding="utf-8",timeout=1)
+    if ret.returncode == 0:
+        print("success:",ret)
+    else:
+        print("error:",ret)
+
+def CalculateGitProjectTotalLines(Verbose=False):
+    # runcmd(
+    #     "git log  --pretty=tformat: --numstat | awk '{ add += $1; subs += $2; loc += $1 - $2 } END { printf \"added lines: %s, removed lines: %s, total lines: %s\n\", add, subs, loc }'"
+    # )
+    # GitCommand = 'git log  --pretty=tformat: --numstat | awk "{ add += $1; subs += $2; loc += $1 - $2 } END { printf "added lines: %s, removed lines: %s, total lines: %s\n", add, subs, loc }"'
+    # report = os.system(GitCommand)
+    # if Verbose:
+    #     utils_torch.AddLog(report)
+    # return report
+    import os
+    GitCommand = 'git log  --pretty=tformat: --numstat | awk \'{ add += $1; subs += $2; loc += $1 - $2 } END { printf "added lines: %s, removed lines: %s, total lines: %s\\n", add, subs, loc }\''
+    report = os.system(GitCommand)

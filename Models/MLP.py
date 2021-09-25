@@ -1,4 +1,7 @@
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 import utils_torch
 from utils_torch.attrs import SetAttrs, HasAttrs, EnsureAttrs
 
@@ -22,7 +25,8 @@ class MLP(torch.nn.Module):
             cache = self.cache
         else:
             self.param = param
-        cache.Layers = []
+
+        cache.Modules = utils_torch.EmptyPyObj()
         EnsureAttrs(param, "Init.Method", default="FromNeuronNum")
         EnsureAttrs(param, "NonLinear", default="ReLU")
         EnsureAttrs(param.Layers, "Bias", default="True")
@@ -40,14 +44,14 @@ class MLP(torch.nn.Module):
                 SetAttrs(LayerParam, "NonLinear", value=param.NonLinear)
                 Layer = utils_torch.model.BuildModule(LayerParam)
                 self.add_module("Layer%d"%LayerIndex, Layer)
-                SetAttrs(param, "Modules", value=LayerParam)
+                SetAttrs(param, "Modules.Layer%d"%LayerIndex, value=LayerParam)
+                setattr(cache, "Modules.Layer%d"%LayerIndex, Layer)
                 cache.Layers.append(Layer)
         else:
             raise Exception()
         
         for Layer in cache.Layers:
             Layer.InitFromParam()
-
     def forward(self, Input):
         cache = self.cache
         States = {}
@@ -62,3 +66,18 @@ class MLP(torch.nn.Module):
         cache = self.cache
         for Layer in cache.Layers:
             Layer.SetTensorLocation(Location)
+    def GetTrainWeight(self):
+        return self.cache.TrainWeight
+    def SetTrainWeight(self):
+        cache = self.cache
+        cache.TrainWeight = {}
+        for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
+            if hasattr(Module,"SetTrainWeight"):
+                TrainWeight = Module.SetTrainWeight()
+                for name, weight in TrainWeight.items():
+                    cache[ModuleName + "." + name] = weight
+            else:
+                if isinstance(Module, nn.Module):
+                    utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method.")
+
+    
