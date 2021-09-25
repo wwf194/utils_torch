@@ -133,10 +133,11 @@ def ToNpArray(data, DataType=np.float32):
     else:
         raise Exception()
 
-def NpArray2Tensor(data, Location="cpu", DataType=torch.float32):
+def NpArray2Tensor(data, Location="cpu", DataType=torch.float32, RequiresGrad=False):
     data = torch.from_numpy(data)
     data = Tensor2GivenDataType(data, DataType)
     data = data.to(Location)
+    data.requires_grad = RequiresGrad
     return data
 
 def ToStandardizeTorchDataType(DataType):

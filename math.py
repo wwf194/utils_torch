@@ -16,11 +16,11 @@ NpStatistics = NpArrayStatistics
 
 def TorchTensorStatistics(tensor, verbose=False):
     return {
-        "min": torch.min(tensor),
-        "max": torch.max(tensor),
-        "mean": torch.mean(tensor),
-        "std": torch.std(tensor),
-        "var": torch.var(tensor)
+        "min": torch.min(tensor).item(),
+        "max": torch.max(tensor).item(),
+        "mean": torch.mean(tensor).item(),
+        "std": torch.std(tensor).item(),
+        "var": torch.var(tensor).item()
     }
 
 def CreateNpArray(Shape, Value, DataType):

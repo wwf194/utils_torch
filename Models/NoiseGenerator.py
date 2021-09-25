@@ -30,7 +30,6 @@ class NoiseGenerator(nn.Module):
     def SetTensorLocation(self, Location):
         cache = self.cache
         cache.TensorLocation = Location
-
     def GetTensorLocation(self):
         return self.cache.TensorLocation
 

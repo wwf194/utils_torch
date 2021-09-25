@@ -45,7 +45,7 @@ class MLP(torch.nn.Module):
                 Layer = utils_torch.model.BuildModule(LayerParam)
                 self.add_module("Layer%d"%LayerIndex, Layer)
                 SetAttrs(param, "Modules.Layer%d"%LayerIndex, value=LayerParam)
-                setattr(cache, "Modules.Layer%d"%LayerIndex, Layer)
+                SetAttrs(cache, "Modules.Layer%d"%LayerIndex, Layer)
                 cache.Layers.append(Layer)
         else:
             raise Exception()
@@ -63,21 +63,10 @@ class MLP(torch.nn.Module):
             States[str(len(cache.Layers))]
         ]
     def SetTensorLocation(self, Location):
-        cache = self.cache
-        for Layer in cache.Layers:
-            Layer.SetTensorLocation(Location)
+        utils_torch.model.SetTensorLocationForModel(self, Location)
     def GetTrainWeight(self):
         return self.cache.TrainWeight
     def SetTrainWeight(self):
-        cache = self.cache
-        cache.TrainWeight = {}
-        for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
-            if hasattr(Module,"SetTrainWeight"):
-                TrainWeight = Module.SetTrainWeight()
-                for name, weight in TrainWeight.items():
-                    cache[ModuleName + "." + name] = weight
-            else:
-                if isinstance(Module, nn.Module):
-                    utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method.")
-
-    
+        return utils_torch.model.SetTrainWeightForModel(self)
+    def ClearTrainWeigt(self):
+        utils_torch.model.ClearTrainWeightForModel(self)

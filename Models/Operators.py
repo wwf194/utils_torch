@@ -73,32 +73,44 @@ OperatorList.append("FunctionsOutputs")
 
 def CalculateGradient(loss):
     loss.backward()
+    return
 # Operators.CalculateGradient = CalculateGradient
 OperatorList.append(["CalculateGradient"])
+
+def Log(data):
+    if isinstance(data, torch.Tensor):
+        statistics = utils_torch.math.TorchTensorStatistics(data)
+    else:
+        raise Exception()
+    return
+OperatorList.append("Log")
 
 class GradientDescend:
     def __init__(self, param=None):
         self.cache = utils_torch.EmptyPyObj()
         self.cache.LastUpdateInfo = defaultdict(lambda:{})
-    def __call__(self, weights, param):
+    def __call__(self, weights, param, ClearGrad=True):
         cache = self.cache
-        for W in weights:
-            if W.grad is None:
+        for Name, Weight in weights.items():
+            if Weight.grad is None:
                 continue
-            dW = W.grad.data
+            WeightChange = Weight.grad.data
             if param.WeightDecay != 0:
-                dW.add_(param.WeightDecay, W.data)
+                WeightChange.add_(param.WeightDecay, Weight.data)
             if param.Momentum != 0:
-                LastUpdateInfo = cache.LastUpdateInfo[W]
+                LastUpdateInfo = cache.LastUpdateInfo[Weight]
                 if 'dW' not in LastUpdateInfo:
-                    dWWithMomentum = LastUpdateInfo['dW'] = torch.clone(dW).detach()
+                    WeightChangeMomentum = LastUpdateInfo['dW'] = torch.clone(WeightChange).detach()
                 else:
-                    dWWithMomentum = LastUpdateInfo['dW']
-                    dWWithMomentum.mul_(param.Momentum).add_(1 - param.Dampening, dW)
+                    WeightChangeMomentum = LastUpdateInfo['dW']
+                    WeightChangeMomentum.mul_(param.Momentum).add_(1 - param.Dampening, WeightChange)
                 if param.Nesterov:
-                    dW = dW.add(param.Momentum, dWWithMomentum)
+                    WeightChange = WeightChange.add(param.Momentum, WeightChangeMomentum)
                 else:
-                    dW = dWWithMomentum
-            W.data.add_(-param.LearningRate, dW)                
+                    WeightChange = WeightChangeMomentum
+            Weight.data.add_(-param.LearningRate, WeightChange)
+            if ClearGrad:
+                Weight.grad.detach_()
+                Weight.grad.zero_()        
         return
 OperatorList.append("GradientDescend")

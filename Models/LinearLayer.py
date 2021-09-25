@@ -37,7 +37,7 @@ class LinearLayer(SingleLayer):
             SetAttrs(param, "Bias.Size", value=param.Input.Num)
             self.CreateWeight()
             self.CreateBias()
-            self.forward = lambda x:torch.mm(x, self.GetWeight() + + data.Bias)               
+            self.forward = lambda x:torch.mm(x, self.GetWeight() + data.Bias)               
         else:
             raise Exception("LinearLayer: Invalid Subtype: %s"%param.Subtype)
 

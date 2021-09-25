@@ -33,7 +33,7 @@ class SingleLayer(nn.Module):
         data = self.data
         cache = self.cache
         if GetAttrs(param.Bias.Enable):
-            data.Bias = torch.nn.Parameter(torch.zeros(param.Bias.Size))
+            data.Bias = (torch.zeros(param.Bias.Size, requires_grad=True))
             cache.ParamIndices.append([data, "Bias", data.Bias])
         else:
             data.Bias = 0.0
@@ -45,7 +45,7 @@ class SingleLayer(nn.Module):
         EnsureAttrs(param, "Weight.Init", default=utils_torch.json.PyObj(
             {"Method":"kaiming", "Coefficient":1.0})
         )
-        data.Weight = torch.nn.Parameter(utils_torch.model.CreateWeight2D(param.Weight))
+        data.Weight = (utils_torch.model.CreateWeight2D(param.Weight))
         cache.ParamIndices.append([data, "Weight", data.Weight])
         GetWeightFunction = [lambda :data.Weight]
 
@@ -65,11 +65,24 @@ class SingleLayer(nn.Module):
         self.GetWeight = utils_torch.StackFunction(GetWeightFunction)
         return
     def SetTensorLocation(self, Location):
-        cache = self.cache
-        cache.TensorLocation = Location
-        utils_torch.model.ListParameter(self)
-        for ParamIndex in cache.ParamIndices:
-            setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location))
+        utils_torch.model.SetTensorLocationForLeafModel(self, Location)
+        self.ClearTrainWeight()
     def GetTensorLocation(self):
         return self.cache.TensorLocation
+    def GetTrainWeight(self):
+        return self.cache.TrainWeight
+    def SetTrainWeight(self):
+        data = self.data
+        cache = self.cache
+        self.ClearTrainWeight()
+        cache.TrainWeight = {}
+        if hasattr(data, "Weight") and isinstance(data.Weight, torch.Tensor):
+            cache.TrainWeight["Weight"] = data.Weight
+        if hasattr(data, "Bias") and isinstance(data.Bias, torch.Tensor):
+            cache.TrainWeight["Bias"] = data.Bias
+        return cache.TrainWeight
+    def ClearTrainWeight(self):
+        cache = self.cache
+        if hasattr(cache, "TrainWeight"):
+            delattr(cache, "TrainWeight")
 __MainClass__ = SingleLayer

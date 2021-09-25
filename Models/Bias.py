@@ -22,10 +22,8 @@ class Bias(nn.Module):
     def forward(self):
         return self.data.Bias
     def SetTensorLocation(self, Location):
-        cache = self.cache
-        cache.TensorLocation = Location
-        for ParamIndex in cache.ParamIndices:
-            setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location))
+        utils_torch.model.SetTensorLocationForLeafModel(self, Location)
+        return
     def GetTensorLocation(self):
         return self.cache.TensorLocation
 __MainClass__ = Bias

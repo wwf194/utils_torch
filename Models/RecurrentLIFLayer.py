@@ -129,13 +129,18 @@ class RecurrentLIFLayer(nn.Module):
         return utils_torch.CallGraph(cache.Dynamics.__Entry__, [CellState, RecurrentInput, Input])
     def SetTensorLocation(self, Location):
         cache = self.cache
-        cache.TensorLocation = Location
-        for ParamIndex in cache.ParamIndices:
-            setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location))
+        utils_torch.model.SetTensorLocationForLeafModel(self, Location)
         for Name, Module in ListAttrsAndValues(cache.Modules):
             if hasattr(Module, "SetTensorLocation"):
                 Module.SetTensorLocation(Location)    
     def GetTensorLocation(self):
         return self.cache.TensorLocation
-
+    def GetTrainWeight(self):
+        return self.cache.TrainWeight
+    def SetTrainWeight(self):
+        return utils_torch.model.SetTrainWeightForModel(self)
+    def ClearTrainWeight(self):
+        cache = self.cache
+        if hasattr(cache, "TrainWeight"):
+            delattr(cache, "TrainWeight")
 __MainClass__ = RecurrentLIFLayer

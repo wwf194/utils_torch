@@ -177,7 +177,7 @@ def CreateWeight2D(param, DataType=torch.float32):
     else:
         raise Exception()
         # to be implemented
-    return utils_torch.NpArray2Tensor(weight, DataType=DataType)
+    return utils_torch.NpArray2Tensor(weight, DataType=DataType, RequiresGrad=True)
 
 def GetLossFunction(LossFunctionDescription, truth_is_label=False, num_class=None):
     if LossFunctionDescription in ['MSE', 'mse']:
@@ -582,14 +582,34 @@ def PrintStateDict(optimizer):
     for key, value in dict_.items():
         print('%s: %s'%(key, value))
 
+def SetTensorLocationForLeafModel(self, Location):
+    cache = self.cache
+    cache.TensorLocation = Location
+    for ParamIndex in cache.ParamIndices:
+        setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location).detach().requires_grad_(True))
+
+def SetTensorLocationForModel(self, Location):
+    for name, module in ListAttrsAndValues(self.cache.Modules):
+        if hasattr(module, "SetTensorLocation"):
+            module.SetTensorLocation(Location)
+        else:
+            if isinstance(module, nn.Module):
+                utils_torch.AddWarning("%s is an instance of nn.Module, but has not implemented SetTensorLocation method."%name)
+
 def SetTrainWeightForModel(self):
+    ClearTrainWeightForModel(self)
     cache = self.cache
     cache.TrainWeight = {}
     for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
         if hasattr(Module,"SetTrainWeight"):
             TrainWeight = Module.SetTrainWeight()
             for name, weight in TrainWeight.items():
-                cache[ModuleName + "." + name] = weight
+                cache.TrainWeight[ModuleName + "." + name] = weight
         else:
             if isinstance(Module, nn.Module):
-                utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method.")
+                utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method."%Module)
+    return cache.TrainWeight
+def ClearTrainWeightForModel(self):
+    cache = self.cache
+    if hasattr(cache, "TrainWeight"):
+        delattr(cache, "TrainWeight")
