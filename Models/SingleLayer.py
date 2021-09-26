@@ -15,8 +15,8 @@ class SingleLayer(nn.Module):
             cache = self.cache
         else:
             self.param = param
-            self.data = utils_torch.json.EmptyPyObj()
-            self.cache = utils_torch.json.EmptyPyObj()
+            self.data = utils_torch.EmptyPyObj()
+            self.cache = utils_torch.EmptyPyObj()
         
         cache.ParamIndices = []
 
@@ -42,7 +42,7 @@ class SingleLayer(nn.Module):
         data = self.data
         cache = self.cache
         EnsureAttrs(param, "Weight.Size", value=[param.Input.Num, param.Output.Num])
-        EnsureAttrs(param, "Weight.Init", default=utils_torch.json.PyObj(
+        EnsureAttrs(param, "Weight.Init", default=utils_torch.PyObj(
             {"Method":"kaiming", "Coefficient":1.0})
         )
         data.Weight = (utils_torch.model.CreateWeight2D(param.Weight))

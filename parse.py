@@ -57,7 +57,7 @@ def ParseFunctionArg(Arg, ContextInfo):
         if Arg.startswith("__") and Arg.endswith("__"):
             return ContextInfo.get(Arg)
         elif "&" in Arg:
-            #ArgParsed = ResolveArg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
+            #ArgParsed = ResolveArg, **utils_torch.PyObj2JsonObj(ContextInfo))
             return Resolve2Dict(Arg, ContextInfo)
         else:
             return Arg
@@ -125,7 +125,7 @@ def _ParsePyObjDynamic(Obj, parent, attr, RaiseFailedParse, **kw):
         ObjParsed = {}
         for Key, Value in Obj.items():
             ObjParsed[Key] = _ParsePyObjDynamic(Value, Obj, Key, RaiseFailedParse, **kw)
-    elif isinstance(Obj, utils_torch.json.PyObj):
+    elif isinstance(Obj, utils_torch.PyObj):
         if hasattr(Obj, "__ResolveBase__"):
             kw["ObjCurrent"] = Obj
         ObjParsed = PyObj()
@@ -182,7 +182,7 @@ def _ParsePyObjDynamicInPlace(Obj, parent, attr, RaiseFailedParse, **kw):
     elif isinstance(Obj, dict):
         for Key, Value in Obj.items():
             _ParsePyObjDynamicInPlace(Value, Obj, Key, RaiseFailedParse, **kw)
-    elif isinstance(Obj, utils_torch.json.PyObj):
+    elif isinstance(Obj, utils_torch.PyObj):
         if hasattr(Obj, "__ResolveBase__"):
             kw["ObjCurrent"] = Obj
         Sig = True
@@ -248,7 +248,7 @@ def _ParsePyObjDynamicWithMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
         ObjParsed = []
         for Index, Item in enumerate(Obj):
             ObjParsed.append(_ParsePyObjDynamicWithMultiRefs(Item, parent, Index, RaiseFailedParse, **kw))
-    elif isinstance(Obj, utils_torch.json.PyObj):
+    elif isinstance(Obj, utils_torch.PyObj):
         if hasattr(Obj, "__ResolveBase__"):
             kw["ObjCurrent"] = Obj
         ObjParsed = PyObj()
@@ -296,7 +296,7 @@ def _ParsePyObjDynamicWithMultiRefsInPlace(Obj, parent, Attr, RaiseFailedParse, 
     elif isinstance(Obj, list):
         for Index, Item in enumerate(Obj):
             _ParsePyObjDynamicWithMultiRefsInPlace(Item, Obj, Index, RaiseFailedParse, **kw)
-    elif isinstance(Obj, utils_torch.json.PyObj):
+    elif isinstance(Obj, utils_torch.PyObj):
         if hasattr(Obj, "__ResolveBase__"):
             kw["ObjCurrent"] = Obj
         ObjParsed = PyObj()
@@ -358,7 +358,7 @@ def _ProcessPyObj(Obj, Function, ObjParsed, Attrs, **kw):
         ObjParsed = Obj
     return ObjParsed
 
-def ParsePyObjStatic(Obj, ObjRoot=None, ObjCurrent=None, InPlace=False):
+def ParsePyObjStatic(Obj, ObjRoot=None, ObjCurrent=None, InPlace=True):
     #CheckIsPyObj(Obj)
     _ParseResolveBaseInPlace(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent)
     if InPlace:
@@ -409,7 +409,7 @@ def _ParsePyObjStaticInPlace(Obj, parent, Attr, RemainJson=True, **kw):
         while Sig:
             for _Attr, Value in ListAttrsAndValues(Obj):
                 _ParsePyObjStaticInPlace(Value, Obj, _Attr, RemainJson, **kw)
-                if _Attr in ["__value__"] and isinstance(getattr(Obj, _Attr), utils_torch.json.PyObj):
+                if _Attr in ["__value__"] and isinstance(getattr(Obj, _Attr), utils_torch.PyObj):
                     Obj.FromPyObj(getattr(Obj, _Attr))
                     delattr(Obj, "__value__")
                     break
@@ -536,7 +536,7 @@ def _ParsePyObjStatic(Obj, parent, Attr, **kw):
         while Sig:
             for _Attr, Value in ListAttrsAndValues(Obj, Exceptions=["__ResolveRef__"]):
                 setattr(ObjParsed, _Attr, _ParsePyObjStatic(Value, Obj, _Attr, **kw))
-                if _Attr in ["__value__"] and isinstance(ObjParsed, utils_torch.json.PyObj):
+                if _Attr in ["__value__"] and isinstance(ObjParsed, utils_torch.PyObj):
                     Obj.FromPyObj(ObjParsed)
                     delattr(Obj, _Attr)
                     break

@@ -1,5 +1,4 @@
-from utils_torch.json import PyObj
-from utils_torch.json import EmptyPyObj
+from utils_torch.PyObj import PyObj, IsPyObj, EmptyPyObj
 
 import utils_torch.parse as parse
 import utils_torch.geometry2D as geometry2D

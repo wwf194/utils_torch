@@ -30,7 +30,7 @@ def ParseRoutersDynamic(Routers, ObjRefList=[], **kw):
         for Router in Routers:
             RouterParsed.append(ParseRouterDynamic(Router, ObjRefList, **kw))
         return RouterParsed
-    elif isinstance(Routers, utils_torch.json.PyObj):
+    elif isinstance(Routers, utils_torch.PyObj):
         RoutersParsed = utils_torch.EmptyPyObj()
         for Name, Router in ListAttrsAndValues(Routers):
             setattr(RoutersParsed, Name, ParseRouterDynamic(Router, ObjRefList, **kw))
@@ -72,9 +72,9 @@ def CheckRoutingsInputOutputNum(Router):
                 raise Exception("Routing.Module ouputs %d param, whilc Routing accepts %d param."^(ModuleOutNum, RoutingOutNum))
 
 def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
-    if not isinstance(Router, utils_torch.json.PyObj):
+    if not isinstance(Router, utils_torch.PyObj):
         utils_torch.AddWarning("Object %s is not a Router."%Router)
-    RouterParsed = utils_torch.json.EmptyPyObj()
+    RouterParsed = utils_torch.EmptyPyObj()
     RouterParsed = utils_torch.parse.ParsePyObjDynamic(Router, ObjRefList=ObjRefList, InPlace=InPlace, RaiseFailedParse=True, **kw)
 
     return RouterParsed
@@ -94,15 +94,15 @@ def ParseRoutingStatic(Routing):
     if not isinstance(Routing, str):
         return Routing
     _Routing = Routing
-    param = utils_torch.json.EmptyPyObj()
+    param = utils_torch.EmptyPyObj()
     SetAttrs(param, "Str", _Routing.replace("&", "(At)"))
     Routing = re.sub(" ", "", Routing) # remove all spaces
     Routing = Routing.split("||")
     MainRouting = Routing[0] 
     if len(Routing) > 1:
-        Params = Routing[1:]
+        Attrs = Routing[1:]
     else:
-        Params = []
+        Attrs = []
     _MainRouting = MainRouting
     MainRouting = MainRouting.split("|-->")
     if len(MainRouting) != 3:
@@ -123,32 +123,44 @@ def ParseRoutingStatic(Routing):
        param.In = []
     else:
         param.In = In.rstrip(",").split(",")
+
+    InList = []
+    InDict = {}
+    for Index, Input in enumerate(param.In):
+        Input = Input.split("=")
+        if len(Input)==2:
+            Key = utils_torch.RemoveHeadTailWhiteChars(Input[0])
+            Value = utils_torch.RemoveHeadTailWhiteChars(Input[1])
+            InDict[Key] = Value
+        else:
+            InList.append(Input[0])
+    param.In = InList
+    param.InNamed = InDict
+
     if Out=="":
         param.Out = []
     else:
         param.Out = []
         param.Out = Out.rstrip(",").split(",")
-    
     param.Module = Module
 
-    for Param in Params:
-        Param = Param.split("=")
-        if len(Param)!=2:
+    for Attr in Attrs:
+        Attr = Attr.split("=")
+        if len(Attr)!=2:
             raise Exception()
-        attr, value = Param[0], Param[1]
-        if attr in ["repeat"]:
-            attr = "RepeatTime"
-        setattr(param, attr, value)
+        _Attr, value = Attr[0], Attr[1]
+        if _Attr in ["repeat"]:
+            _Attr = "RepeatTime"
+        setattr(param, _Attr, value)
+
     EnsureAttrs(param, "RepeatTime", value=1)
 
     param.cache.RepeatTime = param.RepeatTime
-
     param.DynamicParseAttrs = []
     for attr, value in ListAttrsAndValues(param):
         if isinstance(value, str):
             #if "%" in value:
             if value[0]=="%": # Dynamic Parse
                 param.DynamicParseAttrs.append(attr)
-    # if param.Module in ["&GetBias |--> bias"]:
-    #     print("aaa")
+
     return param

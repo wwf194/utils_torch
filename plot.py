@@ -13,7 +13,7 @@ from utils_torch.utils import ToNpArray, ToList
 from utils_torch.attrs import *
 from enum import Enum
 
-ColorPlt = utils_torch.json.EmptyPyObj().FromDict({
+ColorPlt = utils_torch.EmptyPyObj().FromDict({
     "White": (1.0, 1.0, 1.0),
     "Black": (0.0, 0.0, 0.0),
     "Red":   (1.0, 0.0, 0.0),

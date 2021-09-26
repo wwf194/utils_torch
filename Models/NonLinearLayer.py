@@ -17,8 +17,8 @@ class NonLinearLayer(SingleLayer):
         super().__init__()
         if param is not None:
             self.param = param
-            self.data = utils_torch.json.EmptyPyObj()
-            self.cache = utils_torch.json.EmptyPyObj()
+            self.data = utils_torch.EmptyPyObj()
+            self.cache = utils_torch.EmptyPyObj()
     def InitFromParam(self, param=None):
         super().InitFromParam(param)
         param = self.param        

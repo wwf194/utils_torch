@@ -3,7 +3,7 @@ import torch
 #from typing import DefaultDict
 from collections import defaultdict
 import utils_torch
-#Operators = utils_torch.json.PyObj()
+#Operators = utils_torch.PyObj()
 OperatorList = []
 
 def BuildModule(param, RaiseIfFail=False):
@@ -32,6 +32,8 @@ OperatorList.append(["Add"])
 def Split(Args):
     if isinstance(Args, list):
         return Args
+    elif isinstance(Args, utils_torch.PyObj) and Args.IsListLike():
+        return Args
     else:
         raise Exception
 # Operators.Split = Split
@@ -40,7 +42,6 @@ OperatorList.append(["Split"])
 def Merge(*Args):
     return Args
 OperatorList.append(["Merge"])
-
 
 def FunctionsOutputs2List(Functions):
     Outputs = []
@@ -77,7 +78,7 @@ def CalculateGradient(loss):
 # Operators.CalculateGradient = CalculateGradient
 OperatorList.append(["CalculateGradient"])
 
-def Log(data):
+def Log(data, Name=None):
     if isinstance(data, torch.Tensor):
         statistics = utils_torch.math.TorchTensorStatistics(data)
     else:
@@ -89,10 +90,14 @@ class GradientDescend:
     def __init__(self, param=None):
         self.cache = utils_torch.EmptyPyObj()
         self.cache.LastUpdateInfo = defaultdict(lambda:{})
-    def __call__(self, weights, param, ClearGrad=True):
+    def InitFromParam(self):
+        return
+    def __call__(self, weights, param, ClearGrad=True, WarnNoneGrad=True):
         cache = self.cache
         for Name, Weight in weights.items():
             if Weight.grad is None:
+                if WarnNoneGrad:
+                    utils_torch.AddWarning("%s.grad is None."%Name)
                 continue
             WeightChange = Weight.grad.data
             if param.WeightDecay != 0:

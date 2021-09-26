@@ -4,13 +4,15 @@ import torch.nn.functional as F
 
 from utils_torch.attrs import *
 
-class L2Loss(nn.Module):
+class L2Loss():
     def __init__(self, param=None):
         super(L2Loss, self).__init__()
         if param is not None:
             self.param = param
             self.data = utils_torch.EmptyPyObj()
             self.cache = utils_torch.EmptyPyObj()
+    def __call__(self, InputList, *Args):
+        return self.forward(self, InputList, *Args)
     def InitFromParam(self):
         param = self.param
         data = self.data

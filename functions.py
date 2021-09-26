@@ -79,27 +79,52 @@ def _CallFunction(param, ContextInfo={}):
         return FunctionOutput
 
 def CallGraph(Router, In, **kw):
-    # if hasattr(Router, "Name") and Router.Name in ["CalculateWeightConstrainLoss"]:
-    #     print("aaa")
-    States = utils_torch.json.EmptyPyObj()
+    States = utils_torch.EmptyPyObj()
+    
+    # Register Router Input
     for Index, Key in enumerate(Router.In):
         States[Key] = In[Index]
     #utils_torch.parse.Register2PyObj(In, States, Router.In)
+
+    # Run Router Routings
     for RoutingIndex, Routing in enumerate(Router.Routings):
         if isinstance(Routing, list):
             CallFunction(Routing, **kw)
-        elif isinstance(Routing, utils_torch.json.PyObj):
+        elif isinstance(Routing, utils_torch.PyObj):
             Routing = utils_torch.router.ParseRoutingAttrsDynamic(Routing, States)
             for TimeIndex in range(Routing.cache.RepeatTime):
-                InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
-                if isinstance(Routing.Module, utils_torch.json.PyObj):
-                    Output = CallGraph(Routing.Module, InputList)
-                #if hasattr(Routing.Module, "forward"):
-                else: 
-                    Output = Routing.Module(*InputList)
-                utils_torch.parse.Register2PyObj(Output, States, Routing.Out)
+                # Prepare Module InputList.
+                InputList = []
+                for Index, State in enumerate(Routing.In):
+                    InputList.append(States[State])
+                InputDict = Routing.InNamed
+                
+                #InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
+                
+                if isinstance(Routing.Module, utils_torch.PyObj):
+                    if len(Routing.InNamed) > 0:
+                        raise Exception(Routing.InNamed)
+                    OutputList = CallGraph(Routing.Module, InputList)
+                else:
+                    OutputList = Routing.Module(*InputList, **InputDict)
+                
+                # Process Module OutputList
+                if len(Routing.Out) > 1:
+                    for Index, Key in enumerate(Routing.Out):
+                        States[Key] = OutputList[Index]
+                elif len(Routing.Out) == 1:
+                    if isinstance(OutputList, list):
+                        if len(OutputList)==1:
+                            States[Routing.Out[0]] = OutputList[0]
+                        elif len(OutputList)>1:
+                            States[Routing.Out[0]] = OutputList
+                        else:
+                            raise Exception()
+                    else:
+                        States[Routing.Out[0]] = OutputList
+                else:
+                    pass
+                # utils_torch.parse.Register2PyObj(OutputList, States, Routing.Out)
         else:
             raise Exception()
-    # if hasattr(Router, "Name") and Router.Name in ["RunTrain"]:
-    #     print("aaa")
     return utils_torch.parse.FilterFromPyObj(States, Router.Out)

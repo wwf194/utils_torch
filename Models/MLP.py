@@ -16,8 +16,8 @@ class MLP(torch.nn.Module):
         super(MLP, self).__init__()
         if param is not None:
             self.param = param
-            self.data = utils_torch.json.EmptyPyObj()
-            self.cache = utils_torch.json.EmptyPyObj()
+            self.data = utils_torch.EmptyPyObj()
+            self.cache = utils_torch.EmptyPyObj()
     def InitFromParam(self, param=None):
         if param is None:
             param = self.param
@@ -35,7 +35,7 @@ class MLP(torch.nn.Module):
         if param.Init.Method in ["FromNeuronNum"]:
             EnsureAttrs(param.Layers, "Num", default=len(param.Neurons.Num) - 1)
             for LayerIndex in range(param.Layers.Num):
-                LayerParam = utils_torch.json.EmptyPyObj()
+                LayerParam = utils_torch.EmptyPyObj()
                 SetAttrs(LayerParam, "Type", "NonLinearLayer")
                 SetAttrs(LayerParam, "Subtype", param.Layers.Type)
                 SetAttrs(LayerParam, "Bias", param.Layers.Bias)
