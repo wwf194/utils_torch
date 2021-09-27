@@ -25,6 +25,12 @@ from inspect import getframeinfo, stack
 from utils_torch.attrs import *
 from utils_torch.files import *
 
+def SetSaveDir(SaveDir):
+    utils_torch.ArgsGlobal.SaveDir = SaveDir
+
+def GetSaveDir():
+    return utils_torch.ArgsGlobal.SaveDir
+
 def AddLog(log, TimeStamp=True, File=True, LineNum=True):
     Logger = utils_torch.ArgsGlobal.Logger
     Caller = getframeinfo(stack()[1][0])

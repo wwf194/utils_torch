@@ -70,3 +70,9 @@ class MLP(torch.nn.Module):
         return utils_torch.model.SetTrainWeightForModel(self)
     def ClearTrainWeigt(self):
         utils_torch.model.ClearTrainWeightForModel(self)
+    def SetLogger(self, logger):
+        return utils_torch.model.SetLoggerForModel(self, logger)
+    def GetLogger(self):
+        return utils_torch.model.GetLoggerForModel(self)
+    def Log(self, data, Name="Undefined"):
+        return utils_torch.model.LogForModel(self, data, Name)

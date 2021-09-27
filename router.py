@@ -131,6 +131,11 @@ def ParseRoutingStatic(Routing):
         if len(Input)==2:
             Key = utils_torch.RemoveHeadTailWhiteChars(Input[0])
             Value = utils_torch.RemoveHeadTailWhiteChars(Input[1])
+            try:
+                ValueEval = eval(Value)
+                Value = ValueEval
+            except Exception:
+                pass
             InDict[Key] = Value
         else:
             InList.append(Input[0])
@@ -149,6 +154,7 @@ def ParseRoutingStatic(Routing):
         if len(Attr)!=2:
             raise Exception()
         _Attr, value = Attr[0], Attr[1]
+
         if _Attr in ["repeat"]:
             _Attr = "RepeatTime"
         setattr(param, _Attr, value)

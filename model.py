@@ -81,8 +81,6 @@ def CreateMask(N_num, OutputNum, device=None):
     mask = torch.ones((N_num, OutputNum), device=device, requires_grad=False)
     return mask
 
-create_mask = CreateMask
-
 def GetConstraintFunction(Method):
     if Method in ["AbsoluteValue", "abs"]:
         return lambda x:torch.abs(x)
@@ -564,7 +562,7 @@ def print_model_Param(model):
         print('This is my %s. Size:%s is_leaf:%s device:%s requires_grad:%s'%
             (name, list(Param.Size()), Param.is_leaf, Param.device, Param.requires_grad))
 
-def Gettensor_info(tensor, name='', verbose=True, complete=True):
+def TorchTensorInfo(tensor, name='', verbose=True, complete=True):
     print(tensor.device)
     report = '%s...\033[0;31;40mVALUE\033[0m\n'%str(tensor)
     if complete:
@@ -574,7 +572,6 @@ def Gettensor_info(tensor, name='', verbose=True, complete=True):
     if verbose:
         print(report)
     return report
-
 
 def PrintStateDict(optimizer):
     dict_ = optimizer.state_dict()
@@ -608,7 +605,34 @@ def SetTrainWeightForModel(self):
             if isinstance(Module, nn.Module):
                 utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method."%Module)
     return cache.TrainWeight
+
 def ClearTrainWeightForModel(self):
     cache = self.cache
     if hasattr(cache, "TrainWeight"):
         delattr(cache, "TrainWeight")
+    
+def SetLoggerForModel(self, logger):
+    cache = self.cache
+    cache.Logger = logger
+    if hasattr(cache, "Modules"):   
+        for Name, Module in ListAttrsAndValues(self.cache.Modules):
+            if hasattr(Module, "SetLogger"):
+                Module.SetLogger(utils_torch.log.DataLogger().SetParent(logger, prefix=Name + "."))
+
+def GetLoggerForModel(self):
+    cache = self.cache
+    if hasattr(cache, "Logger"):
+        return cache.Logger
+    else:
+        return None
+    
+def LogForModel(self, data, Name):
+    logger = self.GetLogger()
+    if logger is None:
+        return
+    logger.AddRecord(
+        TableName=Name,
+        ColumnValues={
+            "Value": data,
+        }
+    )

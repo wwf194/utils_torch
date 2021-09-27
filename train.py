@@ -37,23 +37,18 @@ def Train(Args, **kw):
 
 def TrainEpochBatch(param, **kw):
     kw["ObjCurrent"] = param
+    logger = kw["Logger"]
     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
     # param = utils_torch.parse.ParsePyObjDynamic(param, InPlace=False, **kw)
+    Router = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
+    In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
     for EpochIndex in range(param.Epoch.Num):
+        logger.SetLocal("Epoch", EpochIndex)
         utils_torch.AddLog("Epoch: %d"%EpochIndex)
         for BatchIndex in range(param.Batch.Num):
+            logger.SetLocal("Batch", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
-            Router = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
-            In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
             utils_torch.CallGraph(Router, In=In)
-
-def PyTorchInfo():
-    if torch.cuda.is_available():
-        print("Cuda is available")
-    else:
-        print("Cuda is unavailable")
-
-    print("Torch version:"+torch.__version__)
 
 def ProcessMNIST(dataset_dir, augment=True, batch_size=64):    
     transform = transforms.Compose(

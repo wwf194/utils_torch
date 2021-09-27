@@ -12,6 +12,7 @@ import utils_torch.model as model
 import utils_torch.router as router
 import utils_torch.Models as Models
 import utils_torch.functions as functions
+import utils_torch.log as log
 
 from utils_torch.utils import *
 from utils_torch.functions import *

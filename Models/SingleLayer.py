@@ -85,4 +85,12 @@ class SingleLayer(nn.Module):
         cache = self.cache
         if hasattr(cache, "TrainWeight"):
             delattr(cache, "TrainWeight")
+    def SetLogger(self, logger):
+        return utils_torch.model.SetLoggerForModel(self, logger)
+    def GetLogger(self):
+        return utils_torch.model.GetLoggerForModel(self)
+    def Log(self, data, Name="Undefined"):
+        return utils_torch.model.LogForModel(self, data, Name)
+
+
 __MainClass__ = SingleLayer

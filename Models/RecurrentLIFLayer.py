@@ -118,7 +118,10 @@ class RecurrentLIFLayer(nn.Module):
             utils_torch.router.ParseRouterStatic(RouterParam)
         for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
             Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
-                ObjRefList=[cache.Modules, cache.Dynamics, cache, param, self, utils_torch.Models.Operators])
+                ObjRefList=[cache.Modules, cache.Dynamics, cache,
+                    param, self, utils_torch.Models.Operators
+                ]
+            )
             setattr(cache.Dynamics, Name, Router)
         if not HasAttrs(param.Dynamics, "__Entry__"):
             SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
@@ -143,4 +146,11 @@ class RecurrentLIFLayer(nn.Module):
         cache = self.cache
         if hasattr(cache, "TrainWeight"):
             delattr(cache, "TrainWeight")
+    def SetLogger(self, logger):
+        return utils_torch.model.SetLoggerForModel(self, logger)
+    def GetLogger(self):
+        return utils_torch.model.GetLoggerForModel(self)
+    def Log(self, data, Name="Undefined"):
+        return utils_torch.model.LogForModel(self, data, Name)
+
 __MainClass__ = RecurrentLIFLayer

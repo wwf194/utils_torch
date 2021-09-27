@@ -335,7 +335,8 @@ def _ParsePyObjDynamicWithMultiRefsInPlace(Obj, parent, Attr, RaiseFailedParse, 
         pass
 
 def ProcessPyObj(Obj, Function=lambda x:(x, True), **kw):
-    ObjParsed = PyObj()
+    # Not Inplace
+    ObjParsed = utils_torch.PyObj()
     return _ProcessPyObj(Obj, Function, ObjParsed, [], **kw)
 
 def _ProcessPyObj(Obj, Function, ObjParsed, Attrs, **kw):
@@ -351,14 +352,14 @@ def _ProcessPyObj(Obj, Function, ObjParsed, Attrs, **kw):
         for Key, Value in Obj.items():
             ObjParsed[Key] = _ParsePyObj(Value, ObjParsed, [*Attrs, Key], **kw)
     elif hasattr(Obj, "__dict__"):
-        ObjParsed = EmptyPyObj()
+        ObjParsed = utils_torch.EmptyPyObj()
         for Attr, Value in Obj.__dict__.items():
             setattr(ObjParsed, Attr, _ParsePyObj(Value, Obj, [*Attrs, Attr]))
     else:
         ObjParsed = Obj
     return ObjParsed
 
-def ParsePyObjStatic(Obj, ObjRoot=None, ObjCurrent=None, InPlace=True):
+def ParsePyObjStatic(Obj, ObjRoot=None, ObjCurrent=None, InPlace=True, **kw):
     #CheckIsPyObj(Obj)
     _ParseResolveBaseInPlace(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent)
     if InPlace:

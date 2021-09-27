@@ -78,13 +78,13 @@ def CalculateGradient(loss):
 # Operators.CalculateGradient = CalculateGradient
 OperatorList.append(["CalculateGradient"])
 
-def Log(data, Name=None):
-    if isinstance(data, torch.Tensor):
-        statistics = utils_torch.math.TorchTensorStatistics(data)
-    else:
-        raise Exception()
-    return
-OperatorList.append("Log")
+# def Log(data, Name=None):
+#     if isinstance(data, torch.Tensor):
+#         statistics = utils_torch.math.TorchTensorStatistics(data)
+#     else:
+#         raise Exception()
+#     return
+# OperatorList.append("Log")
 
 class GradientDescend:
     def __init__(self, param=None):
@@ -119,3 +119,8 @@ class GradientDescend:
                 Weight.grad.zero_()        
         return
 OperatorList.append("GradientDescend")
+
+def CreateDataLogger():
+    return utils_torch.log.DataLogger()
+
+OperatorList.append("CreateDataLogger")
