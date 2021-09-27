@@ -141,7 +141,6 @@ def ParseNonLinearMethod(param):
             param.Coefficient = 1.0
     else:
         raise Exception("ParseNonLinearMethod: invalid param Type: %s"%type(param))
-    
     return param
 
 def CreateWeight2D(param, DataType=torch.float32):

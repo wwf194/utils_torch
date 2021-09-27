@@ -161,5 +161,14 @@ def JsonStr2JsonFile(JsonStr, path):
     with open(path, "w") as f:
         f.write(JsonStr)
 
-new_json_file = JsonStr2JsonFile
+def IsJsonObj(Obj):
+    return \
+    isinstance(Obj, utils_torch.PyObj) or \
+    isinstance(Obj, str) or \
+    isinstance(Obj, bool) or \
+    isinstance(Obj, int) or \
+    isinstance(Obj, float) or \
+    isinstance(Obj, list) or \
+    isinstance(Obj, dict) or \
+    isinstance(Obj, tuple) 
 

@@ -98,6 +98,13 @@ BuildObject = BuildObj
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
+
+from collections.abc import Iterable   # import directly from collections for Python < 3.3
+def IsIterable(Obj):
+    if isinstance(Obj, Iterable):
+        return True
+    else:
+        return False
 def IsListLike(List):
     if isinstance(List, list):
         return True

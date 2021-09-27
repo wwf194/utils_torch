@@ -17,17 +17,6 @@ def IsPyObjAndDictLike(Obj):
 def IsPyObjAndListLike(Obj):
     return isinstance(Obj, PyObj) and Obj.IsListLike()
 
-def IsJsonObj(Obj):
-    return \
-    isinstance(Obj, PyObj) or \
-    isinstance(Obj, str) or \
-    isinstance(Obj, bool) or \
-    isinstance(Obj, int) or \
-    isinstance(Obj, float) or \
-    isinstance(Obj, list) or \
-    isinstance(Obj, dict) or \
-    isinstance(Obj, tuple)  
-
 class PyObjCache(object):
     def __init__(self):
         return

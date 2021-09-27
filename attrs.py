@@ -81,7 +81,7 @@ def EnsureAttrs(Obj, attrs=[], *args, **kw):
     parent, parentAttr = None, None
     for index, attr in enumerate(attrs):
         if index < len(attrs) - 1:
-            #if utils_torch.json.IsPyObj(Obj):
+            #if utils_torch.IsPyObj(Obj):
             if hasattr(Obj, "__dict__"):
                 parent = Obj
                 parentAttr = attr
@@ -128,7 +128,7 @@ def SetAttr(Obj, Attr, Value):
         Obj[int(Attr)] = Value
     elif isinstance(Obj, dict):
         Obj[Attr] = Value
-    elif utils_torch.json.IsPyObj(Obj):
+    elif utils_torch.IsPyObj(Obj):
         setattr(Obj, Attr, Value)
     else:
         raise Exception(type(Obj))

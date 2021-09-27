@@ -11,8 +11,8 @@ class L2Loss():
             self.param = param
             self.data = utils_torch.EmptyPyObj()
             self.cache = utils_torch.EmptyPyObj()
-    def __call__(self, InputList, *Args):
-        return self.forward(self, InputList, *Args)
+    def __call__(self, Input, *Args):
+        return self.forward(Input, *Args)
     def InitFromParam(self):
         param = self.param
         data = self.data
@@ -49,7 +49,7 @@ class L2Loss():
         data = self.data
         cache = self.cache
         LossFloat = Loss.item()
-        LossRefFloat = Loss.item()
+        LossRefFloat = LossRef.item()
         if cache.RatioMin * LossRefFloat <= cache.Coefficient * LossFloat <= cache.RatioMax * LossRefFloat:
             return cache.Coefficient
         else:
@@ -57,11 +57,17 @@ class L2Loss():
             data.CoefficientHistory.append(cache.Coefficient)
             cache.Coefficient = cache.RatioMid * LossRefFloat / LossFloat
             return cache.Coefficient
-    def forward(self, InputList, *Args):
+    def forward(self, Input, *Args):
         param = self.param
-        Loss = 0.0
-        for Input in InputList:
-            Loss += torch.sum(Input ** 2)
+        Input = Args[0]
+        if isinstance(Input, tuple) or isinstance(Input, list):
+            Loss = 0.0
+            for _Input in Input:
+                Loss += torch.mean(_Input ** 2)
+        elif isinstance(Input, torch.Tensor):
+            Loss = torch.mean(Input)
+        else:
+            raise Exception()
         Coefficient = self.GetCoefficient(Loss, *Args)
         Loss = Coefficient * Loss
         return Loss
