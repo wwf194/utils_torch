@@ -49,6 +49,20 @@ def TrainEpochBatch(param, **kw):
             logger.SetLocal("Batch", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
             utils_torch.CallGraph(Router, In=In)
+            
+            PlotTrainCurve(logger.GetTable("model.MainLoss"), EpochNum=param.Epoch.Num, BatchNum=param.Batch.Num, Name="MainLoss")
+            continue
+
+def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
+    Xs = []
+    Ys = []
+    for record in records:
+        EpochIndex = record["Epoch"]
+        BatchIndex = record["Batch"]
+        Xs.append(EpochIndex + BatchIndex / BatchNum)
+        Ys.append(record["Value"])
+    utils_torch.plot.PlotLineChart(None, Xs, Ys, Save=True, SavePath="./%s.png"%Name)
+
 
 def ProcessMNIST(dataset_dir, augment=True, batch_size=64):    
     transform = transforms.Compose(

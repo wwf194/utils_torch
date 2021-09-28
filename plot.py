@@ -1,3 +1,4 @@
+from os import EX_CANTCREAT
 from re import L
 import numpy as np
 import cv2 as cv
@@ -106,7 +107,7 @@ def PlotDirectionsOnEdges(ax, Edges, Directions, **kw):
 def PlotDirectionOnEdge(ax, Edge, Direction, **kw):
     PlotDirectionsOnEdges(ax, [Edge], [Direction], **kw)
 
-def Map2Colors(data, ColorMap="jet", Method="MinMax", Alpha=False):
+def Map2Color(data, ColorMap="jet", Method="MinMax", Alpha=False):
     data = ToNpArray(data)
     if Method in ["MinMax"]:
         dataMin, dataMax = np.min(data), np.max(data)
@@ -115,24 +116,26 @@ def Map2Colors(data, ColorMap="jet", Method="MinMax", Alpha=False):
             dataNormed[:,:,:] = 0.5
         else:
             dataNormed = (data - dataMin) / (dataMax - dataMin) # normalize to [0, 1]
-        dataMapped = ParseColorMapPlt(ColorMap)(dataNormed) # [*data.Shape, (r,g,b,a)]
+        dataColored = ParseColorMapPlt(ColorMap)(dataNormed) # [*data.Shape, (r,g,b,a)]
     else:
         raise Exception()
 
     if not Alpha:
-        dataMapped = eval("dataMapped[%s 0:3]"%("".join(":," for _ in range(len(data.shape)))))
-
-    return dataMapped
-Map2Color = Map2Colors
+        dataColored = eval("dataColored[%s 0:3]"%("".join(":," for _ in range(len(data.shape)))))
+        #dataColored = dataColored.take([0, 1, 2], axis=-1)
+    return utils_torch.PyObj({
+        "dataColored": dataColored,
+        "Min": dataMin,
+        "Max": dataMax
+    })
+Map2Colors = Map2Color
 
 def MapColors2Colors(dataColored, ColorMap="jet", Range="MinMax"):
     return # to be implemented
 
-def norm(data, ):
+def norm(data):
     # to be implemented
     return
-
-
 
 def ParseResolutionXY(Resolution, Width, Height):
     if Width >= Height:
@@ -171,6 +174,8 @@ def ParseColorMapPlt(ColorMap):
         return plt.get_cmap(ColorMap)
     else:
         raise Exception()
+
+ParseColorMap = ParseColorMapPlt
 
 def PlotArrows(ax, XYsStart, dXYs, Color=ColorPlt.Red):
     PlotNum = len(XYsStart)
@@ -275,20 +280,63 @@ def SetAxRangeFromBoundaryBox(ax, BoundaryBox):
     ax.set_xticks(np.linspace(BoundaryBox.XMin, BoundaryBox.XMax, 5))
     ax.set_yticks(np.linspace(BoundaryBox.YMin, BoundaryBox.YMax, 5))
 
-def PlotMatrix(ax, data, ApplyColorMap=None, ColorMap="jet", XYRange=None, Save=False, SavePath=None, Coordinate="Math"):
-    if ApplyColorMap is None:
-        DimData = len(data.shape)
-        if DimData==2:
-            ApplyColorMap = True
-        elif DimData==3:
-            ApplyColorMap = False
-        else:
-            raise Exception(DimData)
-    
-    if ApplyColorMap:
-        data = Map2Color(data, ColorMap)
+def ParseIsMatrixDataColored(data):
+    DimensionNum = utils_torch.GetDimensionNum(data)
+    if DimensionNum==2: # [XNum, YNum]
+        IsDataColored = False
+    elif DimensionNum==3: # [XNum, YNum, (r, g, b) or (r, g, b, a)], already mapped to colors.
+        IsDataColored = True
+    else:
+        raise Exception(DimensionNum)  
+    return IsDataColored
+
+def PlotMatrixWithColorBar(
+        ax, data, IsDataColored=None, ColorMap="jet", ColorMethod="MinMax", 
+        XYRange=None, Coordinate="Math", 
+        ColorBarOrientation="Vertical", ColorBarLocation=None, 
+        ColorBarTitle=None, Save=False, SavePath=None, **kw
+    ):
+    if IsDataColored is None:
+        IsDataColored = ParseIsMatrixDataColored(data)
+
+    if not IsDataColored:
+        dataMapResult = Map2Color(data, ColorMap)
+        data = dataMapResult.dataColored
+        Min = dataMapResult.Min
+        Max = dataMapResult.Max
+        kw.update({
+            "Min": Min,
+            "Max": Max,
+        })
     else:
         pass
+
+    PlotColorBarInSubAx(
+        ax, ColorMap=ColorMap, Method=ColorMethod, Orientation=ColorBarOrientation, 
+        Location=ColorBarLocation, Title=ColorBarTitle, **kw
+    )
+    PlotMatrix(
+        ax, data, True, ColorMap, XYRange, Coordinate=Coordinate, Save=False, 
+    )
+
+def PlotMatrix(
+        ax, data, IsDataColored=None, 
+        ColorMap="jet", XYRange=None, Coordinate="Math",
+        Save=False, SavePath=None
+    ):
+    if IsDataColored is None:
+        DimensionNum = utils_torch.GetDimensionNum(data)
+        if DimensionNum==2: # [XNum, YNum]
+            IsDataColored = False
+        elif DimensionNum==3: # [XNum, YNum, (r, g, b) or (r, g, b, a)], already mapped to colors.
+            IsDataColored = True
+        else:
+            raise Exception(DimensionNum)
+
+    if not IsDataColored:
+        dataMapResult = Map2Color(data, ColorMap)
+        data = dataMapResult.dataColored
+
     if XYRange is not None:
         extent = [XYRange.XMin, XYRange.XMax, XYRange.YMin, XYRange.YMax]
     else:
@@ -488,6 +536,89 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
         return axes
     else:
         raise Exception()
+
+def PlotLineChart(ax=None, Xs=None, Ys=None, Save=True, SavePath=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.plot(Xs, Ys)
+    if Save:
+        utils_torch.EnsureFileDir(SavePath)
+        plt.savefig(SavePath)
+        plt.close()
+
+def GetSubAx(ax, Left, Bottom, Width, Height):
+    return ax.inset_axes([Left, Bottom, Width, Height]) # left, bottom, width, height. all are ratios to sub-canvas of ax.
+
+def ParseColorBarOrientation(Orientation):
+    if Orientation is None:
+        Orientation = "Vertical"
+    if Orientation in ["Horizontal", "horizontal"]:
+        Orientation = "horizontal"
+    elif Orientation in ["Vertical", "vertical"]:
+        Orientation = "vertical"
+    else:
+        raise Exception(Orientation)  
+    return Orientation
+
+def PlotColorBarInSubAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical", Location=None, **kw):
+    # @param Location: [Left, Bottom, Width, Height]
+    Orientation = ParseColorBarOrientation(Orientation)
+    Location = ParseColorBarLocation(Location, Orientation)
+    axSub = GetSubAx(ax, *Location)
+    PlotColorBarInAx(axSub, ColorMap=ColorMap, Method=Method, Orientation=Orientation, **kw)
+
+def ParseColorBarLocation(Location, Orientation):
+    if Location is None:
+        if Orientation in ["vertical"]:
+            Location = [1.05, 0.0, 0.05, 1.0]
+        elif Orientation in ["horizontal"]:
+            Location = [0.0, -0.10, 1.0, 0.05]
+        else:
+            raise Exception()
+    elif isinstance(Location, str):
+        raise Exception(Location)
+    else:
+        pass
+    return Location
+
+def SetColorBarTicks(ColorBar, Ticks):
+    return
+
+def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical", **kw):
+    if Method in ["MinMax", "GivenMinMax"]:
+        Min, Max = kw["Min"], kw["Max"]
+    else:
+        raise Exception()
+
+    Orientation = utils_torch.ToLowerStr(Orientation)
+    if Orientation not in ["horizontal", "vertical"]:
+        raise Exception(Orientation)
+    
+    ColorMap = ParseColorMapPlt(ColorMap)
+    Norm = mpl.colors.Normalize(vmin=Min, vmax=Max)
+
+    Ticks = kw.setdefault("Ticks", "auto")
+    if Ticks in ["Auto", "auto"]:
+        Ticks = np.linspace(Min, Max, num=5)
+        #ColorBar.set_ticks(Ticks)
+    elif Ticks is None:
+        pass
+    else:
+        raise Exception(Ticks)
+
+    ColorBar = ax.figure.colorbar(
+        mpl.cm.ScalarMappable(norm=Norm, cmap=ColorMap),
+        cax=ax,
+        ticks=Ticks,
+        orientation=Orientation
+    )
+    #ax.axis("off")
+
+    Title = kw.get("Title")
+    if Title is not None:
+        ColorBar.set_label(Title, loc="center")
+    
+
 '''
 def concat_images(images, image_Width, spacer_size=4):
     # Concat image horizontally with spacer

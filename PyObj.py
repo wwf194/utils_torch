@@ -160,9 +160,9 @@ class PyObj(object):
             raise Exception()
         self.__value__.append(content)
     def ToDict(self):
-        d = {}
+        Dict = {}
         for key, value in ListAttrsAndValues(self, Exceptions=["__ResolveRef__"]):
             if type(value) is PyObj:
                 value = value.ToDict()
-            d[key] = value
-        return d
+            Dict[key] = value
+        return Dict

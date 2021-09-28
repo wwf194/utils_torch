@@ -153,6 +153,9 @@ def NpArray2Tensor(data, Location="cpu", DataType=torch.float32, RequiresGrad=Fa
     data.requires_grad = RequiresGrad
     return data
 
+def NpArray2List(data):
+    return data.tolist()
+
 def ToStandardizeTorchDataType(DataType):
     if DataType in ["Float", "float"]:
         return torch.float32
@@ -165,8 +168,18 @@ def Tensor2GivenDataType(data, DataType=torch.float32):
     else:
         return data.to(DataType)
 
-def NpArray2List(data):
-    return data.tolist()
+def Tensor2NpArray(data):
+    data = data.detach().cpu().numpy()
+    return data # data.grad will be lost.
+
+def Tensor2NumpyOrFloat(data):
+    try:
+        _data = data.item()
+        return _data
+    except Exception:
+        pass
+    data = data.detach().cpu().numpy()
+    return data
 
 def List2NpArray(data, Type=None):
     if Type is not None:
@@ -284,8 +297,6 @@ def cat_batch(dataloader): #data:(batch_num, batch_size, image_size)
     print(dataloader[0][0].__class__.__name__)
     '''
     return torch.cat(dataloader, dim=0)
-
-
 
 def read_data(read_dir): #read data from file.
     if not os.path.exists(read_dir):
@@ -647,7 +658,7 @@ def standardize_suffix(suffix):
         suffix = result.group(1)
     return suffix
 
-def ensure_suffix(name, suffix):
+def EnsureSuffix(name, suffix):
     if not suffix.startswith("."):
         suffix = "." + suffix
     if name.endswith(suffix):
@@ -920,3 +931,14 @@ def CalculateGitProjectTotalLines(Verbose=False):
     import os
     GitCommand = 'git log  --pretty=tformat: --numstat | awk \'{ add += $1; subs += $2; loc += $1 - $2 } END { printf "added lines: %s, removed lines: %s, total lines: %s\\n", add, subs, loc }\''
     report = os.system(GitCommand)
+
+def GetDimensionNum(data):
+    if isinstance(data, torch.Tensor):
+        return len(list(data.size()))
+    elif isinstance(data, np.ndarray):
+        return len(data.shape)
+    else:
+        raise Exception(type(data))
+
+def ToLowerStr(Str):
+    return Str.lower()

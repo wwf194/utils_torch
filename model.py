@@ -1,6 +1,7 @@
 
 from typing import Set
 import torch
+from torch._C import ThroughputBenchmark
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
@@ -627,6 +628,9 @@ def GetLoggerForModel(self):
         return None
     
 def LogForModel(self, data, Name):
+    if isinstance(data, torch.Tensor):
+        data = utils_torch.Tensor2NumpyOrFloat(data)
+
     logger = self.GetLogger()
     if logger is None:
         return
@@ -636,3 +640,14 @@ def LogForModel(self, data, Name):
             "Value": data,
         }
     )
+
+def PlotWeight(weight, Name, Save=True, SavePath="./weight.png"):
+    weight = utils_torch.ToNpArray(weight)
+    DimensionNum = len(weight.shape)
+
+def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
+    # @param activity: [BatchSize, StepNum, NeuronNum]
+    activity = utils_torch.ToNpArray(activity)
+    
+    
+    return

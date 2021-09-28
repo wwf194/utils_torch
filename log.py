@@ -38,10 +38,21 @@ class DataLogger:
             if hasattr(self.tables, TableName):
                 utils_torch.AddWarning("Table with name: %s already exists."%TableName)
             utils_torch.EnsureFileDir(SavePath)
+            utils_torch.EnsureFileDir(SavePath)
             table = Base(SavePath)
             table.create(*ColumnNames)
             self.tables[TableName] = table
         return table     
+    def GetTable(self, TableName):
+        table = self.tables.get(TableName)
+        # if table is None:
+        #     raise Exception("No such table: %s"%TableName)
+        return table
+    def HasTable(self, TableName):
+        return self.tables.get(TableName) is None
+    def CreateIndex(self, TableName, IndexColumn):
+        table = self.GetTable(TableName)
+        table.create_index(IndexColumn)
     def AddRecord(self, TableName, ColumnValues, AddLocalColumn=True):
         param = self.param
         cache = self.cache
@@ -50,11 +61,11 @@ class DataLogger:
                 ColumnValues.update(cache.LocalColumn)
             self.parent.AddRecord(self.parentPrefix + TableName, ColumnValues)
         else:
-            table = self.tables.get(TableName)
+            table = self.GetTable(TableName)
             if table is None:
                 #raise Exception(TableName)
                 table = self.CreateTable(TableName, [*ColumnValues.keys(), *param.LocalColumnNames], 
-                    SavePath=utils_torch.GetSaveDir() + "%s.pdl"%TableName)
+                    SavePath=utils_torch.GetSaveDir() + "data/" + "%s.pdl"%TableName)
             if AddLocalColumn:
                 table.insert(**ColumnValues, **self.cache.LocalColumn)
             else:
