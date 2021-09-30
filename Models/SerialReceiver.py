@@ -7,11 +7,9 @@ import numpy as np
 import utils_torch
 from utils_torch.attrs import *
 
-class SerialReceiver(nn.Module):
+class SerialReceiver():
     def __init__(self, param=None):
-        super(SerialReceiver, self).__init__()
-        if param is not None:
-            self.param = param
+        utils_torch.model.InitForModel(self, param)
     def InitFromParam(self):
         self.ContentList = []
         self.SetSendMethod()

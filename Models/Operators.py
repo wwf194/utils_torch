@@ -87,13 +87,14 @@ OperatorList.append(["CalculateGradient"])
 #     return
 # OperatorList.append("Log")
 
+from utils_torch.train import GradientDescend
 OperatorList.append("GradientDescend")
 
 def CreateDataLogger():
     return utils_torch.log.DataLogger()
 OperatorList.append("CreateDataLogger")
 
-def PlotDistribution(Activity, Name="Unnamed"):
+def PlotDistribution(Activity, Name="UnNamed"):
     activity = utils_torch.ToNpArray(Activity)
     utils_torch.plot.PlotDistribution1D(activity, Name=Name)
 

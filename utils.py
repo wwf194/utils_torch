@@ -28,6 +28,9 @@ from utils_torch.files import *
 def SetArgsGlobal(ArgsGlobal):
     utils_torch.ArgsGlobal = ArgsGlobal
 
+def GetArgsGlobal():
+    return utils_torch.ArgsGlobal
+
 def SetSaveDir(SaveDir):
     utils_torch.ArgsGlobal.SaveDir = SaveDir
 
@@ -58,6 +61,9 @@ def AddWarning(log, TimeStamp=True, File=True, LineNum=True):
 
 def SetLogger(Logger):
     utils_torch.ArgsGlobal.Logger = Logger
+
+def GetDataLogger():
+    return utils_torch.ArgsGlobal.LoggerData
 
 def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
     TimeStr = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
@@ -994,3 +1000,6 @@ def Float2StrDisplay(Float):
         FloatStr = '%.2e'%Float
     return FloatStr
 
+def Floats2StrDisplay(Floats):
+    Floats = ToNpArray(Floats)
+    Base, Exp = utils_torch.math.FloatsBaseAndExponent(Floats)

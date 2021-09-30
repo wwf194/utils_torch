@@ -453,8 +453,7 @@ def ParseStrStatic(Str, parent, **kw):
     sentence = Str
     ObjCurrent = kw.get("ObjCurrent")
     ObjRoot = kw.get("ObjRoot")
-    # if Str in ["$^param.model", "$Neurons.Recurrent.Num", '$~Std1 * 2.0']:
-    #     print("aaa")
+
     sentence = sentence.replace("$^", "ObjRoot.")
     sentence = sentence.replace("$~", "parent.")
     sentence = sentence.replace("$*", "ObjCurrent.cache.__object__.")
@@ -486,11 +485,13 @@ def ParseStrStatic(Str, parent, **kw):
     return success, Str
 
 def ParseStr2Static(Str, parent, **kw):
-    # if "lambda" in Str:
-    #     print("aaa")
     _Str = Str
     ObjCurrent = kw.get("ObjCurrent")
     ObjRoot = kw.get("ObjRoot")
+    if Str in ["$^param.agent.HiddenNeurons.Num.($^param.agent.Task)"]:
+        print("aaa")
+    if "data: [data[" in Str:
+        print("aaaa")
     success = True
     MatchResult = re.match(r"^(.*)(\(\$[^\)]*\))(.*)$", Str)
     if MatchResult is None:
@@ -506,6 +507,8 @@ def ParseStr2Static(Str, parent, **kw):
 
         try:
             Str = eval(sentence)
+            if isinstance(Str, str) and "$" in Str:
+                Str = "(" + Str + ")"
             if Str in ["__ToBeSet__"]:
                 raise Exception()
             Str = MatchResult.group(1) + str(Str) + MatchResult.group(3)

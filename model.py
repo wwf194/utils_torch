@@ -1,5 +1,6 @@
 
 from typing import Set
+from cv2 import Tonemap
 import torch
 from torch._C import ThroughputBenchmark
 import torch.optim as optim
@@ -55,6 +56,12 @@ def BuildModule(param):
         return utils_torch.Models.Operators.BuildModule(param)
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
+
+def CalculateWeightChangeRatio(Weight, WeightChange):
+    Weight = utils_torch.ToNpArray(Weight)
+    WeightChange = utils_torch.ToNpArray(WeightChange)
+    WeightChangeRatio = np.sum(np.abs(WeightChange)) / np.sum(np.abs(Weight))
+    return WeightChangeRatio
 
 def ListParameter(model):
     for name, param in model.named_parameters():
@@ -151,8 +158,7 @@ def CreateWeight2D(param, DataType=torch.float32):
         EnsureAttrs(Init, "Coefficient", default=1.0)
         if Init.Mode in ["In"]:
             if Init.Distribution in ["uniform"]:
-                range = [
-                    - Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5,
+                range = [ - Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5,
                     Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
                 ]
                 weight = np.random.uniform(*range, tuple(param.Size))
@@ -639,18 +645,21 @@ def LogForModel(self, data, Name):
         data = utils_torch.Tensor2NumpyOrFloat(data)
 
     #logger = self.GetLogger()
-    logger = utils_torch.GetArgsGlobal().log
+    logger = utils_torch.GetArgsGlobal().LoggerData
     if logger is None:
         return
-    logger.AddRecord(
-        TableName=Name,
-        ColumnValues={
-            "Value": data,
-        }
-    )
-    logger.AddLog(Name, data)
-
-
+    # logger.AddRecord(
+    #     TableName=Name,
+    #     ColumnValues={
+    #         "Value": data,
+    #     }
+    # )
+    if hasattr(self.param, "FullName"):
+        FullName = self.param.FullName
+        logger.AddLog(FullName + "." + Name, data)
+    else:  
+        logger.AddLog(Name, data)
+    
 def PlotWeight(weight, Name, Save=True, SavePath="./weight.png"):
     weight = utils_torch.ToNpArray(weight)
     DimensionNum = len(weight.shape)
@@ -658,7 +667,11 @@ def PlotWeight(weight, Name, Save=True, SavePath="./weight.png"):
 def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
     # @param activity: [BatchSize, StepNum, NeuronNum]
     activity = utils_torch.ToNpArray(activity)
-    
-    
+
     return
 
+def InitForModel(self, param):
+    if param is not None:
+        self.param = param
+        self.data = utils_torch.EmptyPyObj()
+        self.cache = utils_torch.EmptyPyObj()

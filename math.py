@@ -156,3 +156,9 @@ def Float2BaseAndExponent(Float, Base=10.0):
     return Coefficient, Exponent
 
 Float2BaseExp = Float2BaseAndExponent
+
+def Floats2BaseAndExponent(Floats, Base=10.0):
+    Floats = utils_torch.ToNpArray(Floats)
+    Exponent = np.ceil(np.log10(Float, Base))
+    Coefficient = Float / 10.0 ** Exponent
+    return Coefficient, Exponent

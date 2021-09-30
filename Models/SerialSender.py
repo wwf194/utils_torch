@@ -6,11 +6,10 @@ import numpy as np
 
 from utils_torch.attrs import *
 
-class SerialSender(nn.Module):
+class SerialSender():
     def __init__(self, param=None):
-        super(SerialSender, self).__init__()
-        if param is not None:
-            self.param = param
+        #super(SerialSender, self).__init__()
+        utils_torch.model.InitForModel(self, param)
     def InitFromParam(self):
         param = self.param
         self.ContentList = []

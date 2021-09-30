@@ -528,7 +528,7 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
 def PlotLineChart(ax=None, Xs=None, Ys=None,
         XLabel=None, YLabel=None,
         Title="Undefined",
-        Save=True, SavePath=None,
+        Save=False, SavePath=None,
     ):
     if ax is None:
         fig, ax = plt.subplots()

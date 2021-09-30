@@ -1,10 +1,14 @@
-
+import enum
 import utils_torch
+
+import numpy as np
 import matplotlib as mpl
+import pandas as pd
+
 from matplotlib import pyplot as plt
 from pydblite import Base
-
 from collections import defaultdict
+
 
 class DataLogger:
     def __init__(self, IsRoot=False):
@@ -81,7 +85,7 @@ class LoggerForEpochBatchTrain:
         self.log = defaultdict(lambda:[])
         self.logDict = defaultdict(lambda:{})
         self.IsPlotable = defaultdict(lambda:True)
-        self.PlotType = defaultdict("Unknown")
+        self.PlotType = defaultdict(lambda:"Unknown")
     def UpdateEpoch(self, EpochIndex):
         self.EpochIndex = EpochIndex
     def UpdateBatch(self, BatchIndex):
@@ -99,36 +103,61 @@ class LoggerForEpochBatchTrain:
         self.BatchNum = BatchNum
     def SetLocal(self, Name, Value):
         setattr(self, Name, Value)
-    def PlotAllLogs(self, Name, SaveDir=None):
-        if Name not in self.log:
-            raise Exception(Name)
+    def PlotAllLogs(self, SaveDir=None):
+        # if Name not in self.log:
+        #     raise Exception(Name)
         utils_torch.EnsureDir(SaveDir)
         for Name, Log in self.log.items():
             if self.PlotType[Name] in ["Unknown"]:
-                try:
-                    Xs = []
-                    Ys = []
-                    for Record in Log:
-                        Xs.append(Record[2])
-                        Ys.append(utils_torch.train.GetEpochFloat(Record[0], Record[1], self.BatchNum))
-                    fig, ax = plt.subplots()
-                    utils_torch.plot.PlotLineChart(ax, Xs, Ys, Title="%s-Epoch"%key, XLabel="Epoch", YLabel=key)
-                    utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png")
-                except Exception:
-                    continue
+                example = Log[0][2]
+                if isinstance(example, np.ndarray):
+                    if not (len(example.shape)==1 and example.shape[0]==1 or len(example.shape)==0):
+                        continue
+                # try:
+                Xs = []
+                Ys = []
+                for Record in Log:
+                    Xs.append(utils_torch.train.GetEpochFloat(Record[0], Record[1], self.BatchNum))
+                    Ys.append(Record[2])
+                fig, ax = plt.subplots()
+                utils_torch.plot.PlotLineChart(ax, Xs, Ys, Title="%s-Epoch"%Name, XLabel="Epoch", YLabel=Name)
+                utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s-Epoch.png"%Name)
+                utils_torch.log.Columns2File(Xs, Ys, Names=["Epoch", Name], SavePath=SaveDir + "%s-Epoch.txt"%Name)
             elif self.PlotType[Name] in ["DictItems"]:
-                Xs = defaultdict(lambda:[])
-                Ys = defaultdict(lambda:[])
+                XsDict = defaultdict(lambda:[])
+                YsDict = defaultdict(lambda:[])
                 for Record in Log:
                     for key, value in Record[2].items():
-                        Xs[key].append(value)
-                        Ys[key].append(utils_torch.train.GetEpochFloat(Record[0], Record[1], self.BatchNum))
+                        XsDict[key].append(value)
+                        YsDict[key].append(utils_torch.train.GetEpochFloat(Record[0], Record[1], self.BatchNum))
                 PlotNum = len(Xs.keys())
                 fig, axes = utils_torch.plot.CreateFigurePlt(PlotNum)
                 for index, key in enumerate(Xs.keys()):
+                    Xs, Ys = XsDict[key], YsDict[key]
                     ax = utils_torch.plot.GetAx(axes, Index=index)
-                    utils_torch.plot.PlotLineChart(ax, Xs[key], Ys[key], Title="%s-Epoch"%key, XLabel="Epoch", YLabel=key)
+                    utils_torch.plot.PlotLineChart(ax, Xs, Ys, Title="%s-Epoch"%key, XLabel="Epoch", YLabel=key)
                 plt.tight_layout()
+                utils_torch.log.Columns2File(Xs, Ys, Names=["Epoch", Name], SavePath=SaveDir + "%s-Epoch.txt"%Name)
                 utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png")
             else:
                 raise Exception()
+
+def Columns2File(*Columns, **kw):
+    # ColNum = len(Columns)
+    # Str = " ".join(kw["Names"])
+    # Str += "\n"
+    # for RowIndex in range(len(Columns[0])):
+    #     for ColIndex in range(ColNum):
+    #         Str += str(Columns[ColIndex][RowIndex])
+    #         Str += " "
+    #     Str += "\n"
+    # utils_torch.Str2File(Str, kw["SavePath"])
+
+    Names = kw["Names"]
+    Dict = {}
+    for Index, Column in enumerate(Columns):
+        Dict[Names[Index]] = Column
+    utils_torch.Str2File(pd.DataFrame(Dict).to_string(), kw["SavePath"])
+
+def Floats2StrWithEqualLength(Floats):
+    np.log10()
