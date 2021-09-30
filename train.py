@@ -26,6 +26,8 @@ import torchvision
 from torchvision.datasets import mnist
 import torchvision.transforms as transforms
 
+from collections import defaultdict
+
 def Train(Args, **kw):
     if Args.Type in ["SupervisedLearning"]:
         if Args.SubType in ["EpochBatch"]:
@@ -43,14 +45,14 @@ def TrainEpochBatch(param, **kw):
     Router = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
     In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
     for EpochIndex in range(param.Epoch.Num):
-        logger.SetLocal("Epoch", EpochIndex)
+        logger.SetLocal("EpochIndex", EpochIndex)
         utils_torch.AddLog("Epoch: %d"%EpochIndex)
         for BatchIndex in range(param.Batch.Num):
-            logger.SetLocal("Batch", BatchIndex)
+            logger.SetLocal("BatchIndex", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
             utils_torch.CallGraph(Router, In=In)
-            
-            PlotTrainCurve(logger.GetTable("model.MainLoss"), EpochNum=param.Epoch.Num, BatchNum=param.Batch.Num, Name="MainLoss")
+            #PlotTrainCurve(logger.GetTable("model.MainLoss"), EpochNum=param.Epoch.Num, BatchNum=param.Batch.Num, Name="MainLoss")
+            logger.PlotAllLogs(SaveDir=utils_torch.GetSaveDir + "log/")
             continue
 
 def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
@@ -63,15 +65,58 @@ def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
         Ys.append(record["Value"])
     utils_torch.plot.PlotLineChart(None, Xs, Ys, Save=True, SavePath="./%s.png"%Name)
 
+class GradientDescend:
+    def __init__(self, param=None):
+        self.cache = utils_torch.EmptyPyObj()
+        self.cache.LastUpdateInfo = defaultdict(lambda:{})
+    def InitFromParam(self):
+        return
+    def __call__(self, weights, param, ClearGrad=True, WarnNoneGrad=True):
+        cache = self.cache
+        for Name, Weight in weights.items():
+            if Weight.grad is None:
+                if WarnNoneGrad:
+                    utils_torch.AddWarning("%s.grad is None."%Name)
+                continue
+            WeightChange = Weight.grad.data
+            if param.WeightDecay != 0:
+                #WeightChange.add_(param.WeightDecay, Weight.data)
+                WeightChange.add_(Weight.data, alpha=param.WeightDecay,)
+            if param.Momentum != 0:
+                LastUpdateInfo = cache.LastUpdateInfo[Weight]
+                if 'dW' not in LastUpdateInfo:
+                    WeightChangeMomentum = LastUpdateInfo['dW'] = torch.clone(WeightChange).detach()
+                else:
+                    WeightChangeMomentum = LastUpdateInfo['dW']
+                    #WeightChangeMomentum.mul_(param.Momentum).add_(1 - param.Dampening, WeightChange)
+                    WeightChangeMomentum.mul_(param.Momentum).add_(WeightChange, alpha=1 - param.Dampening, )
+                if param.Nesterov:
+                    WeightChange = WeightChange.add(param.Momentum, alpha=WeightChangeMomentum)
+                else:
+                    WeightChange = WeightChangeMomentum
+            #Weight.data.add_(-param.LearningRate, WeightChange)
 
-def ProcessMNIST(dataset_dir, augment=True, batch_size=64):    
-    transform = transforms.Compose(
-    [transforms.ToTensor()])
-    trainset = torchvision.datasets.MNIST(root=dataset_dir, transform=transform, train=True, download=False)
-    testset = torchvision.datasets.MNIST(root=dataset_dir, transform=transform, train=False, download=False)
-    trainloader = DataLoader(dataset=trainset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-    testloader = DataLoader(dataset=testset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-    return trainloader, testloader
+            # if param.LimitWeightChangeRatio:
+            #     RatioMax = param.WeightChangeRatioMax
+            #     1.0 * torch.where(Weight == 0.0)
+            # else:
+            Weight.data.add_(WeightChange, alpha=-param.LearningRate)
+            utils_torch.GetArgsGlobal()
+            if ClearGrad:
+                Weight.grad.detach_()
+                Weight.grad.zero_()
+            
+            utils_torch.ArgsGlobal.log.AddLog("%s.WeightChangeRatio"%Name, utils_torch.model.CalculateWeightChangeRatio(Weight))
+        return
+        # F.sgd(params: List[Tensor],
+        #     d_p_list: List[Tensor],
+        #     momentum_buffer_list: List[Optional[Tensor]],
+        #     *,
+        #     weight_decay: float,
+        #     momentum: float,
+        #     lr: float,
+        #     dampening: float,
+        #     nesterov: bool)
 
 def evaluate(net, testloader, criterion, scheduler, augment, device):
     net.eval()
@@ -95,8 +140,8 @@ def evaluate(net, testloader, criterion, scheduler, augment, device):
             outputs = net(inputs) 
             outputs = outputs.to(device)
         loss_total += criterion(outputs, labels).item()
-        correct_count+=(torch.max(outputs, 1)[1]==labels).sum().item()
-        labels_count+=labels.size(0)
+        correct_count += (torch.max(outputs, 1)[1]==labels).sum().item()
+        labels_count += labels.size(0)
     #print("\n")
     val_loss=loss_total/count
     val_acc=correct_count/labels_count
@@ -164,5 +209,5 @@ class model(nn.Module):
         return x
 '''
 
-
-
+def GetEpochFloat(EpochIndex, BatchIndex, BatchNum):
+    return EpochIndex + BatchIndex / BatchNum * 1.0

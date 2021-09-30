@@ -611,7 +611,7 @@ def ClearTrainWeightForModel(self):
     cache = self.cache
     if hasattr(cache, "TrainWeight"):
         delattr(cache, "TrainWeight")
-    
+
 def SetLoggerForModel(self, logger):
     cache = self.cache
     cache.Logger = logger
@@ -620,6 +620,13 @@ def SetLoggerForModel(self, logger):
             if hasattr(Module, "SetLogger"):
                 Module.SetLogger(utils_torch.log.DataLogger().SetParent(logger, prefix=Name + "."))
 
+def SetFullNameForModel(self, FullName):
+    cache = self.cache
+    if hasattr(cache, "Modules"):   
+        for Name, Module in ListAttrsAndValues(self.cache.Modules):
+            if hasattr(Module, "SetFullName"):
+                Module.SetFullName(FullName + "." + Name)
+ 
 def GetLoggerForModel(self):
     cache = self.cache
     if hasattr(cache, "Logger"):
@@ -631,7 +638,8 @@ def LogForModel(self, data, Name):
     if isinstance(data, torch.Tensor):
         data = utils_torch.Tensor2NumpyOrFloat(data)
 
-    logger = self.GetLogger()
+    #logger = self.GetLogger()
+    logger = utils_torch.GetArgsGlobal().log
     if logger is None:
         return
     logger.AddRecord(
@@ -640,6 +648,8 @@ def LogForModel(self, data, Name):
             "Value": data,
         }
     )
+    logger.AddLog(Name, data)
+
 
 def PlotWeight(weight, Name, Save=True, SavePath="./weight.png"):
     weight = utils_torch.ToNpArray(weight)
@@ -651,3 +661,4 @@ def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
     
     
     return
+

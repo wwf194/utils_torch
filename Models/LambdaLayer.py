@@ -13,5 +13,7 @@ class LambdaLayer(nn.Module):
         param = self.param
         self.forward = utils_torch.parse.Resolve(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)
         return
+    def SetFullName(self, FullName):
+        utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = LambdaLayer

@@ -25,6 +25,9 @@ from inspect import getframeinfo, stack
 from utils_torch.attrs import *
 from utils_torch.files import *
 
+def SetArgsGlobal(ArgsGlobal):
+    utils_torch.ArgsGlobal = ArgsGlobal
+
 def SetSaveDir(SaveDir):
     utils_torch.ArgsGlobal.SaveDir = SaveDir
 
@@ -143,8 +146,18 @@ def ToNpArray(data, DataType=np.float32):
         return data
     elif isinstance(data, list):
         return np.array(data, dtype=DataType)
+    elif isinstance(data, torch.Tensor):
+        return Tensor2NpArray(data)
     else:
         raise Exception()
+
+def FlattenNpArray(data):
+    return data.flatten()
+
+def EnsureFlatNp(data):
+    return data.flatten()
+
+EnsureFlat = EnsureFlatNp
 
 def NpArray2Tensor(data, Location="cpu", DataType=torch.float32, RequiresGrad=False):
     data = torch.from_numpy(data)
@@ -365,14 +378,6 @@ def import_file(file_from_sys_path):
     module_path = module_path.replace("/", ".")
     return importlib.ImportModule(module_path)
 
-def Getsys_type():
-    if re.match(r'win',sys.platform) is not None:
-        sys_type = 'windows'
-    elif re.match(r'linux',sys.platform) is not None:
-        sys_type = 'linux'
-    else:
-        sys_type = 'unknown'
-    return sys_type
 
 def Getname(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
     if isinstance(param, dict):
@@ -904,9 +909,9 @@ def GetAllMethodsOfModule(ModulePath):
 
 ListAllMethodsOfModule = GetAllMethodsOfModule
 
-ArgsGlobal = utils_torch.json.JsonObj2PyObj({
-    "Logger": None
-})
+# ArgsGlobal = utils_torch.json.JsonObj2PyObj({
+#     "Logger": None
+# })
 
 def RandomSelect(List, SelectNum):
     return random.sample(List, SelectNum)
@@ -942,3 +947,50 @@ def GetDimensionNum(data):
 
 def ToLowerStr(Str):
     return Str.lower()
+
+def Str2File(Str, FilePath):
+    with open(FilePath, "w") as file:
+        file.write(Str)
+
+# def ParseTextFilePathFromName(Name, FilePath):
+#     if Name is not None:
+#         if FilePath is None:
+#             FilePath = utils_torch.GetSaveDir() + Name + ".txt"
+#             FilePath = utils_torch.RenameIfPathExists(FilePath)
+#         else:
+#             raise Exception()
+#     else:
+#         if FilePath is None:
+#             raise Exception()
+#         if not FilePath.endswith(".txt"):
+#             FilePath += ".txt"
+#         FilePath = utils_torch.RenameIfPathExists(FilePath)
+#     return Name, FilePath
+
+def GetSavePathFromName(Name, Suffix=""):
+    if not Suffix.startswith("."):
+        Suffix = "." + Suffix
+    FilePath = utils_torch.GetSaveDir() + Name + Suffix
+    FilePath = utils_torch.RenameIfPathExists(FilePath)
+    return FilePath
+
+def Data2TextFile(data, Name=None, FilePath=None):
+    if FilePath is None:
+        FilePath = GetSavePathFromName(Name, Suffix=".txt")
+    utils_torch.Str2File(str(data), FilePath)
+
+def Float2StrDisplay(Float):
+    Base, Exp = utils_torch.math.Float2BaseAndExponent()
+    TicksStr = []
+    if 1 <= Exp <= 2:
+        FloatStr = str(int(Float))
+    elif Exp == 0:
+        FloatStr = '%.1f'%Float
+    elif Exp == -1:
+        FloatStr = '%.2f'%Float
+    elif Exp == -2:
+        FloatStr = '%.3f'%Float
+    else:
+        FloatStr = '%.2e'%Float
+    return FloatStr
+

@@ -49,5 +49,7 @@ class SerialSender(nn.Module):
         Content = self._Send(self.ContentList, Index=self.NextSendIndex)
         self.NextSendIndex += 1
         return Content
+    def SetFullName(self, FullName):
+        utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = SerialSender

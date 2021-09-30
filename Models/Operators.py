@@ -1,5 +1,6 @@
 import torch
-
+import matplotlib as mpl
+from matplotlib import pyplot as plt
 #from typing import DefaultDict
 from collections import defaultdict
 import utils_torch
@@ -86,41 +87,26 @@ OperatorList.append(["CalculateGradient"])
 #     return
 # OperatorList.append("Log")
 
-class GradientDescend:
-    def __init__(self, param=None):
-        self.cache = utils_torch.EmptyPyObj()
-        self.cache.LastUpdateInfo = defaultdict(lambda:{})
-    def InitFromParam(self):
-        return
-    def __call__(self, weights, param, ClearGrad=True, WarnNoneGrad=True):
-        cache = self.cache
-        for Name, Weight in weights.items():
-            if Weight.grad is None:
-                if WarnNoneGrad:
-                    utils_torch.AddWarning("%s.grad is None."%Name)
-                continue
-            WeightChange = Weight.grad.data
-            if param.WeightDecay != 0:
-                WeightChange.add_(param.WeightDecay, Weight.data)
-            if param.Momentum != 0:
-                LastUpdateInfo = cache.LastUpdateInfo[Weight]
-                if 'dW' not in LastUpdateInfo:
-                    WeightChangeMomentum = LastUpdateInfo['dW'] = torch.clone(WeightChange).detach()
-                else:
-                    WeightChangeMomentum = LastUpdateInfo['dW']
-                    WeightChangeMomentum.mul_(param.Momentum).add_(1 - param.Dampening, WeightChange)
-                if param.Nesterov:
-                    WeightChange = WeightChange.add(param.Momentum, WeightChangeMomentum)
-                else:
-                    WeightChange = WeightChangeMomentum
-            Weight.data.add_(-param.LearningRate, WeightChange)
-            if ClearGrad:
-                Weight.grad.detach_()
-                Weight.grad.zero_()        
-        return
 OperatorList.append("GradientDescend")
 
 def CreateDataLogger():
     return utils_torch.log.DataLogger()
-
 OperatorList.append("CreateDataLogger")
+
+def PlotDistribution(Activity, Name="Unnamed"):
+    activity = utils_torch.ToNpArray(Activity)
+    utils_torch.plot.PlotDistribution1D(activity, Name=Name)
+
+def Tensor2Statistics2File(data, Name, FilePath=None):
+    #Name, FilePath = utils_torch.ParseTextFilePathFromName(Name, FilePath)
+    if FilePath is None:
+        FilePath = utils_torch.GetSaveDir() + Name + "-statistics" + ".txt"
+        FilePath = utils_torch.RenameIfPathExists(FilePath)
+    statistics = utils_torch.math.TorchTensorStatistics(data)
+    utils_torch.Data2TextFile(statistics, FilePath=FilePath)
+
+from utils_torch.utils import Data2TextFile
+OperatorList.append("Data2TextFile")
+
+from utils_torch.plot import CompareDensityCurve
+OperatorList.append("CompareDensityCurve")

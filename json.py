@@ -25,6 +25,8 @@ def JsonObj2JsonStr(JsonObj):
     return json.dumps(JsonObj, indent=4, sort_keys=False)
 
 def PyObj2JsonObj(Obj):
+    if isinstance(Obj, utils_torch.PyObj) and Obj.IsListLike():
+        Obj = Obj.GetList()
     if isinstance(Obj, list) or isinstance(Obj, tuple):
         JsonObj = []
         for Item in Obj:
@@ -157,9 +159,8 @@ load_json_file = JsonFile2JsonObj
 def JsonObj2JsonFile(JsonObj, FilePath):
     return JsonStr2JsonFile(JsonObj2JsonStr(JsonObj), FilePath)
 
-def JsonStr2JsonFile(JsonStr, path):
-    with open(path, "w") as f:
-        f.write(JsonStr)
+def JsonStr2JsonFile(JsonStr, FilePath):
+    return utils_torch.Str2File(JsonStr, FilePath)
 
 def IsJsonObj(Obj):
     return \
@@ -170,5 +171,4 @@ def IsJsonObj(Obj):
     isinstance(Obj, float) or \
     isinstance(Obj, list) or \
     isinstance(Obj, dict) or \
-    isinstance(Obj, tuple) 
-
+    isinstance(Obj, tuple)

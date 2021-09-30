@@ -1,27 +1,41 @@
 import torch
+import math
 import numpy as np
 import utils_torch
 
 from utils_torch.attrs import GetAttrs
 
-def NpArrayStatistics(data, verbose=False):
-    return utils_torch.json.Dict2PyObj({
+def NpArrayStatistics(data, verbose=False, ReturnType="PyObj"):
+    statistics = {
         "Min": np.min(data),
         "Max": np.max(data),
         "Mean": np.mean(data),
         "Std": np.std(data),
         "Var": np.var(data)
-    })
+    }
+    if ReturnType in ["Dict"]:
+        return statistics
+    elif ReturnType in ["PyObj"]:
+        return utils_torch.PyObj(statistics)
+    else:
+        raise Exception()
+
 NpStatistics = NpArrayStatistics
 
-def TorchTensorStatistics(tensor, verbose=False):
-    return {
-        "min": torch.min(tensor).item(),
-        "max": torch.max(tensor).item(),
-        "mean": torch.mean(tensor).item(),
-        "std": torch.std(tensor).item(),
-        "var": torch.var(tensor).item()
+def TorchTensorStatistics(tensor, verbose=False, ReturnType="PyObj"):
+    statistics = {
+        "Min": torch.min(tensor).item(),
+        "Max": torch.max(tensor).item(),
+        "Mean": torch.mean(tensor).item(),
+        "Std": torch.std(tensor).item(),
+        "Var": torch.var(tensor).item()
     }
+    if ReturnType in ["Dict"]:
+        return statistics
+    elif ReturnType in ["PyObj"]:
+        return utils_torch.PyObj(statistics)
+    else:
+        raise Exception()
 
 def CreateNpArray(Shape, Value, DataType):
     return np.full(tuple(Shape), Value, dtype=DataType)
@@ -136,3 +150,9 @@ def GaussianCurveValue(data, Amp, Mean, Std):
     Exponent = - 0.5 * ((data - Mean) / Std) ** 2
     return Amp * np.exp(Exponent)
 
+def Float2BaseAndExponent(Float, Base=10.0):
+    Exponent = math.floor(math.log(Float, Base))
+    Coefficient = Float / 10.0 ** Exponent
+    return Coefficient, Exponent
+
+Float2BaseExp = Float2BaseAndExponent

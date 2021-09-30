@@ -52,7 +52,8 @@ class PyObj(object):
             return self.__dict__[index]
     def __len__(self):
         return len(self.__value__)
-    
+    def __str__(self):
+        return utils_torch.json.PyObj2JsonStr(self)
     def FromList(self, list):
         ListParsed = []
         for Index, Item in enumerate(list):
@@ -144,10 +145,14 @@ class PyObj(object):
             return value
         else:
             return value
+    def GetList(self):
+        if not self.IsListLike():
+            raise Exception()
+        return self.__value__
     def IsListLike(self):
         return hasattr(self, "__value__") and isinstance(self.__value__, list)
     def IsDictLike(self):
-        return not self.IsDictLike()
+        return not self.IsListLike()
     def SetResolveBase(self):
         self.__ResolveBase__ = True
     def IsResolveBase(self):

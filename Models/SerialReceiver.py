@@ -49,5 +49,7 @@ class SerialReceiver(nn.Module):
         return result
     def SendWithoutFlush(self):
         return self.ContentList
+    def SetFullName(self, FullName):
+        utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = SerialReceiver

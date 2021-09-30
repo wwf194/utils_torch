@@ -152,5 +152,7 @@ class RecurrentLIFLayer(nn.Module):
         return utils_torch.model.GetLoggerForModel(self)
     def Log(self, data, Name="Undefined"):
         return utils_torch.model.LogForModel(self, data, Name)
+    def SetFullName(self, FullName):
+        utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = RecurrentLIFLayer

@@ -1,11 +1,12 @@
 from os import EX_CANTCREAT
 from re import L
 import numpy as np
+import scipy
 import cv2 as cv
+import math
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
-from numpy.core.fromnumeric import shape
 
 default_res=60
 
@@ -277,8 +278,8 @@ def PlotPolyLineFromVerticesCV(img, points, closed=False, Color=(0,0,0), Width=2
 def SetAxRangeFromBoundaryBox(ax, BoundaryBox):
     ax.set_xlim(BoundaryBox.XMin, BoundaryBox.XMax)
     ax.set_ylim(BoundaryBox.YMin, BoundaryBox.YMax)
-    ax.set_xticks(np.linspace(BoundaryBox.XMin, BoundaryBox.XMax, 5))
-    ax.set_yticks(np.linspace(BoundaryBox.YMin, BoundaryBox.YMax, 5))
+    #ax.set_xticks(np.linspace(BoundaryBox.XMin, BoundaryBox.XMax, 5))
+    #ax.set_yticks(np.linspace(BoundaryBox.YMin, BoundaryBox.YMax, 5))
 
 def ParseIsMatrixDataColored(data):
     DimensionNum = utils_torch.GetDimensionNum(data)
@@ -348,30 +349,17 @@ def PlotMatrix(
         pass
 
     ax.imshow(data, extent=extent)
-    if Save:
-        utils_torch.EnsureFileDir(SavePath)
-        plt.savefig(SavePath)
+
+    SaveFigForPlt(Save, SavePath)
+
     return ax
 
-# def PlotMatrix(ax, data, Save=True, SavePath='./MatrixPlot.png', title=None, colorbar=True):
-#     im = ax.imshow(data)
-
-#     if title is not None:
-#         ax.set_title(title)
-#     ax.axis('off')
-
-#     if colorbar:
-#         max = np.max(data)
-#         min = np.min(data)
-        
-#     if Save:
-#         utils_torch.EnsureFileDir(SavePath)
-#         plt.savefig(SavePath)
-#     return
+def PlotWeghtWithBar():
+    return
 
 def PlotLineCv(img, points, line_color=(0,0,0), line_Width=2, line_type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]):
     ResolutionX, ResolutionY = img.shape[0], img.shape[1]
-    point_0 = Getint_coords(points[0][0], points[0][1], BoundaryBox, ResolutionX, ResolutionY)
+    point_0 = GetIntCoords(points[0][0], points[0][1], BoundaryBox, ResolutionX, ResolutionY)
     point_1 = Getint_coords(points[1][0], points[1][1], BoundaryBox, ResolutionX, ResolutionY)
     cv.line(img, point_0, point_1, line_color, line_Width, line_type)
 
@@ -537,14 +525,28 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
     else:
         raise Exception()
 
-def PlotLineChart(ax=None, Xs=None, Ys=None, Save=True, SavePath=None):
+def PlotLineChart(ax=None, Xs=None, Ys=None,
+        XLabel=None, YLabel=None,
+        Title="Undefined",
+        Save=True, SavePath=None,
+    ):
     if ax is None:
         fig, ax = plt.subplots()
     ax.plot(Xs, Ys)
-    if Save:
-        utils_torch.EnsureFileDir(SavePath)
-        plt.savefig(SavePath)
-        plt.close()
+    SetXYLabelForAx(ax, XLabel, YLabel)
+    SetTitleForAx(ax, Title)
+    SaveFigForPlt(Save, SavePath)
+    return ax
+
+def SetXYLabelForAx(ax, XLabel, YLabel):
+    if XLabel is not None:
+        ax.set_xlabel(XLabel)
+    if YLabel is not None:
+        ax.set_ylabel(YLabel)
+
+def SetTitleForAx(ax, Title):
+    if Title is not None:
+        ax.set_title(Title)
 
 def GetSubAx(ax, Left, Bottom, Width, Height):
     return ax.inset_axes([Left, Bottom, Width, Height]) # left, bottom, width, height. all are ratios to sub-canvas of ax.
@@ -581,9 +583,6 @@ def ParseColorBarLocation(Location, Orientation):
         pass
     return Location
 
-def SetColorBarTicks(ColorBar, Ticks):
-    return
-
 def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical", **kw):
     if Method in ["MinMax", "GivenMinMax"]:
         Min, Max = kw["Min"], kw["Max"]
@@ -597,27 +596,125 @@ def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical"
     ColorMap = ParseColorMapPlt(ColorMap)
     Norm = mpl.colors.Normalize(vmin=Min, vmax=Max)
 
-    Ticks = kw.setdefault("Ticks", "auto")
-    if Ticks in ["Auto", "auto"]:
-        Ticks = np.linspace(Min, Max, num=5)
-        #ColorBar.set_ticks(Ticks)
-    elif Ticks is None:
-        pass
-    else:
-        raise Exception(Ticks)
-
     ColorBar = ax.figure.colorbar(
         mpl.cm.ScalarMappable(norm=Norm, cmap=ColorMap),
         cax=ax,
-        ticks=Ticks,
+        #ticks=Ticks,
         orientation=Orientation
     )
-    #ax.axis("off")
+    #ax.axis("off") # To display ticks
 
     Title = kw.get("Title")
     if Title is not None:
         ColorBar.set_label(Title, loc="center")
-    
+
+    Ticks = kw.setdefault("Ticks", "auto")
+    SetColorBarTicks(ColorBar, Ticks, Orientation, Min=Min, Max=Max)
+
+def SetColorBarTicks(ColorBar, Ticks, Orientation, Min=None, Max=None, **kw):
+    if Ticks in ["Auto", "auto"]:
+        #Ticks = np.linspace(Min, Max, num=5)
+        Ticks, TicksStr = CalculateTicks("Auto", Min, Max)
+        ColorBar.set_ticks(Ticks)
+        if Orientation in ["vertical"]:
+            ColorBar.ax.set_yticklabels(TicksStr)
+        elif Orientation in ["horizontal"]:
+            ColorBar.ax.set_xticklabels(TicksStr)
+        else:
+            raise Exception()
+    elif Ticks is None: # No Ticks
+        pass
+    else:
+        raise Exception(Ticks)
+
+def CalculateTickInterval(Min, Max):
+    Range = Max - Min
+    Log = round(math.log(Range, 10))
+    Base = 1.0
+    Interval = Base * 10 ** Log
+    TickNum = Range / Interval
+
+    while not 3.0 <= TickNum <= 6.0:
+        if TickNum > 6.0:
+            Base, Log = NextIntervalUp(Base, Log)
+        elif TickNum < 3.0:
+            Base, Log = NextIntervalDown(Base, Log)
+        else:
+            break
+        Interval = Base * 10 ** Log
+        TickNum = Range / Interval
+    return Interval, Base, Log
+
+def NextIntervalUp(Base, Log):
+    if Base == 1.0:
+        Base = 2.0
+    elif Base == 2.0:
+        Base = 5.0
+    elif Base == 5.0:
+        Base = 1.0
+        Log += 1
+    else:
+        raise Exception()
+    return Base, Log
+
+def NextIntervalDown(Base, Log):
+    if Base == 1.0:
+        Base = 5.0
+        Log -= 1
+    elif Base == 2.0:
+        Base = 1.0
+    elif Base == 5.0:
+        Base = 2.0
+    else:
+        raise Exception()
+    return Base, Log
+
+def CalculateTicks(Method="Auto", Min=None, Max=None, **kw):
+    if Method in ["Auto", "auto"]:
+        Range = Max - Min
+        Interval, Base, Log = CalculateTickInterval(Min, Max)
+        Ticks = []
+        Ticks.append(Min)
+        Tick = math.ceil(Min / Interval) * Interval
+        if Tick - Min < 0.1 * Interval:
+            pass
+        else:
+            Ticks.append(Tick)
+        while Tick < Max:
+            Tick += Interval
+            if Max - Tick < 0.1 * Interval:
+                break
+            else:
+                Ticks.append(Tick)
+        Ticks.append(Max)
+    elif Method in ["Linear"]:
+        Num = kw["Num"]
+        Ticks = np.linspace(Min, Max, num=Num)
+    else:
+        raise Exception()
+
+    TicksStr = []
+    if 1 <= Log <= 2:
+        TicksStr = list(map(lambda tick:str(int(tick)), Ticks))
+    elif Log == 0:
+        TicksStr = list(map(lambda tick:'%.1f'%tick, Ticks))
+    elif Log == -1:
+        TicksStr = list(map(lambda tick:'%.2f'%tick, Ticks))
+    elif Log == -2:
+        TicksStr = list(map(lambda tick:'%.3f'%tick, Ticks))
+    else:
+        TicksStr = list(map(lambda tick:'%.3e'%tick, Ticks))
+    return Ticks, TicksStr
+
+def SetXTicksForAx(ax, Min, Max, Method="Auto"):
+    Ticks, TicksStr = CalculateTicks(Method, Min, Max)
+    ax.set_xticks(Ticks)
+    ax.set_xticklabels(TicksStr)
+
+def SetYTicksForAx(ax, Min, Max, Method="Auto"):
+    Ticks, TicksStr = CalculateTicks(Method, Min, Max)
+    ax.set_yticks(Ticks)
+    ax.set_yticklabels(TicksStr)
 
 '''
 def concat_images(images, image_Width, spacer_size=4):
@@ -680,3 +777,81 @@ def create_gif_2():
         frames.append(im)                       # 批量化
     writeGif(outfilename, frames, duration=0.1, subRectangles=False) # 生成GIF，其中durantion是延迟，这里是1ms
 '''
+
+def PlotDistribution1D(data, ):
+    data, shape = utils_torch.FlattenData(data)
+
+from scipy.stats import gaussian_kde
+def PlotGaussianDensityCurve(
+        ax=None, data=None, KernelStd="auto", 
+        Save=False, SavePath=None,
+        **kw
+    ): # For 1D data
+    if ax is None:
+        fig, ax = plt.subplots()
+    data = utils_torch.EnsureFlat(data)
+    statistics = utils_torch.math.NpArrayStatistics(data)
+
+    if isinstance(KernelStd, float):
+        pass
+    elif isinstance(KernelStd, str):
+        if KernelStd in ["Auto", "auto"]:
+            KernelStd = "Ratio2Std"
+        if KernelStd in ["Ratio2Range"]:
+            Ratio = kw.setdefault("Ratio", 0.02)
+            KernelStd = Ratio * (statistics.Max - statistics.Min)
+        elif KernelStd in ["Ratio2Std"]:
+            Ratio = kw.setdefault("Ratio", 0.02)
+            KernelStd = Ratio * statistics.Std
+        else:
+            raise Exception()
+    else:
+        raise Exception(type(KernelStd))
+    
+    DensityCurve = gaussian_kde(data, bw_method=KernelStd)
+    # DensityCurve.covariance_factor = lambda : .25
+    # DensityCurve._compute_covariance()
+
+    ax.plot(data, DensityCurve(data))
+    
+    SaveFigForPlt(Save, SavePath)
+    return ax
+
+PlotDensityCurve = PlotGaussianDensityCurve
+
+def GetXRangeForHistogramLikeAx(Min, Max):
+    Range = Max - Min
+    Left = Min - 0.05 * Range
+    Right = Max + 0.05 * Range
+    return Left, Right
+
+def SetXRangeForHistogramLikeAx(ax, Min, Max):
+    Range = Max - Min
+    Left = Min - 0.05 * Range
+    Right = Max + 0.05 * Range
+    ax.set_xlim(Left, Right)
+
+def SaveFigForPlt(Save=True, SavePath=None):
+    if Save:
+        utils_torch.EnsureFileDir(SavePath)
+        plt.savefig(SavePath)
+        plt.close()
+
+def CompareDensityCurve(data1, data2, Name1, Name2, Save=True, SavePath=None):
+    fig, ax = plt.subplots()
+
+    data1 = utils_torch.ToNpArray(data1)
+    data2 = utils_torch.ToNpArray(data2)
+
+    Min = min(np.min(data1), np.min(data2))
+    Max = max(np.max(data1), np.max(data2))
+
+    utils_torch.plot.PlotGaussianDensityCurve(ax, data1)
+    utils_torch.plot.PlotGaussianDensityCurve(ax, data2)
+
+    SetXRangeForHistogramLikeAx(ax, Min, Max)
+
+    if SavePath is None:
+        SavePath = utils_torch.GetSaveDir() + "%s-%s-GaussianKDE.png"%(Name1, Name2)
+
+    utils_torch.plot.SaveFigForPlt(Save, SavePath)

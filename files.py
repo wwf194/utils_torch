@@ -243,7 +243,7 @@ def ParseNameSuffix(FilePath):
     else:
         return MatchResult.group(1), MatchResult.group(2)
 
-def RenameFileIfPathExists(FilePath):
+def RenameIfPathExists(FilePath):
     if FilePath.endswith("/"):
         raise Exception()
 
