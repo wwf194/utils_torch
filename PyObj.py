@@ -11,10 +11,10 @@ def CheckIsPyObj(Obj):
 def IsPyObj(Obj):
     return isinstance(Obj, PyObj)
 
-def IsPyObjAndDictLike(Obj):
+def IsDictLikePyObj(Obj):
     return isinstance(Obj, PyObj) and not Obj.IsListLike()
 
-def IsPyObjAndListLike(Obj):
+def IsListLikePyObj(Obj):
     return isinstance(Obj, PyObj) and Obj.IsListLike()
 
 class PyObjCache(object):
@@ -23,19 +23,12 @@ class PyObjCache(object):
 
 class PyObj(object):
     def __init__(self, param=None):
-        # if param in ["cache"]:
-        #     self.IsCache = True
-        #     return
-        # else:
-        #     self.IsCache = False
         self.cache = PyObjCache()
         if param is not None:
             if type(param) is dict:
                 self.FromDict(param)
             elif type(param) is list:
                 self.FromList(param)
-            elif type(param) is str:
-                param = json.loads(param)
             else:
                 raise Exception()
     def __repr__(self):
@@ -54,22 +47,22 @@ class PyObj(object):
         return len(self.__value__)
     def __str__(self):
         return utils_torch.json.PyObj2JsonStr(self)
-    def FromList(self, list):
+    def FromList(self, List):
         ListParsed = []
-        for Index, Item in enumerate(list):
+        for Index, Item in enumerate(List):
             if type(Item) is dict:
                 ListParsed.append(PyObj(Item))
             elif type(Item) is list:
-                ListParsed.append(self.FromList(Item))
+                ListParsed.append(PyObj(Item))
             else:
                 ListParsed.append(Item)
-        return ListParsed
+        self.__value__ = ListParsed
+        return self
     def FromDict(self, Dict):
         #self.__dict__ = {}
         for key, value in Dict.items():
             # if key in ["Init.Method"]:
             #     print("aaa")
-
             if key in ["__ResolveRef__"]:
                 if not hasattr(self, "__ResolveRef__"):
                     setattr(self.cache, key, value)
@@ -85,27 +78,28 @@ class PyObj(object):
             for index, key in enumerate(keys):
                 if index == len(keys) - 1:
                     if hasattr(obj, key):
-                        if isinstance(getattr(obj, key), PyObj):
-                            if isinstance(value, PyObj):
-                                getattr(obj, key).FromPyObj(value)
+                        valueOld = getattr(obj, key) 
+                        if isinstance(valueOld, PyObj) and valueOld.IsDictLike():
+                            if isinstance(value, PyObj) and value.IsDictLike():
+                                valueOld.FromPyObj(value)
                             elif isinstance(value, dict):
-                                getattr(obj, key).FromDict(value)
+                                valueOld.FromDict(value)
                             else:
-                                if hasattr(getattr(obj, key), "__value__"):
-                                    utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
-                                        %(key, getattr(obj, key), value))                                       
-                                setattr(getattr(obj, key), "__value__", value)
+                                # if hasattr(value, "__value__"):
+                                #     utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
+                                #         %(key, getattr(obj, key), value))                                       
+                                setattr(valueOld, "__value__", value)
                         else:
-                            utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
-                                %(key, getattr(obj, key), value))
-                            setattr(obj, key, self.ProcessValue(value))
+                            # utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
+                            #     %(key, valueOld, value))
+                            setattr(obj, key, self.ProcessValue(key, value))
                     else:
                         if isinstance(obj, PyObj):
-                            setattr(obj, key, self.ProcessValue(value))
+                            setattr(obj, key, self.ProcessValue(key, value))
                         else:
                             setattr(parent, parentAttr, PyObj({
                                 "__value__": obj,
-                                key: self.ProcessValue(value)
+                                key: self.ProcessValue(key, value)
                             }))
                 else:
                     if hasattr(obj, key):
@@ -136,11 +130,14 @@ class PyObj(object):
         return self
     def FromPyObj(self, Obj):
         self.FromDict(Obj.__dict__)
-    def ProcessValue(self, value):
+    def ProcessValue(self, key, value):
         if isinstance(value, dict):
             return PyObj(value)
         elif isinstance(value, list):
-            return PyObj().FromList(value)
+            if key in ["__value__"]:
+                return value
+            else:
+                return PyObj(value)
         elif type(value) is PyObj:
             return value
         else:

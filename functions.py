@@ -40,14 +40,16 @@ def CallFunctions(param, **kw):
     Outputs = []
     if isinstance(param, utils_torch.PyObj):
         param = GetAttrs(param)
-
     if isinstance(param, utils_torch.PyObj): # Call one function
         Output = _CallFunction(param, ContextInfo)
         Outputs.append(Output)
-    elif isinstance(param, list): # Call a cascade of functions
+    elif isinstance(param, list) or utils_torch.IsListLikePyObj(param): # Call a cascade of functions
         for _param in param:
             Output = _CallFunction(_param, ContextInfo)
             Outputs.append(Output)
+    elif isinstance(param, str):
+        Output = _CallFunction([param], ContextInfo)
+        Outputs.append(Output)
     else:
         raise Exception()
     return Outputs

@@ -628,6 +628,8 @@ def SetLoggerForModel(self, logger):
 
 def SetFullNameForModel(self, FullName):
     cache = self.cache
+    param = self.param
+    param.FullName = FullName
     if hasattr(cache, "Modules"):   
         for Name, Module in ListAttrsAndValues(self.cache.Modules):
             if hasattr(Module, "SetFullName"):
@@ -639,27 +641,7 @@ def GetLoggerForModel(self):
         return cache.Logger
     else:
         return None
-    
-def LogForModel(self, data, Name):
-    if isinstance(data, torch.Tensor):
-        data = utils_torch.Tensor2NumpyOrFloat(data)
 
-    #logger = self.GetLogger()
-    logger = utils_torch.GetArgsGlobal().LoggerData
-    if logger is None:
-        return
-    # logger.AddRecord(
-    #     TableName=Name,
-    #     ColumnValues={
-    #         "Value": data,
-    #     }
-    # )
-    if hasattr(self.param, "FullName"):
-        FullName = self.param.FullName
-        logger.AddLog(FullName + "." + Name, data)
-    else:  
-        logger.AddLog(Name, data)
-    
 def PlotWeight(weight, Name, Save=True, SavePath="./weight.png"):
     weight = utils_torch.ToNpArray(weight)
     DimensionNum = len(weight.shape)
@@ -667,7 +649,6 @@ def PlotWeight(weight, Name, Save=True, SavePath="./weight.png"):
 def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
     # @param activity: [BatchSize, StepNum, NeuronNum]
     activity = utils_torch.ToNpArray(activity)
-
     return
 
 def InitForModel(self, param):
@@ -675,3 +656,88 @@ def InitForModel(self, param):
         self.param = param
         self.data = utils_torch.EmptyPyObj()
         self.cache = utils_torch.EmptyPyObj()
+
+def LogStatisticsForModel(self, data, Name, Type="Statistics"):
+    param = self.param
+    if hasattr(param, "FullName"):
+        Name = param.FullName + "." + Name
+    utils_torch.GetDataLogger().AddLogStatistics(Name, data, Type)
+
+def LogForModel(self, data, Name, Type=None):
+    param = self.param
+    if hasattr(param, "FullName"):
+        Name = param.FullName + "." + Name
+    data = ProcessLogData(data)
+    utils_torch.GetDataLogger().AddLog(Name, data, Type)
+
+def LogFloatForModel(self, data, Name, Type="Float"):
+    param = self.param
+    if isinstance(data, torch.Tensor):
+        data = data.item()
+    if hasattr(param, "FullName"):
+        Name = param.FullName + "." + Name
+    utils_torch.GetDataLogger().AddLog(Name, data, Type)
+
+def LogCacheForModel(self, data, Name, Type=None):
+    data = ProcessLogData(data)
+    param = self.param
+    if hasattr(param, "FullName"):
+        Name = param.FullName + "." + Name
+    utils_torch.GetDataLogger().AddLogCache(Name, data, Type)
+
+def ProcessLogData(data):
+    if isinstance(data, torch.Tensor):
+        data = utils_torch.Tensor2NumpyOrFloat(data)
+    return data
+
+def SetMethodForModelClass(Class):
+    Class.LogStatistics = LogStatisticsForModel
+    Class.LogCache = LogCacheForModel
+    Class.LogFloat = LogFloatForModel
+    Class.Log = LogForModel
+    Class.PlotWeight = PlotWeightForModel
+    Class.SetFullName = SetFullNameForModel
+
+def _PlotWeightForModel(self, SaveDir=None):
+    param = self.param
+    if SaveDir is None:
+        if hasattr(param, "FullName"):
+            Name = param.FullName
+        else:
+            Name = "model"
+        SaveDir = utils_torch.GetSaveDir() + "weights/"
+    weights = self.GetTrainWeight()
+    weightNum = len(weights.keys())
+    Index = 0
+    for name, weight in weights.items():
+        fig, axes = plt.subplots(nrows=1, ncols=2)
+        axLeft, axRight = axes[0], axes[1]
+        weight = utils_torch.ToNpArray(weight)
+        _weight = weight
+        DimentionNum = utils_torch.GetDimensionNum(weight)
+        mask = None
+        if DimentionNum == 1:
+            weight, mask = utils_torch.Line2Square(weight)
+        utils_torch.plot.PlotMatrixWithColorBar(
+            axLeft, weight, dataForColorMap=_weight, mask=mask,
+            PixelHeightWidthRatio="Auto"
+        )
+        #utils_torch.plot.PlotGaussianDensityCurve(axRight, weight) # takes too much time
+        utils_torch.plot.PlotHistogram(
+            axRight, weight, Color="Black"
+        )
+        plt.suptitle("%s Shape:%s"%(name, weight.shape))
+        Index += 1
+        plt.tight_layout()
+        utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.svg"%name)
+
+def PlotWeightForModel(self, SaveDir=None):
+    if SaveDir is None:
+        SaveDir = utils_torch.GetSaveDir() + "weights/"
+    cache = self.cache
+    if hasattr(self, "PlotSelfWeight"):
+        self.PlotSelfWeight(SaveDir)
+    if hasattr(cache, "Modules"):
+        for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
+            if hasattr(Module,"PlotWeight"):
+                Module.PlotWeight(SaveDir)

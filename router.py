@@ -89,8 +89,8 @@ def ParseRoutingAttrsDynamic(Routing, States):
     return Routing
 
 def ParseRoutingStatic(Routing):
-    # if "TrajectoryParam" in Routing:
-    #     print("aaa")
+    if "Split" in Routing:
+        print("aaa")
     if not isinstance(Routing, str):
         return Routing
     _Routing = Routing

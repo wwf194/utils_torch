@@ -40,6 +40,7 @@ def Train(Args, **kw):
 def TrainEpochBatch(param, **kw):
     kw["ObjCurrent"] = param
     logger = kw["Logger"]
+    
     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
     # param = utils_torch.parse.ParsePyObjDynamic(param, InPlace=False, **kw)
     Router = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
@@ -55,8 +56,16 @@ def TrainEpochBatch(param, **kw):
             logger.SetLocal("BatchIndex", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
             utils_torch.CallGraph(Router, In=In)
-            logger.PlotAllLogs(SaveDir=utils_torch.GetSaveDir() + "log/")
+            #logger.PlotAllLogs(SaveDir=utils_torch.GetSaveDir() + "log/")
+            logger.PlotLogOfGivenType("WeightChangeRatio", PlotType="LineChart", 
+                SaveDir=utils_torch.GetSaveDir() + "log/WeightChange")    
             continue
+
+def ParseTrainEpochBatchParam(param):
+    EnsureAttrs(param, "Nesterov", value=False)
+    EnsureAttrs(param, "Dampening", value=0.0)
+    EnsureAttrs(param, "Momentum", value=0.0)
+    
 
 def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
     Xs = []
@@ -103,7 +112,10 @@ class GradientDescend:
             #     RatioMax = param.WeightChangeRatioMax
             #     1.0 * torch.where(Weight == 0.0)
             # else:
-            utils_torch.GetDataLogger().AddLog("%s.ChangeRatio"%Name, utils_torch.model.CalculateWeightChangeRatio(Weight, WeightChange))
+            utils_torch.GetDataLogger().AddLog("%s.ChangeRatio"%Name,
+                utils_torch.model.CalculateWeightChangeRatio(Weight, WeightChange),
+                Type="WeightChangeRatio"
+            )
             Weight.data.add_(WeightChange, alpha=-param.LearningRate)
             if ClearGrad:
                 Weight.grad.detach_()

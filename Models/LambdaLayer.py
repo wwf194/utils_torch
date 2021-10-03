@@ -16,3 +16,4 @@ class LambdaLayer(nn.Module):
         utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = LambdaLayer
+utils_torch.model.SetMethodForModelClass(__MainClass__)

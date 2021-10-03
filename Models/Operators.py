@@ -98,6 +98,11 @@ def PlotDistribution(Activity, Name="UnNamed"):
     activity = utils_torch.ToNpArray(Activity)
     utils_torch.plot.PlotDistribution1D(activity, Name=Name)
 
+def LogStatistics(data, Name):
+    data = ToNpArray(data)
+    statistics = utils_torch.math.NpStatistics(data, ReturnType="Dict")
+    utils_torch.GetDataLogger().AddLogDict({statistics})
+
 def Tensor2Statistics2File(data, Name, FilePath=None):
     #Name, FilePath = utils_torch.ParseTextFilePathFromName(Name, FilePath)
     if FilePath is None:
@@ -106,7 +111,7 @@ def Tensor2Statistics2File(data, Name, FilePath=None):
     statistics = utils_torch.math.TorchTensorStatistics(data)
     utils_torch.Data2TextFile(statistics, FilePath=FilePath)
 
-from utils_torch.utils import Data2TextFile
+from utils_torch.utils import Data2TextFile, ToNpArray
 OperatorList.append("Data2TextFile")
 
 from utils_torch.plot import CompareDensityCurve

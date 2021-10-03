@@ -156,3 +156,4 @@ class RecurrentLIFLayer(nn.Module):
         utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = RecurrentLIFLayer
+utils_torch.model.SetMethodForModelClass(__MainClass__)

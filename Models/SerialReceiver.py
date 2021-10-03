@@ -51,3 +51,4 @@ class SerialReceiver():
         utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = SerialReceiver
+utils_torch.model.SetMethodForModelClass(__MainClass__)

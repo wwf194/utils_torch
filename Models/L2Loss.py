@@ -75,3 +75,4 @@ class L2Loss():
         return self.cache.Coefficient
 
 __MainClass__ = L2Loss
+utils_torch.model.SetMethodForModelClass(__MainClass__)

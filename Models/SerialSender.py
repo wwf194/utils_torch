@@ -52,3 +52,4 @@ class SerialSender():
         utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = SerialSender
+utils_torch.model.SetMethodForModelClass(__MainClass__)

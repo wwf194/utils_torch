@@ -1,6 +1,7 @@
 import os
 import re
-from typing import Match
+import pandas as pd
+
 import utils_torch
 
 def RemoveAllFiles(path, verbose=True):
@@ -273,5 +274,22 @@ def RenameIfPathExists(FilePath):
     else:
         return FilePath
 
+def Table2TextFileDict(Dict, SavePath):
+    utils_torch.Str2File(pd.DataFrame(Dict).to_string(), SavePath)   
+Table2TextFile = Table2TextFileDict
 
-
+def Table2TextFileColumns(*Columns, **kw):
+    # ColNum = len(Columns)
+    # Str = " ".join(kw["Names"])
+    # Str += "\n"
+    # for RowIndex in range(len(Columns[0])):
+    #     for ColIndex in range(ColNum):
+    #         Str += str(Columns[ColIndex][RowIndex])
+    #         Str += " "
+    #     Str += "\n"
+    # utils_torch.Str2File(Str, kw["SavePath"])
+    Names = kw["Names"]
+    Dict = {}
+    for Index, Column in enumerate(Columns):
+        Dict[Names[Index]] = Column
+    Table2TextFileDict(Dict, kw["SavePath"])

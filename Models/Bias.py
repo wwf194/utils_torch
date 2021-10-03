@@ -27,3 +27,4 @@ class Bias(nn.Module):
     def GetTensorLocation(self):
         return self.cache.TensorLocation
 __MainClass__ = Bias
+utils_torch.model.SetMethodForModelClass(__MainClass__)

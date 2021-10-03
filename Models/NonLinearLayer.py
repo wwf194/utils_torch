@@ -57,3 +57,4 @@ class NonLinearLayer(SingleLayer):
             else:
                 raise Exception("NonLinearLayer: Invalid Subtype: %s"%param.Subtype)
 __MainClass__ = NonLinearLayer
+utils_torch.model.SetMethodForModelClass(__MainClass__)

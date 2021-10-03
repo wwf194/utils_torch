@@ -1,5 +1,5 @@
 from os import EX_CANTCREAT
-from re import L
+from re import L, X
 import numpy as np
 import scipy
 import cv2 as cv
@@ -7,6 +7,8 @@ import math
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
+import seaborn as sns
+sns.set_style("white")
 
 default_res=60
 
@@ -108,16 +110,22 @@ def PlotDirectionsOnEdges(ax, Edges, Directions, **kw):
 def PlotDirectionOnEdge(ax, Edge, Direction, **kw):
     PlotDirectionsOnEdges(ax, [Edge], [Direction], **kw)
 
-def Map2Color(data, ColorMap="jet", Method="MinMax", Alpha=False):
+def Map2Color(
+        data, ColorMap="jet", Method="MinMax", Alpha=False,
+        dataForMap=None,
+    ):
     data = ToNpArray(data)
+
     if Method in ["MinMax"]:
-        dataMin, dataMax = np.min(data), np.max(data)
+        if dataForMap is not None:
+            dataMin, dataMax = np.min(dataForMap), np.max(dataForMap)
+        else:
+            dataMin, dataMax = np.min(data), np.max(data)
         if dataMin == dataMax:
-            dataNormed = np.zeros(data.shape, dtype=data.dtype)
-            dataNormed[:,:,:] = 0.5
+            dataColored = np.full([*data.shape, 4], 0.5)
         else:
             dataNormed = (data - dataMin) / (dataMax - dataMin) # normalize to [0, 1]
-        dataColored = ParseColorMapPlt(ColorMap)(dataNormed) # [*data.Shape, (r,g,b,a)]
+            dataColored = ParseColorMapPlt(ColorMap)(dataNormed) # [*data.Shape, (r,g,b,a)]
     else:
         raise Exception()
 
@@ -293,15 +301,19 @@ def ParseIsMatrixDataColored(data):
 
 def PlotMatrixWithColorBar(
         ax, data, IsDataColored=None, ColorMap="jet", ColorMethod="MinMax", 
-        XYRange=None, Coordinate="Math", 
-        ColorBarOrientation="Vertical", ColorBarLocation=None, 
+        XYRange=None, Coordinate="Math", dataForColorMap=None, dataMask=None,
+        XLabel=None, YLabel=None, Title=None,
+        ColorBarOrientation="Vertical", ColorBarLocation=None, PixelHeightWidthRatio="equal",
         ColorBarTitle=None, Save=False, SavePath=None, **kw
     ):
     if IsDataColored is None:
         IsDataColored = ParseIsMatrixDataColored(data)
 
     if not IsDataColored:
-        dataMapResult = Map2Color(data, ColorMap)
+        if dataForColorMap is not None:
+            dataMapResult = Map2Color(data, ColorMap, dataForMap=dataForColorMap)
+        else:
+            dataMapResult = Map2Color(data, ColorMap)
         data = dataMapResult.dataColored
         Min = dataMapResult.Min
         Max = dataMapResult.Max
@@ -317,13 +329,19 @@ def PlotMatrixWithColorBar(
         Location=ColorBarLocation, Title=ColorBarTitle, **kw
     )
     PlotMatrix(
-        ax, data, True, ColorMap, XYRange, Coordinate=Coordinate, Save=False, 
+        ax, data, True, ColorMap, XYRange, Coordinate=Coordinate, 
+        PixelHeightWidthRatio=PixelHeightWidthRatio,
+        dataMask=dataMask, Save=False, **kw
     )
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+
+    SaveFigForPlt(Save, SavePath)
 
 def PlotMatrix(
-        ax, data, IsDataColored=None, 
-        ColorMap="jet", XYRange=None, Coordinate="Math",
-        Save=False, SavePath=None
+        ax, data, IsDataColored=None, dataForColorMap=None, 
+        ColorMap="jet", XYRange=None, Coordinate="Math", dataMask=None, PixelHeightWidthRatio="Auto",
+        XLabel=None, YLabel=None, Title=None,
+        Save=False, SavePath=None, Format="svg", **kw
     ):
     if IsDataColored is None:
         DimensionNum = utils_torch.GetDimensionNum(data)
@@ -335,7 +353,7 @@ def PlotMatrix(
             raise Exception(DimensionNum)
 
     if not IsDataColored:
-        dataMapResult = Map2Color(data, ColorMap)
+        dataMapResult = Map2Color(data, ColorMap, dataForMap=dataForColorMap)
         data = dataMapResult.dataColored
 
     if XYRange is not None:
@@ -343,18 +361,70 @@ def PlotMatrix(
     else:
         extent = None
 
+    if dataMask is not None:
+        InsideMask = dataMask.astype(np.float32)
+        OutsideMask = (~dataMask).astype(np.float32)
+        data = InsideMask * data + OutsideMask * (1.0, 1.0, 1.0)
+
     if Coordinate in ["Math"]:
         data = data.transpose(1, 0, 2)
         data = data[::-1, :, :]
         pass
 
-    ax.imshow(data, extent=extent)
+    if PixelHeightWidthRatio in ["FillAx"]:
+        PixelHeightWidthRatio = "auto"
+    elif PixelHeightWidthRatio in ["Auto", "auto"]:
+        DataHeightWidthRatio = data.shape[0] / data.shape[1]
+        if DataHeightWidthRatio > 5.0:
+            PixelHeightWidthRatio = 5.0
+        elif DataHeightWidthRatio < 0.2:
+            PixelHeightWidthRatio = 0.2
+        else:
+            PixelHeightWidthRatio = "equal"
 
+    if Format in ["svg"]:
+        Interpolation = 'none'
+
+    ax.imshow(data, extent=extent, aspect=PixelHeightWidthRatio, interpolation=Interpolation)
+
+    SetAxisLocationForAx(ax, kw.get("XAxisLocation"), kw.get("YAxisLocation"))
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
     SaveFigForPlt(Save, SavePath)
 
     return ax
 
-def PlotWeghtWithBar():
+def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
+    if axes is None:
+        fig, axes = plt.subplots(nrows=1, ncols=2)
+        ax1, ax2 = axes[0], axes[1]
+    else:
+        ax1 = GetAx(axes, 0)
+        ax2 = GetAx(axes, 1)
+
+    plt.suptitle(Name)
+    weight = utils_torch.ToNpArray(weight)
+    _weight = weight
+    DimentionNum = utils_torch.GetDimensionNum(weight)
+    mask = None
+    if DimentionNum == 1:
+        weight, mask = utils_torch.Line2Square(weight)
+    utils_torch.plot.PlotMatrixWithColorBar(
+        ax1, weight, dataForColorMap=_weight, mask=mask,
+        XAxisLocation="top", PixelHeightWidthRatio="Auto",
+        Title="Visualization"
+    )
+    
+    #utils_torch.plot.PlotGaussianDensityCurve(axRight, weight) # takes too much time
+    utils_torch.plot.PlotHistogram(
+        ax2, weight, Color="Black",
+        XLabel="Connection Strength", YLabel="Ratio", Title="Distribution"
+    )
+
+    plt.suptitle("%s Shape:%s"%(Name, weight.shape))
+    plt.tight_layout()
+    if SavePath is None:
+        SavePath = utils_torch.GetSaveDir + "weights/" + "%s.svg"%Name
+    utils_torch.plot.SaveFigForPlt(SavePath=SavePath)
     return
 
 def PlotLineCv(img, points, line_color=(0,0,0), line_Width=2, line_type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]):
@@ -431,7 +501,7 @@ def cat_imgs(imgs, ColNum=10, space_Width=4): # images: [num, Width, Height, cha
 
     return np.concatenate(imgs_rows, axis=1)
 
-def ParseRowColNum(PlotNum, RowNum, ColNum):
+def ParseRowColNum(PlotNum, RowNum=None, ColNum=None):
     # @param ColNum: int. Column Number.
     if RowNum in ["Auto", "auto"]:
         RowNum = None
@@ -474,6 +544,11 @@ def CreateFigurePlt(PlotNum, RowNum=None, ColNum=None, Width=None, Height=None):
     fig, axes = plt.subplots(nrows=RowNum, ncols=ColNum, figsize=(Width, Height))
     return fig, axes
 CreateFigure = CreateCanvasPlt = CreateFigurePlt
+
+def SplitAxRightLeft(ax):
+    axLeft = GetSubAx(ax, -0.55, 0.0, 1.0, 1.0)
+    axRight = GetSubAx(ax, 0.55, 0.0, 1.0, 1.0)
+    return axLeft, axRight
 
 def GetAxRowColNum(axes):
     if isinstance(axes, np.ndarray):
@@ -526,17 +601,33 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
         raise Exception()
 
 def PlotLineChart(ax=None, Xs=None, Ys=None,
-        XLabel=None, YLabel=None,
-        Title="Undefined",
+        XLabel=None, YLabel=None, Title="Undefined",
+        Color="Black", LineWidth=2.0,
         Save=False, SavePath=None,
     ):
     if ax is None:
         fig, ax = plt.subplots()
-    ax.plot(Xs, Ys)
+    Color = ParseColorPlt(Color)
+    ax.plot(Xs, Ys, color=Color, linewidth=LineWidth)
     SetXYLabelForAx(ax, XLabel, YLabel)
     SetTitleForAx(ax, Title)
     SaveFigForPlt(Save, SavePath)
     return ax
+
+def PlotHistogram(
+        ax=None, data=None,
+        Norm2Sum1=False, Color="Black", 
+        XLabel=None, YLabel=None, Title=None,
+        Save=False, SavePath=None,
+        **kw
+    ):
+    data = utils_torch.EnsureFlat(data)
+    ax.hist(data, density=Norm2Sum1)
+    if Title is not None:
+        ax.set_title(Title)
+    
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+    SaveFigForPlt(Save, SavePath)
 
 def SetXYLabelForAx(ax, XLabel, YLabel):
     if XLabel is not None:
@@ -584,15 +675,24 @@ def ParseColorBarLocation(Location, Orientation):
     return Location
 
 def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical", **kw):
-    if Method in ["MinMax", "GivenMinMax"]:
-        Min, Max = kw["Min"], kw["Max"]
-    else:
-        raise Exception()
-
     Orientation = utils_torch.ToLowerStr(Orientation)
     if Orientation not in ["horizontal", "vertical"]:
         raise Exception(Orientation)
-    
+
+    if Method in ["MinMax", "GivenMinMax"]:
+        Min, Max = kw["Min"], kw["Max"]
+        if Min == Max:
+            ax.set_xlim([0.0, 1.0])
+            ax.set_ylim([0.0, 1.0])
+            ax.text(0.5, 0.5, "All values are %s"%utils_torch.Float2StrDisplay(Min), 
+                rotation=-90.0 if Orientation=="vertical" else 0.0,
+                ha='center', va='center',
+            )
+            ax.axis("off")
+            return
+    else:
+        raise Exception()
+
     ColorMap = ParseColorMapPlt(ColorMap)
     Norm = mpl.colors.Normalize(vmin=Min, vmax=Max)
 
@@ -602,7 +702,6 @@ def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical"
         #ticks=Ticks,
         orientation=Orientation
     )
-    #ax.axis("off") # To display ticks
 
     Title = kw.get("Title")
     if Title is not None:
@@ -629,6 +728,9 @@ def SetColorBarTicks(ColorBar, Ticks, Orientation, Min=None, Max=None, **kw):
 
 def CalculateTickInterval(Min, Max):
     Range = Max - Min
+    if Range == 0.0:
+        return 0.0, None, None
+
     Log = round(math.log(Range, 10))
     Base = 1.0
     Interval = Base * 10 ** Log
@@ -716,41 +818,6 @@ def SetYTicksForAx(ax, Min, Max, Method="Auto"):
     ax.set_yticks(Ticks)
     ax.set_yticklabels(TicksStr)
 
-'''
-def concat_images(images, image_Width, spacer_size=4):
-    # Concat image horizontally with spacer
-    spacer = np.ones([image_Width, spacer_size, 4], dtype=np.uint8) * 255
-    images_with_spacers = []
-
-    image_size = len(images)
-
-    for i in range(image_size):
-        images_with_spacers.append(images[i])
-        if i != image_size - 1: # Add spacer
-            images_with_spacers.append(spacer)
-    ret = np.hstack(images_with_spacers)
-    return ret
-
-def concat_images_in_rows(images, row_size, image_Width, spacer_size=4):
-    # Concat images in rows
-    column_size = len(images) // row_size
-    spacer_h = np.ones([spacer_size, image_Width*column_size + (column_size-1)*spacer_size, 4],
-                       dtype=np.uint8) * 255
-
-    row_images_with_spacers = []
-
-    for row in range(row_size):
-        row_images = images[column_size*row:column_size*row+column_size]
-        row_concated_images = concat_images(row_images, image_Width, spacer_size)
-        row_images_with_spacers.append(row_concated_images)
-
-        if row != row_size-1:
-            row_images_with_spacers.append(spacer_h)
-
-    ret = np.vstack(row_images_with_spacers)
-    return ret
-'''
-
 def ImagesFile2GIFFile():
     return
 
@@ -808,28 +875,58 @@ def PlotGaussianDensityCurve(
     else:
         raise Exception(type(KernelStd))
     
-    DensityCurve = gaussian_kde(data, bw_method=KernelStd)
+    if KernelStd == 0.0:
+        KernelStd = 1.0
+    try:
+        DensityCurve = gaussian_kde(data, bw_method=KernelStd)
+        ax.plot(data, DensityCurve(data))
+    except Exception:
+        # Error when calculating bandwidth for repeating values.
+        sns.kdeplot(data)
     # DensityCurve.covariance_factor = lambda : .25
     # DensityCurve._compute_covariance()
 
-    ax.plot(data, DensityCurve(data))
     
     SaveFigForPlt(Save, SavePath)
     return ax
 
 PlotDensityCurve = PlotGaussianDensityCurve
 
-def GetXRangeForHistogramLikeAx(Min, Max):
+def GetAxRangeMinMax(Min, Max):
     Range = Max - Min
     Left = Min - 0.05 * Range
     Right = Max + 0.05 * Range
     return Left, Right
 
-def SetXRangeForHistogramLikeAx(ax, Min, Max):
+def SetAxRangeMinMax(ax, Min, Max):
     Range = Max - Min
     Left = Min - 0.05 * Range
     Right = Max + 0.05 * Range
     ax.set_xlim(Left, Right)
+
+def SetAxisLocationForAx(ax, XAxisLocation=None, YAxisLocation=None):
+    if XAxisLocation is not None:
+        if XAxisLocation in ["top"]:
+            ax.xaxis.tick_top()
+        elif XAxisLocation in ["bottom"]:
+            pass
+        else:
+            raise Exception(XAxisLocation)
+    if YAxisLocation is not None:
+        if YAxisLocation in ["right"]:
+            ax.yaxis.tick_right()
+        elif YAxisLocation in ["left"]:
+            ax.yaxis.tick_left()
+        else:
+            raise Exception(YAxisLocation)
+
+def SetTitleAndLabelForAx(ax, XLabel=None, YLabel=None, Title=None):
+    if XLabel is not None:
+        ax.set_xlabel(XLabel)
+    if YLabel is not None:
+        ax.set_ylabel(YLabel)
+    if Title is not None:
+        ax.set_title(Title)
 
 def SaveFigForPlt(Save=True, SavePath=None):
     if Save:
@@ -849,9 +946,31 @@ def CompareDensityCurve(data1, data2, Name1, Name2, Save=True, SavePath=None):
     utils_torch.plot.PlotGaussianDensityCurve(ax, data1)
     utils_torch.plot.PlotGaussianDensityCurve(ax, data2)
 
-    SetXRangeForHistogramLikeAx(ax, Min, Max)
+    SetAxRangeMinMax(ax, Min, Max)
 
     if SavePath is None:
         SavePath = utils_torch.GetSaveDir() + "%s-%s-GaussianKDE.png"%(Name1, Name2)
 
     utils_torch.plot.SaveFigForPlt(Save, SavePath)
+
+def PlotMeanAndStd(
+        ax=None, Xs=None, Mean=None, Std=None,
+        Title="", LineWidth=2.0, Color="Black",
+        Save=False, SavePath=None,
+    ):
+    if ax is None:
+        fig, ax = plt.subplots()
+
+    Color = ParseColorPlt(Color)
+    PlotLineChart(
+        ax, Xs, Mean, Color=Color, LineWidth=LineWidth,
+        Save=False
+    )
+    ax.fill_between(Xs, Mean - Std, Mean + Std)
+    SaveFigForPlt(Save, SavePath)
+
+def SetXAxisLocationForAx(ax, XAXisLocation):
+    if XAXisLocation in ["top"]:
+        ax.xaxis.tick_top()
+    else:
+        raise Exception()

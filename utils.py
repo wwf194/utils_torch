@@ -157,6 +157,30 @@ def ToNpArray(data, DataType=np.float32):
     else:
         raise Exception()
 
+def Line2Square(data):
+    DimensionNum = utils_torch.GetDimensionNum(data)
+    if not DimensionNum == 1:
+        raise Exception(DimensionNum)
+
+    dataNum = data.shape[0]
+    # RowNum = round(dataNum ** 0.5)
+    # ColNum = dataNum // RowNum
+    # if dataNum % RowNum > 0:
+    #     ColNum += 1
+    RowNum, ColNum = utils_torch.plot.ParseRowColNum(dataNum)
+    mask = np.ones((RowNum, ColNum), dtype=np.bool8)
+
+    maskNum = RowNum * ColNum - dataNum
+    RowIndex, ColIndex = RowNum - 1, ColNum - 1 # Start from point at right bottom.
+    
+    for Index in range(maskNum):
+        mask[RowIndex, ColIndex] = False
+        ColIndex -= 1
+    if maskNum > 0:
+        data = np.concatenate([data, np.zeros(maskNum,dtype=data.dtype)])
+    data = data.reshape((RowNum, ColNum))
+    return data, mask
+
 def FlattenNpArray(data):
     return data.flatten()
 
@@ -383,40 +407,6 @@ def import_file(file_from_sys_path):
         module_path = file_from_sys_path.lstrip("./")
     module_path = module_path.replace("/", ".")
     return importlib.ImportModule(module_path)
-
-
-def Getname(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
-    if isinstance(param, dict):
-        name = search_dict(param, ['name', 'method', 'type'])
-        return name
-    elif isinstance(param, list):
-        return param[0]
-    elif isinstance(param, str):
-        return param
-    else:
-        raise Exception('Invalid param type:' +str(type(param)))
-
-def Getargs(param): # a mechanism supporting name and args given in different types. a parameter consist of a name of type str and optional args.
-    #print(type(param))
-    #print(param)
-    if isinstance(param, dict):
-        args = param.get('args')
-        if args is not None:
-            return args
-        else:
-            return param
-    elif isinstance(param, list):
-        return param[1]
-    elif isinstance(param, str):
-        #return 1.0 #using default Coefficient: 1.0
-        return None
-    else:
-        raise Exception('Invalid param type:' +str(type(param)))
-
-def Getname_args(param):
-    return Getname(param), Getargs(param)
-
-Getarg = Getargs
 
 def GetItemsFromDict(dict_, keys):
     items = []
@@ -986,7 +976,17 @@ def Data2TextFile(data, Name=None, FilePath=None):
     utils_torch.Str2File(str(data), FilePath)
 
 def Float2StrDisplay(Float):
-    Base, Exp = utils_torch.math.Float2BaseAndExponent()
+    if Float==0.0:
+        return "0.0"
+
+    Positive = Float < 0.0
+    if not Positive:
+        Float = - Float
+        Sign = - 1.0
+    else:
+        Sign = 1.0
+
+    Base, Exp = utils_torch.math.Float2BaseAndExponent(Float)
     TicksStr = []
     if 1 <= Exp <= 2:
         FloatStr = str(int(Float))
@@ -998,8 +998,13 @@ def Float2StrDisplay(Float):
         FloatStr = '%.3f'%Float
     else:
         FloatStr = '%.2e'%Float
-    return FloatStr
+    return FloatStr * Sign
 
 def Floats2StrDisplay(Floats):
     Floats = ToNpArray(Floats)
     Base, Exp = utils_torch.math.FloatsBaseAndExponent(Floats)
+
+def Floats2StrWithEqualLength(Floats):
+    Floats = utils_torch.ToNpArray(Floats)
+    Base, Exp = utils_torch.math.Floats2BaseAndExponent(Floats)
+    # to be implemented

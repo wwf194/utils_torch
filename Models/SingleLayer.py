@@ -37,6 +37,7 @@ class SingleLayer(nn.Module):
             cache.ParamIndices.append([data, "Bias", data.Bias])
         else:
             data.Bias = 0.0
+        self.GetBias = lambda:data.Bias
     def CreateWeight(self):
         param = self.param
         data = self.data
@@ -85,13 +86,32 @@ class SingleLayer(nn.Module):
         cache = self.cache
         if hasattr(cache, "TrainWeight"):
             delattr(cache, "TrainWeight")
-    def SetLogger(self, logger):
-        return utils_torch.model.SetLoggerForModel(self, logger)
-    def GetLogger(self):
-        return utils_torch.model.GetLoggerForModel(self)
-    def Log(self, data, Name="Undefined"):
-        return utils_torch.model.LogForModel(self, data, Name)
+    # def SetLogger(self, logger):
+    #     return utils_torch.model.SetLoggerForModel(self, logger)
+    # def GetLogger(self):
+    #     return utils_torch.model.GetLoggerForModel(self)
+    # def Log(self, data, Name="Undefined"):
+    #     return utils_torch.model.LogForModel(self, data, Name)
     def SetFullName(self, FullName):
         utils_torch.model.SetFullNameForModel(self, FullName)
+    def PlotSelfWeight(self, SaveDir=None):
+        param = self.param
+        if SaveDir is None:
+            SaveDir = utils_torch.GetSaveDir() + "weights/"
+        
+        if hasattr(param, "FullName"):
+            FullName = param.FullName + "."
+        else:
+            FullName = ""
+        Name = FullName + "Weight"
+        utils_torch.plot.PlotWeightAndDistribution(
+            weight=self.GetWeight(), Name=Name, SavePath=SaveDir + Name + ".svg"
+        )
+        if hasattr(self, "GetBias") and isinstance(self.GetBias(), torch.Tensor):
+            Name = FullName + "Bias"
+            utils_torch.plot.PlotWeightAndDistribution(
+                weight=self.GetWeight(), Name=Name, SavePath=SaveDir + Name + ".svg"
+            )
 
 __MainClass__ = SingleLayer
+utils_torch.model.SetMethodForModelClass(__MainClass__)

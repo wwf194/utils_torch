@@ -133,7 +133,7 @@ def _ParsePyObjDynamic(Obj, parent, attr, RaiseFailedParse, **kw):
         while Sig:
             for _Attr, Value in ListAttrsAndValues(Obj, ExcludeCache=False):
                 setattr(ObjParsed, _Attr, _ParsePyObjDynamic(Value, Obj, _Attr, RaiseFailedParse, **kw))
-                if _Attr in ["__value__"] and utils_torch.IsPyObjAndDictLike(ObjParsed):
+                if _Attr in ["__value__"] and utils_torch.IsDictLikePyObj(ObjParsed):
                     Obj.FromPyObj(ObjParsed)
                     delattr(Obj, _Attr)
                     break
@@ -189,7 +189,7 @@ def _ParsePyObjDynamicInPlace(Obj, parent, attr, RaiseFailedParse, **kw):
         while Sig:
             for _Attr, Value in Obj.__dict__.items():
                 _ParsePyObjDynamicInPlace(Value, Obj, _Attr, RaiseFailedParse, **kw)
-                if _Attr in ["__value__"] and IsPyObjAndDictLike(getattr(Obj, _Attr)):
+                if _Attr in ["__value__"] and utils_torch.IsDictLikePyObj(getattr(Obj, _Attr)):
                     Obj.FromPyObj(getattr(Obj, _Attr))
                     delattr(Obj, "__value__")
                     break
@@ -388,6 +388,8 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, RemainJson=True, **kw):
         setattr(Obj.cache, "__ResolveRef__", kw.get("ObjCurrent"))
         
         for _Attr, Value in ListAttrsAndValues(Obj):
+            if _Attr in ["DynamicParseAttrs"]:
+                print("aaa")
             _ParseResolveBaseInPlace(Value, Obj, _Attr, RemainJson, **kw)
     else:
         pass
