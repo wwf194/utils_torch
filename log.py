@@ -9,6 +9,14 @@ from matplotlib import pyplot as plt
 from pydblite import Base
 from collections import defaultdict
 
+import os
+import time
+import logging
+import json5
+import utils
+from inspect import getframeinfo, stack
+
+import os
 
 class DataLogger:
     def __init__(self, IsRoot=False):
@@ -87,6 +95,7 @@ class LoggerForEpochBatchTrain:
         self.logType = defaultdict(lambda:"Unknown")
         self.PlotType = defaultdict(lambda:"Unknown")
         self.AddLog = self.AddLogList
+        self.Get = self.GetLog
     def UpdateEpoch(self, EpochIndex):
         self.EpochIndex = EpochIndex
     def UpdateBatch(self, BatchIndex):
@@ -109,7 +118,7 @@ class LoggerForEpochBatchTrain:
         Log["Batch"].append(self.BatchIndex)
     def AddLogCache(self, Name, data, Type="Cache"):
         self.logType[Name] = Type
-        self.log[Name] = data
+        self.log[Name] = [self.EpochIndex, self.BatchIndex, data]
     def RegisterLog(self, Name, Type="List"):
         if Type in ["List"]:
             self.log[Name] = []
@@ -164,10 +173,10 @@ class LoggerForEpochBatchTrain:
         for index, Key in enumerate(Log.keys()):
             Ys = Log[Key]
             ax = utils_torch.plot.GetAx(axes, Index=index)
-            utils_torch.plot.PlotLineChart(ax, Xs, Ys, Title="%s-Epoch"%Key, XLabel="Epoch", YLabel=key)
+            utils_torch.plot.PlotLineChart(ax, Xs, Ys, Title="%s-Epoch"%Key, XLabel="Epoch", YLabel=Key)
         plt.tight_layout()
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png"%Name)
-        utils_torch.files.Table2TextFileDict(Log, SavePath="%s-Epoch"%Name)
+        utils_torch.files.Table2TextFileDict(Log, SavePath=SaveDir + "%s-Epoch"%Name)
     def PlotLogDictStatistics(self, Name, Log, SaveDir=None):
         utils_torch.EnsureDir(SaveDir)
         Epochs = self.GetEpochsFloatFromLogDict(Log)
@@ -177,7 +186,7 @@ class LoggerForEpochBatchTrain:
         )
         plt.tight_layout()
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s-statistics.png"%Name)
-        utils_torch.files.Table2TextFileDict(Log, SavePath="%s.statistics-Epoch"%Name)
+        utils_torch.files.Table2TextFileDict(Log, SavePath=SaveDir + "%s.statistics-Epoch.txt"%Name)
     def PlotLogList(self, Name, Log, SaveDir=None):
         Xs = []
         Ys = []
@@ -186,7 +195,7 @@ class LoggerForEpochBatchTrain:
             Ys.append(Record[2])
         fig, ax = plt.subplots()
         utils_torch.plot.PlotLineChart(ax, Xs, Ys, Title="%s-Epoch"%Name, XLabel="Epoch", YLabel=Name)
-        utils_torch.plot.SaveFigForPlt(SavePath="%s-Epoch.png"%Name)
+        utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s-Epoch.png"%Name)
         utils_torch.files.Table2TextFile(
             {
                 "Epoch": Xs,
@@ -194,10 +203,16 @@ class LoggerForEpochBatchTrain:
             },
             SavePath=SaveDir + "%s-Epoch.txt"%Name
         )
-    def GetLogCache(self, Name):
-        if not Name in self:
+    def GetLog(self, Name):
+        if not Name in self.log:
             raise Exception(Name)
         return self.log[Name]
+    def GetLogOfType(self, Type):
+        Logs = {}
+        for Name, Log in self.log.items():
+            if self.logType[Name] in [Type]:
+                Logs[Name] = Log
+        return Logs
     def PlotAllLogs(self, SaveDir=None):
         utils_torch.EnsureDir(SaveDir)
         for Name, Log in self.log.items():
@@ -206,8 +221,8 @@ class LoggerForEpochBatchTrain:
             elif isinstance(Log, list):
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
-                conti
-                raise Exception()
+                continue
+                #raise Exception()
             # if self.PlotType[Name] in ["Unknown"]:
             #     example = Log[0][2]
             #     if isinstance(example, np.ndarray):
@@ -237,3 +252,98 @@ class LoggerForEpochBatchTrain:
             #     utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png")
             # else:
             #     raise Exception()
+
+class Logger:
+    def __init__(self, Name):
+        self.logger = _CreateLogger(Name)
+    def AddLog(self, log, TimeStamp=True, File=True, LineNum=True):
+        Caller = getframeinfo(stack()[1][0])
+        if TimeStamp:
+            log = "[%s]%s"%(utils_torch.GetTime(), log)
+        if File:
+            log = "%s File \"%s\""%(log, Caller.filename)
+        if LineNum:
+            log = "%s, line %d"%(log, Caller.lineno)
+        self.logger.debug(log)
+
+    def AddWarning(self, log, TimeStamp=True, File=True, LineNum=True):
+        Caller = getframeinfo(stack()[1][0])
+        if TimeStamp:
+            log = "[%s][WARNING]%s"%(utils_torch.GetTime(), log)
+        if File:
+            log = "%s File \"%s\""%(log, Caller.filename)
+        if LineNum:
+            log = "%s, line %d"%(log, Caller.lineno)
+        self.logger.debug(log)
+
+    def AddError(self, log, TimeStamp=True):
+        if TimeStamp:
+            self.logger.error("[%s][ERROR]%s"%(utils_torch.GetTime(), log))
+        else:
+            self.logger.error("%s"%log)
+
+def ParseLogger(logger):
+    if logger is None:
+        logger = GetLoggerGlobal()
+    elif isinstance(logger, str):
+        logger = GetLogger(logger)
+    else:
+        raise Exception()
+    return logger
+
+def AddLog(log, logger=None, *args, **kw):
+    ParseLogger(logger).AddLog(log, *args, **kw)
+
+def AddWarning(log, logger=None, *args, **kw):
+    ParseLogger(logger).AddWarning(log, *args, **kw)
+
+def AddError(log, logger=None, *args, **kw):
+    ParseLogger(logger).AddError(log, *args, **kw)
+
+def GetLogger(Name, CreateIfNone=True):
+    if not hasattr(utils_torch.ArgsGlobal.logger, Name):
+        if CreateIfNone:
+            utils_torch.AddLogger(Name)
+        else:
+            raise Exception()
+    return getattr(utils_torch.ArgsGlobal.logger, Name)
+
+def CreateLogger(Name):
+    return Logger(Name)
+
+def _CreateLogger(Name, SaveDir=None):
+    if SaveDir is None:
+        SaveDir = utils_torch.GetSaveDir()
+    
+    # 输出到console
+    console_handler = logging.StreamHandler()
+    console_handler.setLevel(logging.DEBUG) # 指定被处理的信息级别为最低级DEBUG，低于level级别的信息将被忽略
+    utils_torch.EnsureDir(SaveDir)
+
+    # 输出到file
+    file_handler = logging.FileHandler(SaveDir + "%s.txt"%(Name), mode='w', encoding='utf-8')  # 不拆分日志文件，a指追加模式,w为覆盖模式
+    file_handler.setLevel(logging.DEBUG)            
+    logger = logging.Logger(Name)
+    logger.setLevel(logging.DEBUG)
+    logger.addHandler(console_handler)
+    logger.addHandler(file_handler)
+    return logger
+
+def SetSaveDir(ArgsGlobal):
+    import utils_torch
+    SaveDir = "./log/Experiment-%s/"%(utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
+    utils_torch.EnsureDir(SaveDir)
+    ArgsGlobal.SaveDir = SaveDir
+
+def SetLoggerGlobal(ArgsGlobal):
+    ArgsGlobal.logger.Global = CreateLogger('Global')
+
+def SetLogger(Name, logger):
+    setattr(utils_torch.ArgsGlobal.logger, Name, logger)
+
+def GetLoggerGlobal():
+    return utils_torch.ArgsGlobal.logger.Global
+
+def AddLogger(Name):
+    import utils_torch
+    setattr(utils_torch.ArgsGlobal.logger, Name, CreateLogger(Name))

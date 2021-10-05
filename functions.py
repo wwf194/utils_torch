@@ -16,7 +16,7 @@ def ParseFunctionParamStatic(param, InPlace=False):
     else:
         raise Exception()
 
-def StackFunction(FunctionList, *Functions, Inverse=False):
+def StackFunction(FunctionList, *Functions, Inverse=False, InputNum=1):
     if isinstance(FunctionList, list):
         if len(Functions)>0:
             raise Exception()
@@ -30,7 +30,13 @@ def StackFunction(FunctionList, *Functions, Inverse=False):
     if not Inverse:
         # Function at head is called earlier.
         #return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions, lambda x: x)
-        return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions)
+        if InputNum == 0:
+            _Functions = functools.reduce(lambda f, g: lambda x: g(f(x)), Functions[1:])
+            return lambda :_Functions(Functions[0]())
+        elif InputNum == 1:
+            return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions)
+        else:
+            raise Exception("To Be Implemented")
     else:
         # Function at tail is called earlier
         return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions)
@@ -82,7 +88,6 @@ def _CallFunction(param, ContextInfo={}):
 
 def CallGraph(Router, In, **kw):
     States = utils_torch.EmptyPyObj()
-    
     # Register Router Input
     for Index, Key in enumerate(Router.In):
         States[Key] = In[Index]
@@ -100,9 +105,7 @@ def CallGraph(Router, In, **kw):
                 for Index, State in enumerate(Routing.In):
                     InputList.append(States[State])
                 InputDict = Routing.InNamed
-                
                 #InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
-                
                 if isinstance(Routing.Module, utils_torch.PyObj):
                     if len(Routing.InNamed) > 0:
                         raise Exception(Routing.InNamed)

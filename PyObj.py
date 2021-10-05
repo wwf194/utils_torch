@@ -118,15 +118,6 @@ class PyObj(object):
                             obj = getattr(parent, parentAttr)
                             parent, parentAttr = obj, key
                             obj = getattr(obj, key)
-            # else:
-            #     CheckIsLegalPyName(key)
-            #     value = self.ProcessValue(value)
-            #     if isinstance(value, PyObj):
-            #         self.FromPyObj(value)
-            #     else:
-
-            #     setattr(self, key, self.ProcessValue(value))
-            # self.SetAttr(self, key, value)
         return self
     def FromPyObj(self, Obj):
         self.FromDict(Obj.__dict__)

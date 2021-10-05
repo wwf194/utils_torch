@@ -42,6 +42,7 @@ class MLP(torch.nn.Module):
                 SetAttrs(LayerParam, "Input.Num", value=param.Neurons.Num[LayerIndex])
                 SetAttrs(LayerParam, "Output.Num", value=param.Neurons.Num[LayerIndex + 1])
                 SetAttrs(LayerParam, "NonLinear", value=param.NonLinear)
+                SetAttrs(LayerParam, "FullName", value=param.FullName + "." + "Layer%d"%LayerIndex)
                 Layer = utils_torch.model.BuildModule(LayerParam)
                 self.add_module("Layer%d"%LayerIndex, Layer)
                 SetAttrs(param, "Modules.Layer%d"%LayerIndex, value=LayerParam)
@@ -62,8 +63,6 @@ class MLP(torch.nn.Module):
         return [
             States[str(len(cache.Layers))]
         ]
-    def SetTensorLocation(self, Location):
-        utils_torch.model.SetTensorLocationForModel(self, Location)
     def GetTrainWeight(self):
         return self.cache.TrainWeight
     def SetTrainWeight(self):

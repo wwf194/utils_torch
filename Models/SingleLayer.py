@@ -18,9 +18,9 @@ class SingleLayer(nn.Module):
             self.data = utils_torch.EmptyPyObj()
             self.cache = utils_torch.EmptyPyObj()
         
-        cache.ParamIndices = []
+        cache.Tensors = []
 
-        EnsureAttrs(param, "ExciInhi", default=False)
+        EnsureAttrs(param, "IsExciInhi", default=False)
 
         if not HasAttrs(param, "Output.Num") or not HasAttrs(param, "Input.Num"):
             if HasAttrs(param, "Weight.Size"):
@@ -34,7 +34,7 @@ class SingleLayer(nn.Module):
         cache = self.cache
         if GetAttrs(param.Bias.Enable):
             data.Bias = (torch.zeros(param.Bias.Size, requires_grad=True))
-            cache.ParamIndices.append([data, "Bias", data.Bias])
+            cache.Tensors.append([data, "Bias", data.Bias])
         else:
             data.Bias = 0.0
         self.GetBias = lambda:data.Bias
@@ -46,28 +46,49 @@ class SingleLayer(nn.Module):
         EnsureAttrs(param, "Weight.Init", default=utils_torch.PyObj(
             {"Method":"kaiming", "Coefficient":1.0})
         )
-        data.Weight = (utils_torch.model.CreateWeight2D(param.Weight))
-        cache.ParamIndices.append([data, "Weight", data.Weight])
+
+        data.Weight = utils_torch.model.CreateWeight2D(param.Weight)
+
+        utils_torch.AddLog(
+            str(utils_torch.PyObj({
+                param.FullName + ".Weight": param.Weight
+            })),
+            logger="InitWeight",
+            TimeStamp=False, File=False, LineNum=False,
+        )
+        utils_torch.AddLog(
+            utils_torch.Tensor2Str(data.Weight),
+            logger="InitWeight",
+            TimeStamp=False, File=False, LineNum=False,
+        )
+
+        cache.Tensors.append([data, "Weight", data.Weight])
         GetWeightFunction = [lambda :data.Weight]
 
-        EnsureAttrs(param.Weight, "IsExciInhi", default=param.ExciInhi)
         EnsureAttrs(param.Weight, "NoSelfConnection", default=False)
-        if param.Weight.IsExciInhi:
-            self.ExciInhiMask = utils_torch.model.CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.excitatory.Num, param.Weight.inhibitory.Num)
-            GetWeightFunction.append(lambda Weight:Weight * self.ExciInhiMask)
+        if param.IsExciInhi:
+            param.Weight.IsExciInhi = param.IsExciInhi
+            if not HasAttrs(param, "Weight.Excitatory.Num"):
+                EnsureAttrs(param, "Weight.Excitatory.Ratio", default=0.8)
+                SetAttrs(param, "Weight.Excitatory.Num", value=round(param.Weight.Excitatory.Ratio * param.Weight.Size[0]))
+                SetAttrs(param, "Weight.Inhibitory.Num", value=param.Weight.Size[0] - param.Weight.Excitatory.Num)
+
             EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")
-            data.WeightConstraintMethod = utils_torch.model.GetConstraintFunction(param.Weight.ConstraintMethod)
-            GetWeightFunction.append(data.WeightConstraintMethod)
-        if GetAttrs(param.Weight, "NoSelfConnection")==True:
+            cache.WeightConstraintMethod = utils_torch.model.GetConstraintFunction(param.Weight.ConstraintMethod)
+            GetWeightFunction.append(cache.WeightConstraintMethod)
+            ExciInhiMask = utils_torch.model.CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.Excitatory.Num, param.Weight.Inhibitory.Num)
+            cache.ExciInhiMask = utils_torch.NpArray2Tensor(ExciInhiMask)
+            cache.Tensors.append([cache, "ExciInhiMask", cache.ExciInhiMask])
+            GetWeightFunction.append(lambda Weight:Weight * cache.ExciInhiMask)
+        if GetAttrs(param.Weight, "NoSelfConnection"):
             if param.Weight.Size[0] != param.Weight.Size[1]:
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
-            self.SelfConnectionMask = utils_torch.model.CreateSelfConnectionMask(param.Weight.Size[0])            
+            SelfConnectionMask = utils_torch.model.CreateSelfConnectionMask(param.Weight.Size[0])
+            cache.SelfConnectionMask = utils_torch.NpArray2Tensor(SelfConnectionMask)
+            cache.Tensors.append([cache, "SelfConnectionMask", cache.SelfConnectionMask])
             GetWeightFunction.append(lambda Weight:Weight * self.SelfConnectionMask)
-        self.GetWeight = utils_torch.StackFunction(GetWeightFunction)
+        self.GetWeight = utils_torch.StackFunction(GetWeightFunction, InputNum=0)
         return
-    def SetTensorLocation(self, Location):
-        utils_torch.model.SetTensorLocationForLeafModel(self, Location)
-        self.ClearTrainWeight()
     def GetTensorLocation(self):
         return self.cache.TensorLocation
     def GetTrainWeight(self):
@@ -110,8 +131,8 @@ class SingleLayer(nn.Module):
         if hasattr(self, "GetBias") and isinstance(self.GetBias(), torch.Tensor):
             Name = FullName + "Bias"
             utils_torch.plot.PlotWeightAndDistribution(
-                weight=self.GetWeight(), Name=Name, SavePath=SaveDir + Name + ".svg"
+                weight=self.GetBias(), Name=Name, SavePath=SaveDir + Name + ".svg"
             )
-
+    
 __MainClass__ = SingleLayer
 utils_torch.model.SetMethodForModelClass(__MainClass__)

@@ -89,10 +89,10 @@ def ParseRoutingAttrsDynamic(Routing, States):
     return Routing
 
 def ParseRoutingStatic(Routing):
-    if "Split" in Routing:
-        print("aaa")
     if not isinstance(Routing, str):
         return Routing
+    # if "Split" in Routing:
+    #     print("aaa")
     _Routing = Routing
     param = utils_torch.EmptyPyObj()
     SetAttrs(param, "Str", _Routing.replace("&", "(At)"))
@@ -113,6 +113,8 @@ def ParseRoutingStatic(Routing):
                 MainRouting = [MainRouting[0], MainRouting[1], ""]
             else:
                 raise Exception("Cannot parse routing: %s"%_Routing)
+        elif len(MainRouting)==1:
+            MainRouting = ["", MainRouting[0], ""]
         else:
             raise Exception("Cannot parse routing: %s"%_Routing)
     In = MainRouting[0]

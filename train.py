@@ -43,29 +43,46 @@ def TrainEpochBatch(param, **kw):
     
     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
     # param = utils_torch.parse.ParsePyObjDynamic(param, InPlace=False, **kw)
-    Router = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Internal, ObjRefList=[param.Batch.Internal], **kw)
+    RouterTrain = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Train, ObjRefList=[param.Batch.Train], **kw)
+    RouterTest = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Test, ObjRefList=[param.Batch.Test], **kw)
     In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
     
     logger.SetLocal("EpochNum", param.Epoch.Num)
     logger.SetLocal("BatchNum", param.Batch.Num)
     
+    EpochIndex, BatchIndex = -1, 0
+    logger.SetLocal("EpochIndex", EpochIndex)
+    logger.SetLocal("BatchIndex", BatchIndex)
+    utils_torch.CallGraph(RouterTest, In=In)
+    AnalyzeAfterBatch(logger)
+
     for EpochIndex in range(param.Epoch.Num):
         logger.SetLocal("EpochIndex", EpochIndex)
         utils_torch.AddLog("Epoch: %d"%EpochIndex)
         for BatchIndex in range(param.Batch.Num):
             logger.SetLocal("BatchIndex", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
-            utils_torch.CallGraph(Router, In=In)
+            utils_torch.CallGraph(RouterTrain, In=In)
             #logger.PlotAllLogs(SaveDir=utils_torch.GetSaveDir() + "log/")
             logger.PlotLogOfGivenType("WeightChangeRatio", PlotType="LineChart", 
                 SaveDir=utils_torch.GetSaveDir() + "log/WeightChange")    
-            continue
+            if BatchIndex % 10 == 0:
+                AnalyzeAfterBatch(logger)
+
+def AnalyzeAfterBatch(logger):
+    utils_torch.analysis.AnalyzeTimeVaryingActivitiesEpochBatch(
+        Logs=logger.GetLogOfType("TimeVaryingActivity"),
+    )
+    utils_torch.analysis.AnalyzeWeightsEpochBatch(
+        Logs=logger.GetLogOfType("Weight"),
+    )
 
 def ParseTrainEpochBatchParam(param):
     EnsureAttrs(param, "Nesterov", value=False)
     EnsureAttrs(param, "Dampening", value=0.0)
     EnsureAttrs(param, "Momentum", value=0.0)
-    
+
+
 
 def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
     Xs = []
@@ -190,37 +207,6 @@ def evaluate_iter(net, testloader, criterion, scheduler, augment, device):
     val_acc=correct_count/labels_count
     net.train()
     return val_loss, val_acc
-
-'''
-class model(nn.Module):
-    def __init__(self):
-        super(net_model, self).__init__()
-        self.w1 = torch.nn.Parameter(1e-3*torch.rand(784, hidden_layer_size, device=device))
-        self.b1 = torch.nn.Parameter(torch.zeros(hidden_layer_size, device=device))
-        self.r1 = torch.nn.Parameter(1e-3*torch.rand(hidden_layer_size, hidden_layer_size,device=device))
-
-        self.w2 = torch.nn.Parameter(1e-3*torch.rand(512, 10, device=device))
-        self.b2 = torch.nn.Parameter(torch.zeros(10,device=device))
-
-        
-        self.mlp = torch.nn.Linear(96, 96, bias=True)
-
-        self.relu = torch.nn.ReLU()
-
-    def forward(self, x): # inputs : [batchsize, input_dim, time_windows]
-        #change shape
-        x = inputs.view(-1, 28 * 28)
-        batch_size=x.size(0)
-        input_dim=x.size(1)
-        h = torch.zeros(batch_size, hidden_layer_size, device=device)
-        for step in range(iter_time):
-            h=h.mm(self.r1)            
-            h=x+h+b1
-            h=self.relu(h)
-        
-        x=h.mm(w2)+b2
-        return x
-'''
 
 def GetEpochFloat(EpochIndex, BatchIndex, BatchNum):
     return EpochIndex + BatchIndex / BatchNum * 1.0

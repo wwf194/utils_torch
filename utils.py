@@ -37,31 +37,6 @@ def SetSaveDir(SaveDir):
 def GetSaveDir():
     return utils_torch.ArgsGlobal.SaveDir
 
-def AddLog(log, TimeStamp=True, File=True, LineNum=True):
-    Logger = utils_torch.ArgsGlobal.Logger
-    Caller = getframeinfo(stack()[1][0])
-    if TimeStamp:
-        log = "[%s]%s"%(GetTime(), log)
-    if File:
-        log = "%s File \"%s\""%(log, Caller.filename)
-    if LineNum:
-        log = "%s, line %d"%(log, Caller.lineno)
-    Logger.debug(log)
-
-def AddWarning(log, TimeStamp=True, File=True, LineNum=True):
-    Logger = utils_torch.ArgsGlobal.Logger
-    Caller = getframeinfo(stack()[1][0])
-    if TimeStamp:
-        log = "[%s][WARNING]%s"%(GetTime(), log)
-    if File:
-        log = "%s File \"%s\""%(log, Caller.filename)
-    if LineNum:
-        log = "%s, line %d"%(log, Caller.lineno)
-    Logger.debug(log)
-
-def SetLogger(Logger):
-    utils_torch.ArgsGlobal.Logger = Logger
-
 def GetDataLogger():
     return utils_torch.ArgsGlobal.LoggerData
 
@@ -71,13 +46,58 @@ def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
         print(TimeStr)
     return TimeStr
 
-def ProcessInitTask(param, **kw):
+def ParseTaskObj(TaskObj, Save=True, **kw):
+    if isinstance(TaskObj, str):
+        TaskObj = utils_torch.parse.Resolve(TaskObj, **kw)
+
+    if utils_torch.IsDictLikePyObj(TaskObj):
+        TaskObj = TaskObj.Tasks
+
+    if isinstance(TaskObj, list) or utils_torch.IsListLikePyObj(TaskObj):
+        TaskList = TaskObj
+        TaskListParsed = []
+        for Index, Task in enumerate(TaskList):
+            if isinstance(Task, str):
+                # TaskList[Index] = utils_torch.PyObj({
+                #     Task: {},
+                # })
+                TaskListParsed.append([Task, {}])
+            elif isinstance(Task, utils_torch.PyObj) and Task.IsDictLike():
+                if hasattr(Task, "Type") and hasattr(Task, "Args"):
+                    # TaskList[Index] = utils_torch.PyObj({
+                    #     Task["Type"]: Task["Args"],
+                    # })
+                    TaskListParsed.append([Task.Type, Task.Args])
+                else:
+                    for key, value in ListAttrsAndValues(Task):
+                        TaskListParsed.append([key, value])
+            elif isinstance(Task, utils_torch.PyObj) and Task.IsListLike():
+                TaskListParsed.append(Task)
+            else:
+                raise Exception(type(Task))
+    else:
+        raise Exception(type(TaskObj))
+
+    TaskListParsed = utils_torch.PyObj(TaskListParsed)
+
+    for Index, Task in enumerate(TaskListParsed):
+        Task.SetResolveBase()
+    if Save:
+        utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetSaveDir() + "task_loaded.jsonc")
+    utils_torch.parse.ParsePyObjStatic(TaskList, ObjCurrent=TaskList, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    if Save:
+        utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetSaveDir() + "task_parsed.jsonc")
+    return TaskListParsed
+
+def ProcessInitTask(Task, **kw):
     ObjRoot = kw.setdefault("ObjRoot", None)
     ObjCurrent = kw.setdefault("ObjCurrent", None)
-    if param.Type in ["BuildObject", "BuildObj"]:
-        BuildObj(param.Args, **kw)
-    elif param.Type in ["FunctionCall"]:
-        utils_torch.CallFunctions(param.Args, **kw)
+    TaskType = Task[0]
+    TaskArgs = Task[1]
+    if TaskType in ["BuildObject", "BuildObj"]:
+        BuildObj(TaskArgs, **kw)
+    elif TaskType in ["FunctionCall"]:
+        utils_torch.CallFunctions(TaskArgs, **kw)
     else:
         raise Exception()
 
@@ -199,6 +219,9 @@ def NpArray2Tensor(data, Location="cpu", DataType=torch.float32, RequiresGrad=Fa
 def NpArray2List(data):
     return data.tolist()
 
+def NpArray2Str(data):
+    return np.array2string(data)
+
 def ToStandardizeTorchDataType(DataType):
     if DataType in ["Float", "float"]:
         return torch.float32
@@ -214,6 +237,9 @@ def Tensor2GivenDataType(data, DataType=torch.float32):
 def Tensor2NpArray(data):
     data = data.detach().cpu().numpy()
     return data # data.grad will be lost.
+
+def Tensor2Str(data):
+    return NpArray2Str(Tensor2NpArray(data))
 
 def Tensor2NumpyOrFloat(data):
     try:
@@ -290,9 +316,10 @@ def ReturnInGivenTime(TimeLimit, Verbose=True):
     return
 
 def GetGPUWithLargestUseableMemory(TimeLimit=10, Default='cuda:0'):
-    GPU = [Default]
-    CallFunctionWithTimeLimit(TimeLimit, __GetGPUWithLargestUseableMemory, GPU)
-    return GPU[0]
+    # GPU = [Default]
+    # CallFunctionWithTimeLimit(TimeLimit, __GetGPUWithLargestUseableMemory, GPU)
+    # return GPU[0]
+    return _GetGPUWithLargestUseableMemory()
 
 def __GetGPUWithLargestUseableMemory(List):
     GPU= _GetGPUWithLargestUseableMemory()

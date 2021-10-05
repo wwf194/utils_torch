@@ -116,3 +116,9 @@ OperatorList.append("Data2TextFile")
 
 from utils_torch.plot import CompareDensityCurve
 OperatorList.append("CompareDensityCurve")
+
+def ClearGrad(weights):
+    for name, weight in weights.items():
+        if weight.grad is not None:
+                weight.grad.detach_()
+                weight.grad.zero_()

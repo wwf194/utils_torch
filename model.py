@@ -54,6 +54,10 @@ def BuildModule(param):
         return None
     elif utils_torch.Models.Operators.IsLegalType(param.Type):
         return utils_torch.Models.Operators.BuildModule(param)
+    elif hasattr(param, "ModulePath"):
+        Module = utils_torch.ImportModule(param.ModulePath)
+        Obj = Module.__MainClass__(param)
+        return Obj
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
 
@@ -78,8 +82,8 @@ def CreateExcitatoryInhibitoryMask(InputNum, OutputNum, ExcitatoryNum, Inhibitor
         if InputNum != ExcitatoryNum + InhibitoryNum:
             raise Exception("GetExcitatoryInhibitoryMask: InputNum==ExcitatoryNum + InhibitoryNum must be satisfied.")
 
-    ExcitatoryMask = np.ones(ExcitatoryNum, OutputNum)
-    InhibitoryMask = np.ones(InhibitoryNum, OutputNum)
+    ExcitatoryMask = np.full((ExcitatoryNum, OutputNum), fill_value=1.0, dtype=np.float32)
+    InhibitoryMask = np.full((InhibitoryNum, OutputNum), fill_value=-1.0, dtype=np.float32)
     ExcitatoryInhibitoryMask = np.concatenate([ExcitatoryMask, InhibitoryMask], axis=0)
     return ExcitatoryInhibitoryMask
 
@@ -158,16 +162,16 @@ def CreateWeight2D(param, DataType=torch.float32):
         EnsureAttrs(Init, "Coefficient", default=1.0)
         if Init.Mode in ["In"]:
             if Init.Distribution in ["uniform"]:
-                range = [ - Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5,
+                Init.Range = [ - Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5,
                     Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
                 ]
-                weight = np.random.uniform(*range, tuple(param.Size))
+                weight = np.random.uniform(*Init.Range, tuple(param.Size))
             elif Init.Distribution in ["uniform+"]:
-                range = [
+                Init.Range = [
                     0.0,
                     2.0 * Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
                 ]
-                weight = np.random.uniform(*range, tuple(param.Size))
+                weight = np.random.uniform(*Init.Range, tuple(param.Size))
             else:
                 # to be implemented
                 raise Exception()
@@ -585,33 +589,37 @@ def PrintStateDict(optimizer):
     for key, value in dict_.items():
         print('%s: %s'%(key, value))
 
-def SetTensorLocationForLeafModel(self, Location):
+def SetTensorLocationForModel(self, Location):
     cache = self.cache
     cache.TensorLocation = Location
-    for ParamIndex in cache.ParamIndices:
-        setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location).detach().requires_grad_(True))
+    if hasattr(cache, "Tensors"):
+        for ParamIndex in cache.Tensors:
+            setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location).detach().requires_grad_(True))
 
-def SetTensorLocationForModel(self, Location):
-    for name, module in ListAttrsAndValues(self.cache.Modules):
-        if hasattr(module, "SetTensorLocation"):
-            module.SetTensorLocation(Location)
-        else:
-            if isinstance(module, nn.Module):
-                utils_torch.AddWarning("%s is an instance of nn.Module, but has not implemented SetTensorLocation method."%name)
+    if hasattr(cache, "Modules"):
+        for name, module in ListAttrsAndValues(cache.Modules):
+            if hasattr(module, "SetTensorLocation"):
+                module.SetTensorLocation(Location)
+            else:
+                if isinstance(module, nn.Module):
+                    utils_torch.AddWarning("%s is an instance of nn.Module, but has not implemented SetTensorLocation method."%name)
 
 def SetTrainWeightForModel(self):
     ClearTrainWeightForModel(self)
     cache = self.cache
     cache.TrainWeight = {}
-    for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
-        if hasattr(Module,"SetTrainWeight"):
-            TrainWeight = Module.SetTrainWeight()
-            for name, weight in TrainWeight.items():
-                cache.TrainWeight[ModuleName + "." + name] = weight
-        else:
-            if isinstance(Module, nn.Module):
-                utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method."%Module)
-    return cache.TrainWeight
+    if hasattr(cache, "Modules"):
+        for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
+            if hasattr(Module,"SetTrainWeight"):
+                TrainWeight = Module.SetTrainWeight()
+                for name, weight in TrainWeight.items():
+                    cache.TrainWeight[ModuleName + "." + name] = weight
+            else:
+                if isinstance(Module, nn.Module):
+                    utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method."%Module)
+        return cache.TrainWeight
+    else:
+        return {}
 
 def ClearTrainWeightForModel(self):
     cache = self.cache
@@ -629,12 +637,15 @@ def SetLoggerForModel(self, logger):
 def SetFullNameForModel(self, FullName):
     cache = self.cache
     param = self.param
-    param.FullName = FullName
+    if FullName not in [""]:
+        param.FullName = FullName
     if hasattr(cache, "Modules"):   
-        for Name, Module in ListAttrsAndValues(self.cache.Modules):
+        for Name, Module in ListAttrsAndValues(cache.Modules):
             if hasattr(Module, "SetFullName"):
-                Module.SetFullName(FullName + "." + Name)
- 
+                if FullName in [""]:
+                    Module.SetFullName(Name)
+                else:
+                    Module.SetFullName(FullName + "." + Name)
 def GetLoggerForModel(self):
     cache = self.cache
     if hasattr(cache, "Logger"):
@@ -651,11 +662,13 @@ def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
     activity = utils_torch.ToNpArray(activity)
     return
 
-def InitForModel(self, param):
+def InitForModel(self, param, DefaultFullName="Unknown"):
     if param is not None:
         self.param = param
         self.data = utils_torch.EmptyPyObj()
         self.cache = utils_torch.EmptyPyObj()
+        if not hasattr(param, "FullName"):
+            param.FullName = DefaultFullName
 
 def LogStatisticsForModel(self, data, Name, Type="Statistics"):
     param = self.param
@@ -663,12 +676,26 @@ def LogStatisticsForModel(self, data, Name, Type="Statistics"):
         Name = param.FullName + "." + Name
     utils_torch.GetDataLogger().AddLogStatistics(Name, data, Type)
 
+def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity"):
+    param = self.param
+    data = utils_torch.ToNpArray(data)
+    if hasattr(param, "FullName"):
+        Name = param.FullName + "." + Name
+    utils_torch.GetDataLogger().AddLogCache(Name, data, Type)
+
 def LogForModel(self, data, Name, Type=None):
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
     data = ProcessLogData(data)
     utils_torch.GetDataLogger().AddLog(Name, data, Type)
+
+def LogWeightForModel(self, weights, Name="Weight", Type="Weight"):
+    param = self.param
+    _weights = {}
+    for name, weight in weights.items():
+        _weights[name] = utils_torch.ToNpArray(weight)
+    utils_torch.GetDataLogger().AddLogCache(Name, _weights, Type)
 
 def LogFloatForModel(self, data, Name, Type="Float"):
     param = self.param
@@ -690,46 +717,11 @@ def ProcessLogData(data):
         data = utils_torch.Tensor2NumpyOrFloat(data)
     return data
 
-def SetMethodForModelClass(Class):
-    Class.LogStatistics = LogStatisticsForModel
-    Class.LogCache = LogCacheForModel
-    Class.LogFloat = LogFloatForModel
-    Class.Log = LogForModel
-    Class.PlotWeight = PlotWeightForModel
-    Class.SetFullName = SetFullNameForModel
+def GetTensorLocationForModel(self):
+    return self.cache.TensorLocation
 
-def _PlotWeightForModel(self, SaveDir=None):
-    param = self.param
-    if SaveDir is None:
-        if hasattr(param, "FullName"):
-            Name = param.FullName
-        else:
-            Name = "model"
-        SaveDir = utils_torch.GetSaveDir() + "weights/"
-    weights = self.GetTrainWeight()
-    weightNum = len(weights.keys())
-    Index = 0
-    for name, weight in weights.items():
-        fig, axes = plt.subplots(nrows=1, ncols=2)
-        axLeft, axRight = axes[0], axes[1]
-        weight = utils_torch.ToNpArray(weight)
-        _weight = weight
-        DimentionNum = utils_torch.GetDimensionNum(weight)
-        mask = None
-        if DimentionNum == 1:
-            weight, mask = utils_torch.Line2Square(weight)
-        utils_torch.plot.PlotMatrixWithColorBar(
-            axLeft, weight, dataForColorMap=_weight, mask=mask,
-            PixelHeightWidthRatio="Auto"
-        )
-        #utils_torch.plot.PlotGaussianDensityCurve(axRight, weight) # takes too much time
-        utils_torch.plot.PlotHistogram(
-            axRight, weight, Color="Black"
-        )
-        plt.suptitle("%s Shape:%s"%(name, weight.shape))
-        Index += 1
-        plt.tight_layout()
-        utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.svg"%name)
+def GetTrainWeightForModel(self):
+    return self.cache.TrainWeight
 
 def PlotWeightForModel(self, SaveDir=None):
     if SaveDir is None:
@@ -741,3 +733,41 @@ def PlotWeightForModel(self, SaveDir=None):
         for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
             if hasattr(Module,"PlotWeight"):
                 Module.PlotWeight(SaveDir)
+
+def BuildModulesForModel(self):
+    # initialize modules
+    # for module in ListAttrs(param.modules):
+    param = self.param
+    cache = self.cache
+    for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveBase__"]):
+        ModuleParam.Name = Name
+        ModuleParam.FullName = param.FullName + "." + Name
+        Module = BuildModule(ModuleParam)
+        if isinstance(Module, nn.Module) and isinstance(self, nn.Module):
+            self.add_module(Name, Module)
+        setattr(cache.Modules, Name, Module)
+def InitModulesForModel(self):
+    cache = self.cache
+    for name, module in ListAttrsAndValues(cache.Modules):
+        if hasattr(module, "InitFromParam"):
+            module.InitFromParam()
+        else:
+            utils_torch.AddWarning("Module %s has not implemented InitFromParam method."%name)
+
+def SetMethodForModelClass(Class):
+    Class.LogStatistics = LogStatisticsForModel
+    Class.LogCache = LogCacheForModel
+    Class.LogFloat = LogFloatForModel
+    Class.Log = LogForModel
+    Class.PlotWeight = PlotWeightForModel
+    Class.SetFullName = SetFullNameForModel
+    Class.BuildModules = BuildModulesForModel
+    Class.InitModules = InitModulesForModel
+    Class.SetTensorLocation = SetTensorLocationForModel
+    Class.GetTensorLocation = GetTensorLocationForModel
+    if not hasattr(Class, "SetTrainWeight"):
+        Class.SetTrainWeight = SetTrainWeightForModel
+    if not hasattr(Class, "GetTrainWeight"):
+        Class.GetTrainWeight = GetTrainWeightForModel
+    Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModel
+    Class.LogWeight = LogWeightForModel

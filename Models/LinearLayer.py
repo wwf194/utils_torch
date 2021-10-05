@@ -42,4 +42,4 @@ class LinearLayer(SingleLayer):
             raise Exception("LinearLayer: Invalid Subtype: %s"%param.Subtype)
 
 __MainClass__ = LinearLayer
-utils_torch.model.SetMethodForModelClass(__MainClass__)
+#utils_torch.model.SetMethodForModelClass(__MainClass__)

@@ -23,6 +23,8 @@ ColorPlt = utils_torch.EmptyPyObj().FromDict({
     "Red":   (1.0, 0.0, 0.0),
     "Green": (0.0, 1.0, 0.0),
     "Blue":  (0.0, 0.0, 1.0),
+    "Gray":  (0.5, 0.5, 0.5),
+    "Grey":  (0.5, 0.5, 0.5),
 })
 
 def PlotLinesPlt(ax, XYsStart, XYsEnd=None, Width=1.0, Color=ColorPlt.Black):
@@ -118,9 +120,12 @@ def Map2Color(
 
     if Method in ["MinMax"]:
         if dataForMap is not None:
-            dataMin, dataMax = np.min(dataForMap), np.max(dataForMap)
+            if dataForMap.size > 0:
+                dataMin, dataMax = np.nanmin(dataForMap), np.nanmax(dataForMap)
+            else:
+                dataMin, dataMax = 0.0, 0.0
         else:
-            dataMin, dataMax = np.min(data), np.max(data)
+            dataMin, dataMax = np.nanmin(data), np.nanmax(data)
         if dataMin == dataMax:
             dataColored = np.full([*data.shape, 4], 0.5)
         else:
@@ -289,6 +294,11 @@ def SetAxRangeFromBoundaryBox(ax, BoundaryBox):
     #ax.set_xticks(np.linspace(BoundaryBox.XMin, BoundaryBox.XMax, 5))
     #ax.set_yticks(np.linspace(BoundaryBox.YMin, BoundaryBox.YMax, 5))
 
+def SetAxRangeAndTicksFromBoundaryBox(ax, BoundaryBox):
+    SetAxRangeFromBoundaryBox(ax, BoundaryBox)
+    SetXTicksFloat(ax, BoundaryBox.XMin, BoundaryBox.XMax)
+    SetYTicksFloat(ax, BoundaryBox.YMin, BoundaryBox.YMax)
+
 def ParseIsMatrixDataColored(data):
     DimensionNum = utils_torch.GetDimensionNum(data)
     if DimensionNum==2: # [XNum, YNum]
@@ -302,8 +312,9 @@ def ParseIsMatrixDataColored(data):
 def PlotMatrixWithColorBar(
         ax, data, IsDataColored=None, ColorMap="jet", ColorMethod="MinMax", 
         XYRange=None, Coordinate="Math", dataForColorMap=None, dataMask=None,
-        XLabel=None, YLabel=None, Title=None,
-        ColorBarOrientation="Vertical", ColorBarLocation=None, PixelHeightWidthRatio="equal",
+        Ticks=None, XLabel=None, YLabel=None, Title=None,
+        ColorBarInSubAx=False, ColorBarOrientation="Auto", ColorBarLocation=None,
+        PixelHeightWidthRatio="Equal",
         ColorBarTitle=None, Save=False, SavePath=None, **kw
     ):
     if IsDataColored is None:
@@ -311,7 +322,7 @@ def PlotMatrixWithColorBar(
 
     if not IsDataColored:
         if dataForColorMap is not None:
-            dataMapResult = Map2Color(data, ColorMap, dataForMap=dataForColorMap)
+            dataMapResult = Map2Color(data, ColorMap, dataForMap=dataForColorMap) 
         else:
             dataMapResult = Map2Color(data, ColorMap)
         data = dataMapResult.dataColored
@@ -324,23 +335,59 @@ def PlotMatrixWithColorBar(
     else:
         pass
 
-    PlotColorBarInSubAx(
-        ax, ColorMap=ColorMap, Method=ColorMethod, Orientation=ColorBarOrientation, 
+    if PixelHeightWidthRatio in ["FillAx"]:
+        PixelHeightWidthRatio = "auto"
+        axMatrix = ax
+    elif PixelHeightWidthRatio in ["Auto", "auto"]:
+        DataHeightWidthRatio = data.shape[0] / data.shape[1]
+        if DataHeightWidthRatio > 5.0:
+            # data.shape[0] * PixelHeight / (data.shape[1] * PixelWidth) = 5.0
+            # data.shape[0] / data.shape[1] * PixelHeightWidthRatio = 5.0
+            PixelHeightWidthRatio = 5.0 * data.shape[1] / data.shape[0]
+            axMatrix = GetSubAx(ax, 0.4, 0.0, 0.2, 1.0)
+        elif DataHeightWidthRatio < 0.2:
+            PixelHeightWidthRatio = 0.2 * data.shape[1] / data.shape[0]
+            axMatrix = GetSubAx(ax, 0.0, 0.4, 1.0, 0.2)
+        else:
+            PixelHeightWidthRatio = "equal"
+            if data.shape[0] > data.shape[1]:
+                WidthHeightRatio = 1.0 * data.shape[1] / data.shape[0]
+                axMatrix = GetSubAx(ax, 0.5 - WidthHeightRatio / 2.0, 0.0, WidthHeightRatio, 1.0)
+            else:
+                HeightWidthRatio = 1.0 * data.shape[0] / data.shape[1]
+                axMatrix = GetSubAx(ax, 0.0, 0.5 - HeightWidthRatio / 2.0, 1.0, HeightWidthRatio)
+    else:
+        axMatrix = ax
+
+    ax.axis("off")
+    PlotMatrix(
+        axMatrix, data, True, ColorMap, XYRange, Coordinate=Coordinate, 
+        PixelHeightWidthRatio=PixelHeightWidthRatio, Ticks=Ticks,
+        dataMask=dataMask, Save=False, 
+        XLabel=XLabel, YLabel=YLabel, Title=Title, **kw
+    )
+    
+    # if ColorBarOrientation in ["Auto", "auto"]:
+    #     if data.shape[0] / data.shape[1] > 1.5:
+    #         ColorBarOrientation = "vertical"
+    #     else:
+    #         ColorBarOrientation = "horizontal"
+    
+    axColorBar = GetSubAx(ax, 1.10, 0.0, 0.1, 1.0)
+    ColorBarOrientation = "vertical"
+    PlotColorBarInAx(
+        axColorBar, ColorMap=ColorMap, Method=ColorMethod, Orientation=ColorBarOrientation, 
         Location=ColorBarLocation, Title=ColorBarTitle, **kw
     )
-    PlotMatrix(
-        ax, data, True, ColorMap, XYRange, Coordinate=Coordinate, 
-        PixelHeightWidthRatio=PixelHeightWidthRatio,
-        dataMask=dataMask, Save=False, **kw
-    )
-    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
 
+    #SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+    plt.tight_layout()
     SaveFigForPlt(Save, SavePath)
 
 def PlotMatrix(
-        ax, data, IsDataColored=None, dataForColorMap=None, 
+        ax, data, IsDataColored=None, 
         ColorMap="jet", XYRange=None, Coordinate="Math", dataMask=None, PixelHeightWidthRatio="Auto",
-        XLabel=None, YLabel=None, Title=None,
+        XLabel=None, YLabel=None, Title=None, dataForColorMap=None, Ticks=None,
         Save=False, SavePath=None, Format="svg", **kw
     ):
     if IsDataColored is None:
@@ -359,16 +406,19 @@ def PlotMatrix(
     if XYRange is not None:
         extent = [XYRange.XMin, XYRange.XMax, XYRange.YMin, XYRange.YMax]
     else:
-        extent = None
+        extent = [0.0, data.shape[1], data.shape[0], 0.0] # [Left, Right, Bottom, Top]
 
     if dataMask is not None:
         InsideMask = dataMask.astype(np.float32)
         OutsideMask = (~dataMask).astype(np.float32)
+        maskColor = kw.setdefault("maskColor", "Gray")
+        maskColor = ParseColorPlt(maskColor)
         data = InsideMask * data + OutsideMask * (1.0, 1.0, 1.0)
 
     if Coordinate in ["Math"]:
         data = data.transpose(1, 0, 2)
         data = data[::-1, :, :]
+    elif Coordinate in ["Fig", "Picture"]:
         pass
 
     if PixelHeightWidthRatio in ["FillAx"]:
@@ -376,22 +426,88 @@ def PlotMatrix(
     elif PixelHeightWidthRatio in ["Auto", "auto"]:
         DataHeightWidthRatio = data.shape[0] / data.shape[1]
         if DataHeightWidthRatio > 5.0:
-            PixelHeightWidthRatio = 5.0
+            # data.shape[0] * PixelHeight / (data.shape[1] * PixelWidth) = 5.0
+            # data.shape[0] / data.shape[1] * PixelHeightWidthRatio = 5.0
+            PixelHeightWidthRatio = 5.0 * data.shape[1] / data.shape[0]
         elif DataHeightWidthRatio < 0.2:
-            PixelHeightWidthRatio = 0.2
+            PixelHeightWidthRatio = 0.2 * data.shape[1] / data.shape[0]
         else:
             PixelHeightWidthRatio = "equal"
+    elif PixelHeightWidthRatio in ["Equal"]:
+        PixelHeightWidthRatio = "equal"
 
+    if Ticks is not None:
+        if Ticks in ["int", "Int"]:
+            SetXTicksInt(ax, extent[0], extent[1])
+            SetYTicksInt(ax, extent[2], extent[3])
+        elif Ticks in ["float", "Float",]:
+            SetXTicksFloat(ax, extent[0], extent[1])
+            SetYTicksFloat(ax, extent[2], extent[3])
+        else:
+            raise Exception(Ticks)
+    Interpolation = kw.get("Interpolation")
     if Format in ["svg"]:
         Interpolation = 'none'
 
-    ax.imshow(data, extent=extent, aspect=PixelHeightWidthRatio, interpolation=Interpolation)
+    ax.imshow(data, extent=extent, aspect=PixelHeightWidthRatio, interpolation=Interpolation)    
+    SetMatplotlibParamToDefault() # ticks may disappear after imshow.
 
     SetAxisLocationForAx(ax, kw.get("XAxisLocation"), kw.get("YAxisLocation"))
     SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
     SaveFigForPlt(Save, SavePath)
-
     return ax
+
+def PlotActivityAndDistributionAlongTime(
+        axes, activity, activityPlot, 
+        Title=None,
+        Save=True, SavePath=None,
+    ):
+    BatchSize = activity.shape[0]
+    TimeNum = activity.shape[1]
+    ActivityNum = activity.shape[2]
+
+    activity = utils_torch.ToNpArray(activity)
+    activityPlot = utils_torch.ToNpArray(activityPlot)
+    if axes is None:
+        fig, axes = plt.subplots(nrows=1, ncols=2)
+        ax1, ax2 = axes[0], axes[1]
+    else:
+        ax1 = GetAx(axes, 0)
+        ax2 = GetAx(axes, 1)
+
+    mask = np.isnan(activityPlot) | np.isinf(activityPlot)
+    if round(np.sum(mask)) == 0:
+        mask = None
+        dataForColorMap = None
+    else:
+        mask = ~mask
+        dataForColorMap = activityPlot[mask]
+    PlotMatrixWithColorBar(
+        ax1, activityPlot.transpose(1, 0), dataForColorMap=dataForColorMap, 
+        mask=mask, maskColor="Black",
+        XAxisLocation="top", PixelHeightWidthRatio="Auto",
+        XLabel="Time Index", YLabel="Activity", Title="Visualization",
+        Coordinate="Fig", Ticks="Int"
+    )
+    PlotMeanAndStdAlongTime(
+        ax2, Xs=range(TimeNum), 
+        Mean=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanmean(activity, axis=(0, 2))),
+        Std=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanstd(activity, axis=(0, 2))),
+        XLabel="Time Index", YLabel="Mean And Std", Title="Mean and Std Along Time",
+        Save=False
+    )
+    if Title is not None:
+        plt.suptitle(Title)
+    
+    plt.tight_layout()
+    SaveFigForPlt(Save, SavePath)
+    return
+
+def PlotWeightChange(axes=None, weights=None):
+    if axes is None:
+        fig, axes = CreateFigurePlt(3)
+
+    return
 
 def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
     if axes is None:
@@ -405,13 +521,17 @@ def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
     weight = utils_torch.ToNpArray(weight)
     _weight = weight
     DimentionNum = utils_torch.GetDimensionNum(weight)
-    mask = None
     if DimentionNum == 1:
         weight, mask = utils_torch.Line2Square(weight)
+        XLabel, YLabel = "Dimension 0", "Dimension 0"
+    else:
+        mask = None
+        XLabel, YLabel = "Dimension 1", "Dimension 0"
     utils_torch.plot.PlotMatrixWithColorBar(
         ax1, weight, dataForColorMap=_weight, mask=mask,
         XAxisLocation="top", PixelHeightWidthRatio="Auto",
-        Title="Visualization"
+        Coordinate="Fig", Ticks="Int",
+        Title="Visualization", XLabel=XLabel, YLabel=YLabel
     )
     
     #utils_torch.plot.PlotGaussianDensityCurve(axRight, weight) # takes too much time
@@ -614,6 +734,21 @@ def PlotLineChart(ax=None, Xs=None, Ys=None,
     SaveFigForPlt(Save, SavePath)
     return ax
 
+def PlotBoxPlot(
+        ax=None, data=None,
+        Norm2Sum1=False, Color="Black", 
+        XLabel=None, YLabel=None, Title=None,
+        Save=False, SavePath=None,
+        **kw
+    ):
+    data = utils_torch.EnsureFlat(data)
+    ax.boxplot(data)
+    if Title is not None:
+        ax.set_title(Title)
+    
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+    SaveFigForPlt(Save, SavePath)
+
 def PlotHistogram(
         ax=None, data=None,
         Norm2Sum1=False, Color="Black", 
@@ -710,23 +845,14 @@ def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical"
     Ticks = kw.setdefault("Ticks", "auto")
     SetColorBarTicks(ColorBar, Ticks, Orientation, Min=Min, Max=Max)
 
-def SetColorBarTicks(ColorBar, Ticks, Orientation, Min=None, Max=None, **kw):
-    if Ticks in ["Auto", "auto"]:
-        #Ticks = np.linspace(Min, Max, num=5)
-        Ticks, TicksStr = CalculateTicks("Auto", Min, Max)
-        ColorBar.set_ticks(Ticks)
-        if Orientation in ["vertical"]:
-            ColorBar.ax.set_yticklabels(TicksStr)
-        elif Orientation in ["horizontal"]:
-            ColorBar.ax.set_xticklabels(TicksStr)
-        else:
-            raise Exception()
-    elif Ticks is None: # No Ticks
-        pass
-    else:
-        raise Exception(Ticks)
+    if Orientation in ["horizontal"]: # Avoid Label overlapping
+        plt.setp(
+            ColorBar.ax.get_xticklabels(), rotation=45, ha="right",
+            rotation_mode="anchor"
+        )
 
-def CalculateTickInterval(Min, Max):
+
+def CalculateTickIntervalFloat(Min, Max):
     Range = Max - Min
     if Range == 0.0:
         return 0.0, None, None
@@ -736,7 +862,7 @@ def CalculateTickInterval(Min, Max):
     Interval = Base * 10 ** Log
     TickNum = Range / Interval
 
-    while not 3.0 <= TickNum <= 6.0:
+    while not 2.5 <= TickNum <= 6.5:
         if TickNum > 6.0:
             Base, Log = NextIntervalUp(Base, Log)
         elif TickNum < 3.0:
@@ -746,6 +872,29 @@ def CalculateTickInterval(Min, Max):
         Interval = Base * 10 ** Log
         TickNum = Range / Interval
     return Interval, Base, Log
+
+def CalculateTickIntervalInt(Min, Max):
+    Range = Max - Min
+    if Range <= 0:
+        return 1
+    elif Range <= 5:
+        return 2
+
+    Log = round(math.log(Range, 10))
+    Base = 1.0
+    Interval = Base * 10 ** Log
+    TickNum = Range / Interval
+
+    while not 2.5 <= TickNum <= 6.5:
+        if TickNum > 6.0:
+            Base, Log = NextIntervalUp(Base, Log)
+        elif TickNum < 3.0:
+            Base, Log = NextIntervalDown(Base, Log)
+        else:
+            break
+        Interval = Base * 10 ** Log
+        TickNum = Range / Interval
+    return round(Interval)
 
 def NextIntervalUp(Base, Log):
     if Base == 1.0:
@@ -771,10 +920,10 @@ def NextIntervalDown(Base, Log):
         raise Exception()
     return Base, Log
 
-def CalculateTicks(Method="Auto", Min=None, Max=None, **kw):
+def CalculateTicksFloat(Method="Auto", Min=None, Max=None, **kw):
     if Method in ["Auto", "auto"]:
         Range = Max - Min
-        Interval, Base, Log = CalculateTickInterval(Min, Max)
+        Interval, Base, Log = CalculateTickIntervalFloat(Min, Max)
         Ticks = []
         Ticks.append(Min)
         Tick = math.ceil(Min / Interval) * Interval
@@ -805,21 +954,114 @@ def CalculateTicks(Method="Auto", Min=None, Max=None, **kw):
     elif Log == -2:
         TicksStr = list(map(lambda tick:'%.3f'%tick, Ticks))
     else:
-        TicksStr = list(map(lambda tick:'%.3e'%tick, Ticks))
+        TicksStr = list(map(lambda tick:'%.2e'%tick, Ticks))
     return Ticks, TicksStr
 
-def SetXTicksForAx(ax, Min, Max, Method="Auto"):
-    Ticks, TicksStr = CalculateTicks(Method, Min, Max)
+def CalculateTicksInt(Method="Auto", Min=None, Max=None, **kw):
+    assert isinstance(Min, int) and isinstance(Max, int)
+    if Method in ["Auto", "auto"]:
+        Range = Max - Min
+        Interval = CalculateTickIntervalInt(Min, Max)
+        Ticks = []
+        Ticks.append(Min)
+        Tick = round(math.ceil(1.0 * Min / Interval) * Interval)
+        if Tick - Min < 0.1 * Interval:
+            pass
+        else:
+            Ticks.append(Tick)
+        while Tick < Max:
+            Tick += Interval
+            if Max - Tick < 0.1 * Interval:
+                break
+            else:
+                Ticks.append(Tick)
+        Ticks.append(Max)
+    elif Method in ["Linear"]:
+        Num = kw["Num"]
+        Ticks = np.rint(np.linspace(Min, Max, num=Num))
+    else:
+        raise Exception()
+
+    TicksStr = list(map(lambda tick:str(int(tick)), Ticks))
+    Ticks = list(map(lambda tick:tick - 0.5, Ticks))
+    return Ticks, TicksStr
+
+
+def SetColorBarTicks(ColorBar, Ticks, Orientation, Min=None, Max=None, **kw):
+    if not np.isfinite(Min) or not np.isfinite(Max):
+        Min, Max = -5.0, 5.0
+    if Min==Max:
+        if Min == 0.0:
+            Min, Max = -1.0, 1.0
+        else:
+            Min, Max = 0.5 * Min, 1.5 * Max
+    if Ticks in ["Auto", "auto"]:
+        #Ticks = np.linspace(Min, Max, num=5)
+        Ticks, TicksStr = CalculateTicksFloat("Auto", Min, Max)
+        ColorBar.set_ticks(Ticks)
+        if Orientation in ["vertical"]:
+            ColorBar.ax.set_yticklabels(TicksStr)
+        elif Orientation in ["horizontal"]:
+            ColorBar.ax.set_xticklabels(TicksStr)
+        else:
+            raise Exception()
+    elif Ticks is None: # No Ticks
+        pass
+    else:
+        raise Exception(Ticks)
+
+def SetXTicksFloat(ax, Min, Max, Method="Auto", Rotate45=True):
+    if not np.isfinite(Min) or not np.isfinite(Max):
+        Min, Max = -5.0, 5.0
+    if Min==Max:
+        if Min == 0.0:
+            Min, Max = -1.0, 1.0
+        else:
+            Min, Max = 0.5 * Min, 1.5 * Max
+
+    Ticks, TicksStr = CalculateTicksFloat(Method, Min, Max)
+    Ticks, TicksStr = CalculateTicksFloat(Method, Min, Max)
     ax.set_xticks(Ticks)
     ax.set_xticklabels(TicksStr)
 
-def SetYTicksForAx(ax, Min, Max, Method="Auto"):
-    Ticks, TicksStr = CalculateTicks(Method, Min, Max)
+    if Rotate45: # Avoid Label overlapping
+        plt.setp(
+            ax.get_xticklabels(), rotation=45, ha="right",
+            rotation_mode="anchor"
+        )
+
+def SetYTicksFloat(ax, Min, Max, Method="Auto"):
+    if not np.isfinite(Min) or not np.isfinite(Max):
+        Min, Max = -5.0, 5.0
+    if Min==Max:
+        if Min == 0.0:
+            Min, Max = -1.0, 1.0
+        else:
+            Min, Max = 0.5 * Min, 1.5 * Max
+    Ticks, TicksStr = CalculateTicksFloat(Method, Min, Max)
+    ax.set_yticks(Ticks)
+    ax.set_yticklabels(TicksStr)
+
+def SetXTicksInt(ax, Min, Max, Method="Auto"):
+    if Min > Max:
+        Min, Max = Max, Min
+    Min, Max = round(Min) + 1, round(Max)
+    Ticks, TicksStr = CalculateTicksInt(Method, Min, Max)
+    ax.set_xticks(Ticks)
+    ax.set_xticklabels(TicksStr)
+
+def SetYTicksInt(ax, Min, Max, Method="Auto"):
+    if Min > Max:
+        Min, Max = Max, Min
+    Min, Max = round(Min) + 1, round(Max)
+    Ticks, TicksStr = CalculateTicksInt(Method, Min, Max)
     ax.set_yticks(Ticks)
     ax.set_yticklabels(TicksStr)
 
 def ImagesFile2GIFFile():
     return
+
+
 
 ImagesFile2GIF = ImagesFile2GIFFile
 
@@ -904,6 +1146,10 @@ def SetAxRangeMinMax(ax, Min, Max):
     Right = Max + 0.05 * Range
     ax.set_xlim(Left, Right)
 
+def SetMatplotlibParamToDefault():
+    mpl.rcParams.update(mpl.rcParamsDefault)
+
+
 def SetAxisLocationForAx(ax, XAxisLocation=None, YAxisLocation=None):
     if XAxisLocation is not None:
         if XAxisLocation in ["top"]:
@@ -953,10 +1199,11 @@ def CompareDensityCurve(data1, data2, Name1, Name2, Save=True, SavePath=None):
 
     utils_torch.plot.SaveFigForPlt(Save, SavePath)
 
-def PlotMeanAndStd(
+def PlotMeanAndStdAlongTime(
         ax=None, Xs=None, Mean=None, Std=None,
-        Title="", LineWidth=2.0, Color="Black",
-        Save=False, SavePath=None,
+        LineWidth=2.0, Color="Black", XTicks="Int",
+        Title=None, XLabel=None, YLabel=None,
+        Save=False, SavePath=None, **kw
     ):
     if ax is None:
         fig, ax = plt.subplots()
@@ -964,9 +1211,21 @@ def PlotMeanAndStd(
     Color = ParseColorPlt(Color)
     PlotLineChart(
         ax, Xs, Mean, Color=Color, LineWidth=LineWidth,
-        Save=False
+        Save=False, **kw
     )
-    ax.fill_between(Xs, Mean - Std, Mean + Std)
+
+    Y1 = Mean - Std
+    Y2 = Mean + Std
+    ax.fill_between(Xs, Y1, Y2)
+
+    if XTicks in ["Int"]:
+        SetXTicksInt(ax, min(Xs), max(Xs))
+    elif XTicks in ["Float"]:
+        SetXTicksFloat(ax, min(Xs), max(Xs))
+    
+    SetYTicksFloat(ax, np.nanmin(Y1), np.nanmax(Y2))
+
+    SetTitleAndLabelForAx(ax, Title, XLabel, YLabel)
     SaveFigForPlt(Save, SavePath)
 
 def SetXAxisLocationForAx(ax, XAXisLocation):

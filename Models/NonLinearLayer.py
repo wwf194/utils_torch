@@ -33,7 +33,7 @@ class NonLinearLayer(SingleLayer):
             self.CreateWeight()
             self.CreateBias()
             self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
-            self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + data.Bias)
+            self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + self.GetBias())
         elif param.Subtype in ["f(Wx)+b"]:
             SetAttrs(param, "Bias.Enable", True)
             SetAttrs(param, "Bias.Size", param.Output.Num)
@@ -57,4 +57,4 @@ class NonLinearLayer(SingleLayer):
             else:
                 raise Exception("NonLinearLayer: Invalid Subtype: %s"%param.Subtype)
 __MainClass__ = NonLinearLayer
-utils_torch.model.SetMethodForModelClass(__MainClass__)
+#utils_torch.model.SetMethodForModelClass(__MainClass__)

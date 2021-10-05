@@ -490,10 +490,10 @@ def ParseStr2Static(Str, parent, **kw):
     _Str = Str
     ObjCurrent = kw.get("ObjCurrent")
     ObjRoot = kw.get("ObjRoot")
-    if Str in ["$^param.agent.HiddenNeurons.Num.($^param.agent.Task)"]:
-        print("aaa")
-    if "data: [data[" in Str:
-        print("aaaa")
+    # if Str in ["$^param.agent.HiddenNeurons.Num.($^param.agent.Task)"]:
+    #     print("aaa")
+    # if "data: [data[" in Str:
+    #     print("aaaa")
     success = True
     MatchResult = re.match(r"^(.*)(\(\$[^\)]*\))(.*)$", Str)
     if MatchResult is None:
@@ -554,7 +554,7 @@ def _ParsePyObjStatic(Obj, parent, Attr, **kw):
             ObjCurrent = getattr(Obj, "__ResolveBase__")
         sentence = Obj
         while type(sentence) is str and ("$" in sentence in sentence) and ("&" not in sentence):
-            if sentence in ["$Num", "$^param.agent.model.Neurons.Num // 4"]:
+            if sentence in ["$Num", "$^param.agent.Modules.model.Neurons.Num // 4"]:
                 print("bbb")
             ObjCurrent = kw.get("ObjCurrent")
             ObjRoot = kw.get("ObjRoot")

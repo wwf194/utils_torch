@@ -35,7 +35,7 @@ class RecurrentLIFLayer(nn.Module):
         self.cache.Modules = utils_torch.EmptyPyObj()
         
         EnsureAttrs(param, "IsExciInhi", default=False)
-        cache.ParamIndices = []
+        cache.Tensors = []
         self.BuildModules()
         self.InitModules()
         self.SetInternalMethods()
@@ -50,6 +50,7 @@ class RecurrentLIFLayer(nn.Module):
             if hasattr(ModuleParam, "Type") and ModuleParam.Type in ["Internal"]:
                 continue
             setattr(ModuleParam, "Name", Name)
+            setattr(ModuleParam, "FullName", param.FullName + "." + Name)
             Module = utils_torch.model.BuildModule(ModuleParam)
             setattr(cache.Modules, Name, Module)
             if isinstance(Module, nn.Module):
@@ -129,19 +130,12 @@ class RecurrentLIFLayer(nn.Module):
         return
     def forward(self, CellState, RecurrentInput, Input):
         cache = self.cache
-        return utils_torch.CallGraph(cache.Dynamics.__Entry__, [CellState, RecurrentInput, Input])
-    def SetTensorLocation(self, Location):
-        cache = self.cache
-        utils_torch.model.SetTensorLocationForLeafModel(self, Location)
-        for Name, Module in ListAttrsAndValues(cache.Modules):
-            if hasattr(Module, "SetTensorLocation"):
-                Module.SetTensorLocation(Location)    
-    def GetTensorLocation(self):
-        return self.cache.TensorLocation
-    def GetTrainWeight(self):
-        return self.cache.TrainWeight
-    def SetTrainWeight(self):
-        return utils_torch.model.SetTrainWeightForModel(self)
+        return utils_torch.CallGraph(cache.Dynamics.__Entry__, [CellState, RecurrentInput, Input])  
+
+    # def GetTrainWeight(self):
+    #     return self.cache.TrainWeight
+    # def SetTrainWeight(self):
+    #     return utils_torch.model.SetTrainWeightForModel(self)
     def ClearTrainWeight(self):
         cache = self.cache
         if hasattr(cache, "TrainWeight"):

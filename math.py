@@ -22,6 +22,11 @@ def NpArrayStatistics(data, verbose=False, ReturnType="PyObj"):
 
 NpStatistics = NpArrayStatistics
 
+def ReplaceNaNOrInfWithZeroNp(data):
+    data[~np.isfinite(data)] = 0.0
+    return data
+ReplaceNaNOrInfWithZero = ReplaceNaNOrInfWithZeroNp
+
 def TorchTensorStatistics(tensor, verbose=False, ReturnType="PyObj"):
     statistics = {
         "Min": torch.min(tensor).item(),
