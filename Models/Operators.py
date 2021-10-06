@@ -79,14 +79,6 @@ def CalculateGradient(loss):
 # Operators.CalculateGradient = CalculateGradient
 OperatorList.append(["CalculateGradient"])
 
-# def Log(data, Name=None):
-#     if isinstance(data, torch.Tensor):
-#         statistics = utils_torch.math.TorchTensorStatistics(data)
-#     else:
-#         raise Exception()
-#     return
-# OperatorList.append("Log")
-
 from utils_torch.train import GradientDescend
 OperatorList.append("GradientDescend")
 
@@ -117,8 +109,5 @@ OperatorList.append("Data2TextFile")
 from utils_torch.plot import CompareDensityCurve
 OperatorList.append("CompareDensityCurve")
 
-def ClearGrad(weights):
-    for name, weight in weights.items():
-        if weight.grad is not None:
-                weight.grad.detach_()
-                weight.grad.zero_()
+from utils_torch.train import ClearGrad
+OperatorList.append("ClearGrad")

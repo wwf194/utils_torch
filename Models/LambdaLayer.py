@@ -10,7 +10,7 @@ class LambdaLayer(nn.Module):
         utils_torch.model.InitForModel(self, param)
     def InitFromParam(self):
         param = self.param
-        self.forward = utils_torch.parse.Resolve(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)
+        self.forward = utils_torch.parse.ResolveStr(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)
         return
     def SetFullName(self, FullName):
         utils_torch.model.SetFullNameForModel(self, FullName)

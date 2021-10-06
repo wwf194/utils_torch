@@ -11,10 +11,7 @@ from utils_torch.Models.SingleLayer import SingleLayer
 class LinearLayer(SingleLayer):
     def __init__(self, param=None):
         super().__init__()
-        if param is not None:
-            self.param = param
-            self.data = utils_torch.EmptyPyObj()
-            self.cache = utils_torch.EmptyPyObj()
+        utils_torch.model.InitForModel(param)
     def InitFromParam(self, param=None):
         super().InitFromParam(param)
         param = self.param        

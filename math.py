@@ -27,6 +27,13 @@ def ReplaceNaNOrInfWithZeroNp(data):
     return data
 ReplaceNaNOrInfWithZero = ReplaceNaNOrInfWithZeroNp
 
+def IsAllNaNOrInf(data):
+    return (np.isnan(data) | np.isinf(data)).all()
+
+def RemoveNaNOrInf(data):
+    # @param data: 1D np.ndarray.
+    return data[np.isfinite(data)]
+
 def TorchTensorStatistics(tensor, verbose=False, ReturnType="PyObj"):
     statistics = {
         "Min": torch.min(tensor).item(),
@@ -164,6 +171,7 @@ Float2BaseExp = Float2BaseAndExponent
 
 def Floats2BaseAndExponent(Floats, Base=10.0):
     Floats = utils_torch.ToNpArray(Floats)
-    Exponent = np.ceil(np.log10(Float, Base))
-    Coefficient = Float / 10.0 ** Exponent
+    Exponent = np.ceil(np.log10(Floats, Base))
+    Coefficient = Floats / 10.0 ** Exponent
     return Coefficient, Exponent
+

@@ -26,7 +26,7 @@ def JsonObj2JsonStr(JsonObj):
 
 def PyObj2JsonObj(Obj):
     if isinstance(Obj, utils_torch.PyObj) and Obj.IsListLike():
-        Obj = Obj.GetList()
+        Obj = Obj.ToList()
     if isinstance(Obj, list) or isinstance(Obj, tuple):
         JsonObj = []
         for Item in Obj:

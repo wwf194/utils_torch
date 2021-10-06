@@ -133,7 +133,7 @@ class PyObj(object):
             return value
         else:
             return value
-    def GetList(self):
+    def ToList(self):
         if not self.IsListLike():
             raise Exception()
         return self.__value__

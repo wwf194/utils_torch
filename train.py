@@ -62,6 +62,10 @@ def TrainEpochBatch(param, **kw):
         for BatchIndex in range(param.Batch.Num):
             logger.SetLocal("BatchIndex", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
+            utils_torch.SetSaveDir(
+                utils_torch.GetSaveDir + "SavedModel/Epoch%d-Batch%d/"%(EpochIndex, BatchIndex),
+                Type="Obj"
+            )
             utils_torch.CallGraph(RouterTrain, In=In)
             #logger.PlotAllLogs(SaveDir=utils_torch.GetSaveDir() + "log/")
             logger.PlotLogOfGivenType("WeightChangeRatio", PlotType="LineChart", 
@@ -147,6 +151,12 @@ class GradientDescend:
         #     lr: float,
         #     dampening: float,
         #     nesterov: bool)
+
+def ClearGrad(weights):
+    for name, weight in weights.items():
+        if weight.grad is not None:
+                weight.grad.detach_()
+                weight.grad.zero_()
 
 def evaluate(net, testloader, criterion, scheduler, augment, device):
     net.eval()

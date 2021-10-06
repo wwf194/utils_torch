@@ -1,3 +1,4 @@
+from re import L
 import utils_torch
 
 def CheckAttrs(Obj, attrs=[], *args, **kw):
@@ -19,6 +20,11 @@ def SetAttrs(Obj, attrs=[], *args, **kw):
 
     kw["WriteDefault"] = True
     kw["default"] = kw["value"]
+
+    value = kw["value"]
+    if utils_torch.IsPyObj(value) and hasattr(value, "__value__"):
+        kw["value"] = value.__value__
+
     EnsureAttrs(Obj, attrs, *args, **kw)
 
 def RemoveAttrs(Obj, attrs, *args):

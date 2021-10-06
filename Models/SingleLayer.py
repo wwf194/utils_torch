@@ -8,7 +8,7 @@ from utils_torch.attrs import *
 class SingleLayer(nn.Module):
     def __init__(self):
         super(SingleLayer, self).__init__()
-    def InitFromParam(self, param=None):
+    def InitFromParam(self, param=None, IsLoad=False):
         if param is None:
             param = self.param
             data = self.data
@@ -17,7 +17,8 @@ class SingleLayer(nn.Module):
             self.param = param
             self.data = utils_torch.EmptyPyObj()
             self.cache = utils_torch.EmptyPyObj()
-        
+
+        cache.IsLoad = IsLoad
         cache.Tensors = []
 
         EnsureAttrs(param, "IsExciInhi", default=False)
@@ -28,17 +29,20 @@ class SingleLayer(nn.Module):
                 SetAttrs(param, "Output.Num", param.Weight.Size[1])
             else:
                 raise Exception()
-    def CreateBias(self, Size=None):
+    def SetBias(self):
         param = self.param
         data = self.data
-        cache = self.cache
-        if GetAttrs(param.Bias.Enable):
-            data.Bias = (torch.zeros(param.Bias.Size, requires_grad=True))
+        cache = self.cache        
+        if GetAttrs(param.Bias):
+            if cache.IsLoad:
+                data.Bias = utils_torch.ToTorchTensor(data.Bias)
+            else:
+                data.Bias = (torch.zeros(param.Bias.Size, requires_grad=True))
             cache.Tensors.append([data, "Bias", data.Bias])
         else:
             data.Bias = 0.0
         self.GetBias = lambda:data.Bias
-    def CreateWeight(self):
+    def SetWeight(self):
         param = self.param
         data = self.data
         cache = self.cache
@@ -47,7 +51,10 @@ class SingleLayer(nn.Module):
             {"Method":"kaiming", "Coefficient":1.0})
         )
 
-        data.Weight = utils_torch.model.CreateWeight2D(param.Weight)
+        if self.cache.IsLoad:
+            data.Weight = utils_torch.ToTorchTensor(data.Weight)
+        else:
+            data.Weight = utils_torch.model.CreateWeight2D(param.Weight)
 
         utils_torch.AddLog(
             str(utils_torch.PyObj({
@@ -68,6 +75,7 @@ class SingleLayer(nn.Module):
         EnsureAttrs(param.Weight, "NoSelfConnection", default=False)
         if param.IsExciInhi:
             param.Weight.IsExciInhi = param.IsExciInhi
+            #utils_torch.model.ParseExciInhiNum(param.Weight)
             if not HasAttrs(param, "Weight.Excitatory.Num"):
                 EnsureAttrs(param, "Weight.Excitatory.Ratio", default=0.8)
                 SetAttrs(param, "Weight.Excitatory.Num", value=round(param.Weight.Excitatory.Ratio * param.Weight.Size[0]))
@@ -124,6 +132,7 @@ class SingleLayer(nn.Module):
             FullName = param.FullName + "."
         else:
             FullName = ""
+
         Name = FullName + "Weight"
         utils_torch.plot.PlotWeightAndDistribution(
             weight=self.GetWeight(), Name=Name, SavePath=SaveDir + Name + ".svg"
@@ -133,6 +142,24 @@ class SingleLayer(nn.Module):
             utils_torch.plot.PlotWeightAndDistribution(
                 weight=self.GetBias(), Name=Name, SavePath=SaveDir + Name + ".svg"
             )
-    
+    def SetPlotWeight(self, UseFullName=False):
+        cache = self.cache
+        param = self.param
+
+        self.ClearPlotWeight()
+
+        if UseFullName and hasattr(param, "FullName"):
+            Name = param.FullName + "."
+        else:
+            Name = ""
+        
+        cache.PlotWeight = {
+            Name + "Weight": self.GetWeight
+        }
+
+        if hasattr(self, "GetBias") and isinstance(self.GetBias(), torch.Tensor):
+            cache.PlotWeight[Name + "Bias"] = self.GetBias
+
+        return cache.PlotWeight
 __MainClass__ = SingleLayer
 utils_torch.model.SetMethodForModelClass(__MainClass__)

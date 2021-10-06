@@ -123,10 +123,10 @@ def Map2Color(
             if dataForMap.size > 0:
                 dataMin, dataMax = np.nanmin(dataForMap), np.nanmax(dataForMap)
             else:
-                dataMin, dataMax = 0.0, 0.0
+                dataMin, dataMax = np.NaN, np.NaN
         else:
             dataMin, dataMax = np.nanmin(data), np.nanmax(data)
-        if dataMin == dataMax:
+        if dataMin == dataMax or not np.isfinite(dataMin) or not np.isfinite(dataMax):
             dataColored = np.full([*data.shape, 4], 0.5)
         else:
             dataNormed = (data - dataMin) / (dataMax - dataMin) # normalize to [0, 1]
@@ -313,7 +313,7 @@ def PlotMatrixWithColorBar(
         ax, data, IsDataColored=None, ColorMap="jet", ColorMethod="MinMax", 
         XYRange=None, Coordinate="Math", dataForColorMap=None, dataMask=None,
         Ticks=None, XLabel=None, YLabel=None, Title=None,
-        ColorBarInSubAx=False, ColorBarOrientation="Auto", ColorBarLocation=None,
+        ColorBarOrientation="Auto", ColorBarLocation=None,
         PixelHeightWidthRatio="Equal",
         ColorBarTitle=None, Save=False, SavePath=None, **kw
     ):
@@ -413,7 +413,7 @@ def PlotMatrix(
         OutsideMask = (~dataMask).astype(np.float32)
         maskColor = kw.setdefault("maskColor", "Gray")
         maskColor = ParseColorPlt(maskColor)
-        data = InsideMask * data + OutsideMask * (1.0, 1.0, 1.0)
+        data = InsideMask[:, :, np.newaxis] * data + OutsideMask[:, :, np.newaxis] * maskColor
 
     if Coordinate in ["Math"]:
         data = data.transpose(1, 0, 2)
@@ -467,32 +467,29 @@ def PlotActivityAndDistributionAlongTime(
     ActivityNum = activity.shape[2]
 
     activity = utils_torch.ToNpArray(activity)
-    activityPlot = utils_torch.ToNpArray(activityPlot)
+    activityPlot = utils_torch.ToNpArray(activityPlot).transpose(1, 0)
     if axes is None:
-        fig, axes = plt.subplots(nrows=1, ncols=2)
+        #fig, axes = plt.subplots(nrows=1, ncols=2)
+        fig, axes = CreateFigurePlt(2)
         ax1, ax2 = axes[0], axes[1]
     else:
         ax1 = GetAx(axes, 0)
         ax2 = GetAx(axes, 1)
 
-    mask = np.isnan(activityPlot) | np.isinf(activityPlot)
-    if round(np.sum(mask)) == 0:
-        mask = None
-        dataForColorMap = None
-    else:
-        mask = ~mask
-        dataForColorMap = activityPlot[mask]
+    dataForColorMap, dataMask = MaskOutInfOrNaN(activityPlot)
     PlotMatrixWithColorBar(
-        ax1, activityPlot.transpose(1, 0), dataForColorMap=dataForColorMap, 
-        mask=mask, maskColor="Black",
+        ax1, activityPlot, dataForColorMap=dataForColorMap, 
+        dataMask=dataMask, maskColor="Gray",
         XAxisLocation="top", PixelHeightWidthRatio="Auto",
         XLabel="Time Index", YLabel="Activity", Title="Visualization",
         Coordinate="Fig", Ticks="Int"
     )
     PlotMeanAndStdAlongTime(
         ax2, Xs=range(TimeNum), 
-        Mean=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanmean(activity, axis=(0, 2))),
-        Std=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanstd(activity, axis=(0, 2))),
+        #Mean=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanmean(activity, axis=(0, 2))),
+        #Std=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanstd(activity, axis=(0, 2))),
+        Mean = np.nanmean(activity, axis=(0, 2)),
+        Std = np.nanstd(activity, axis=(0,2)),
         XLabel="Time Index", YLabel="Mean And Std", Title="Mean and Std Along Time",
         Save=False
     )
@@ -511,7 +508,7 @@ def PlotWeightChange(axes=None, weights=None):
 
 def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
     if axes is None:
-        fig, axes = plt.subplots(nrows=1, ncols=2)
+        fig, axes = CreateFigurePlt(2)
         ax1, ax2 = axes[0], axes[1]
     else:
         ax1 = GetAx(axes, 0)
@@ -520,15 +517,23 @@ def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
     plt.suptitle(Name)
     weight = utils_torch.ToNpArray(weight)
     _weight = weight
+    weightForColorMap, _maskInfOrNaN = MaskOutInfOrNaN(_weight)
+
+    # turn 1D weight to 2D shape
     DimentionNum = utils_torch.GetDimensionNum(weight)
     if DimentionNum == 1:
-        weight, mask = utils_torch.Line2Square(weight)
+        weight, maskReshape = utils_torch.Line2Square(weight)
         XLabel, YLabel = "Dimension 0", "Dimension 0"
     else:
-        mask = None
+        maskReshape = None
         XLabel, YLabel = "Dimension 1", "Dimension 0"
+
+    _weightForColorMap, maskInfOrNaN = MaskOutInfOrNaN(weight)
+    
+    dataMask = Merge2Mask(maskReshape, maskInfOrNaN)
+
     utils_torch.plot.PlotMatrixWithColorBar(
-        ax1, weight, dataForColorMap=_weight, mask=mask,
+        ax1, weight, dataForColorMap=weightForColorMap, dataMask=dataMask,
         XAxisLocation="top", PixelHeightWidthRatio="Auto",
         Coordinate="Fig", Ticks="Int",
         Title="Visualization", XLabel=XLabel, YLabel=YLabel
@@ -536,7 +541,7 @@ def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
     
     #utils_torch.plot.PlotGaussianDensityCurve(axRight, weight) # takes too much time
     utils_torch.plot.PlotHistogram(
-        ax2, weight, Color="Black",
+        ax2, weightForColorMap, Color="Black",
         XLabel="Connection Strength", YLabel="Ratio", Title="Distribution"
     )
 
@@ -546,6 +551,30 @@ def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
         SavePath = utils_torch.GetSaveDir + "weights/" + "%s.svg"%Name
     utils_torch.plot.SaveFigForPlt(SavePath=SavePath)
     return
+
+def Merge2Mask(mask1, mask2):
+    if mask1 is not None and mask2 is not None:
+        return mask1 * mask2
+    elif mask1 is None and mask2 is not None:
+        return mask2
+    elif mask1 is not None and mask2 is None:
+        return mask1
+    else:
+        return None
+
+def GetInfOrNaNMask(data):
+    mask = np.isfinite(data)
+    if round(np.sum(mask)) == mask.size:
+        mask = None
+    else:
+        return mask
+
+def MaskOutInfOrNaN(data, ReturnNoneIfNoInfOrNaN=True):
+    mask = GetInfOrNaNMask(data)
+    if mask is None:
+        return data, None
+    else:
+        return data[mask], mask
 
 def PlotLineCv(img, points, line_color=(0,0,0), line_Width=2, line_type=4, BoundaryBox=[[0.0,0.0],[1.0,1.0]]):
     ResolutionX, ResolutionY = img.shape[0], img.shape[1]
@@ -638,7 +667,9 @@ def ParseRowColNum(PlotNum, RowNum=None, ColNum=None):
             ColNum += 1
         return RowNum, ColNum
     elif RowNum is None and ColNum is None:
-        ColNum = int(PlotNum ** 0.5)
+        if PlotNum <= 3:
+            return 1, PlotNum
+        ColNum = round(PlotNum ** 0.5)
         if ColNum == 0:
             ColNum = 1
         RowNum = PlotNum // ColNum
@@ -756,10 +787,18 @@ def PlotHistogram(
         Save=False, SavePath=None,
         **kw
     ):
-    data = utils_torch.EnsureFlat(data)
-    ax.hist(data, density=Norm2Sum1)
-    if Title is not None:
-        ax.set_title(Title)
+
+    if data is None or data.size == 0:
+        ax.text(
+            0.5, 0.5, "No Plottable Data", 
+            ha='center', va='center',
+        )
+    else:
+        data = utils_torch.EnsureFlat(data)
+        data = utils_torch.math.RemoveNaNOrInf(data)
+        ax.hist(data, density=Norm2Sum1)
+        if Title is not None:
+            ax.set_title(Title)
     
     SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
     SaveFigForPlt(Save, SavePath)
@@ -816,10 +855,11 @@ def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical"
 
     if Method in ["MinMax", "GivenMinMax"]:
         Min, Max = kw["Min"], kw["Max"]
-        if Min == Max:
+        if Min == Max or not np.isfinite(Min) or not np.isfinite(Max):
             ax.set_xlim([0.0, 1.0])
             ax.set_ylim([0.0, 1.0])
-            ax.text(0.5, 0.5, "All values are %s"%utils_torch.Float2StrDisplay(Min), 
+            ax.text(
+                0.5, 0.5,"All values are %s"%utils_torch.Float2StrDisplay(Min), 
                 rotation=-90.0 if Orientation=="vertical" else 0.0,
                 ha='center', va='center',
             )
@@ -850,7 +890,6 @@ def PlotColorBarInAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical"
             ColorBar.ax.get_xticklabels(), rotation=45, ha="right",
             rotation_mode="anchor"
         )
-
 
 def CalculateTickIntervalFloat(Min, Max):
     Range = Max - Min
@@ -1029,6 +1068,7 @@ def SetXTicksFloat(ax, Min, Max, Method="Auto", Rotate45=True):
             ax.get_xticklabels(), rotation=45, ha="right",
             rotation_mode="anchor"
         )
+    return Ticks, TicksStr
 
 def SetYTicksFloat(ax, Min, Max, Method="Auto"):
     if not np.isfinite(Min) or not np.isfinite(Max):
@@ -1041,6 +1081,7 @@ def SetYTicksFloat(ax, Min, Max, Method="Auto"):
     Ticks, TicksStr = CalculateTicksFloat(Method, Min, Max)
     ax.set_yticks(Ticks)
     ax.set_yticklabels(TicksStr)
+    return Ticks, TicksStr
 
 def SetXTicksInt(ax, Min, Max, Method="Auto"):
     if Min > Max:
@@ -1049,6 +1090,7 @@ def SetXTicksInt(ax, Min, Max, Method="Auto"):
     Ticks, TicksStr = CalculateTicksInt(Method, Min, Max)
     ax.set_xticks(Ticks)
     ax.set_xticklabels(TicksStr)
+    return Ticks, TicksStr
 
 def SetYTicksInt(ax, Min, Max, Method="Auto"):
     if Min > Max:
@@ -1057,12 +1099,10 @@ def SetYTicksInt(ax, Min, Max, Method="Auto"):
     Ticks, TicksStr = CalculateTicksInt(Method, Min, Max)
     ax.set_yticks(Ticks)
     ax.set_yticklabels(TicksStr)
+    return Ticks, TicksStr
 
 def ImagesFile2GIFFile():
     return
-
-
-
 ImagesFile2GIF = ImagesFile2GIFFile
 
 def ImagesNp2GIFFile():
@@ -1127,8 +1167,6 @@ def PlotGaussianDensityCurve(
         sns.kdeplot(data)
     # DensityCurve.covariance_factor = lambda : .25
     # DensityCurve._compute_covariance()
-
-    
     SaveFigForPlt(Save, SavePath)
     return ax
 
@@ -1208,22 +1246,31 @@ def PlotMeanAndStdAlongTime(
     if ax is None:
         fig, ax = plt.subplots()
 
-    Color = ParseColorPlt(Color)
-    PlotLineChart(
-        ax, Xs, Mean, Color=Color, LineWidth=LineWidth,
-        Save=False, **kw
-    )
+    if XTicks in ["Int"]:
+        XTicks, XTicksStr = SetXTicksInt(ax, min(Xs), max(Xs))
+    elif XTicks in ["Float"]:
+        XTicks, XTicksStr = SetXTicksFloat(ax, min(Xs), max(Xs))
 
+    Color = ParseColorPlt(Color)
     Y1 = Mean - Std
     Y2 = Mean + Std
-    ax.fill_between(Xs, Y1, Y2)
 
-    if XTicks in ["Int"]:
-        SetXTicksInt(ax, min(Xs), max(Xs))
-    elif XTicks in ["Float"]:
-        SetXTicksFloat(ax, min(Xs), max(Xs))
+    YTicks, YTicksStr = SetYTicksFloat(ax, np.nanmin(Y1), np.nanmax(Y2))
+
+    if utils_torch.math.IsAllNaNOrInf(Y1) and utils_torch.math.IsAllNaNOrInf(Y2) and utils_torch.math.IsAllNaNOrInf(Mean):
+        ax.text(
+            (XTicks[0] + XTicks[-1]) / 2.0,
+            (YTicks[0] + YTicks[-1]) / 2.0,
+            "All values are NaN or Inf", ha='center', va='center',
+        )
+    else:
+        PlotLineChart(
+            ax, Xs, Mean, Color=Color, LineWidth=LineWidth,
+            Save=False, **kw
+        )
+        ax.fill_between(Xs, Y1, Y2)
     
-    SetYTicksFloat(ax, np.nanmin(Y1), np.nanmax(Y2))
+    
 
     SetTitleAndLabelForAx(ax, Title, XLabel, YLabel)
     SaveFigForPlt(Save, SavePath)

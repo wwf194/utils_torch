@@ -31,14 +31,17 @@ def SetArgsGlobal(ArgsGlobal):
 def GetArgsGlobal():
     return utils_torch.ArgsGlobal
 
-def SetSaveDir(SaveDir):
-    utils_torch.ArgsGlobal.SaveDir = SaveDir
+def SetSaveDir(SaveDir, Type="Main"):
+    SetAttrs(utils_torch.ArgsGlobal, SaveDir+"."+Type, value=SaveDir)
 
-def GetSaveDir():
-    return utils_torch.ArgsGlobal.SaveDir
+def GetSaveDir(Type="Main"):
+    return GetAttrs(utils_torch.ArgsGlobal, "SaveDir" + "." + Type)
+
+def GetSaveDirForModel():
+    return utils_torch.SetArgsGlobal.SaveDir.Model
 
 def GetDataLogger():
-    return utils_torch.ArgsGlobal.LoggerData
+    return utils_torch.ArgsGlobal.log.Data
 
 def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
     TimeStr = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
@@ -48,7 +51,7 @@ def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
 
 def ParseTaskObj(TaskObj, Save=True, **kw):
     if isinstance(TaskObj, str):
-        TaskObj = utils_torch.parse.Resolve(TaskObj, **kw)
+        TaskObj = utils_torch.parse.ResolveStr(TaskObj, **kw)
 
     if utils_torch.IsDictLikePyObj(TaskObj):
         TaskObj = TaskObj.Tasks
@@ -94,12 +97,46 @@ def ProcessInitTask(Task, **kw):
     ObjCurrent = kw.setdefault("ObjCurrent", None)
     TaskType = Task[0]
     TaskArgs = Task[1]
-    if TaskType in ["BuildObject", "BuildObj"]:
-        BuildObj(TaskArgs, **kw)
+    if TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
+        BuildObjFromParam(TaskArgs, **kw)
     elif TaskType in ["FunctionCall"]:
         utils_torch.CallFunctions(TaskArgs, **kw)
     else:
         raise Exception()
+
+def BuildObjFromParam(Args, **kw):
+    if isinstance(Args, utils_torch.PyObj):
+        Args = GetAttrs(Args)
+
+    if isinstance(Args, list):
+        for Arg in Args:
+            _BuildObjFromParam(Arg, **kw)
+    elif isinstance(Args, utils_torch.PyObj):
+        _BuildObjFromParam(Args, **kw)
+    else:
+        raise Exception()
+
+def _BuildObjFromParam(Args, **kw):
+    ParamPathList = utils_torch.ToList(Args.ParamPath)
+    ModulePathList = utils_torch.ToList(Args.ModulePath)
+    MountPathList = utils_torch.ToList(Args.MountPath)
+
+    for ModulePath, ParamPath, MountPath, in zip(ModulePathList, ParamPathList, MountPathList):        
+        param = utils_torch.parse.ResolveStr(ParamPath, **kw)
+        #Class = eval(ModulePath)
+        #Obj = Class(param)
+        Module = utils_torch.ImportModule(ModulePath)
+        Obj = Module.__MainClass__(param)
+
+        ObjRoot = kw.get("ObjRoot")
+        ObjCurrent = kw.get("ObjCurrent")
+        
+        MountPath = MountPath.replace("&^", "ObjRoot.")
+        MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
+        MountPath = MountPath.replace("&", "ObjCurrent.")
+
+        MountPathList = MountPath.split(".")
+        SetAttrs(eval(MountPathList[0]), MountPathList[1:], Obj)
 
 def BuildObj(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
@@ -114,25 +151,46 @@ def BuildObj(Args, **kw):
         raise Exception()
 
 def _BuildObj(Args, **kw):
-    Module = utils_torch.ImportModule(Args.ModulePath)
-    Obj = Module.__MainClass__(utils_torch.parse.Resolve(Args.ParamPath, **kw))
+    ModulePathList = utils_torch.ToList(Args.ModulePath)
+    MountPathList = utils_torch.ToList(Args.MountPath)
 
-    MountPath = Args.MountPath
-    ObjRoot = kw.get("ObjRoot")
-    ObjCurrent = kw.get("ObjCurrent")
-    
-    MountPath = MountPath.replace("&^", "ObjRoot.")
-    MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
-    MountPath = MountPath.replace("&", "ObjCurrent.")
+    for ModulePath, MountPath in zip(ModulePathList, MountPathList):
+        # Module = utils_torch.ImportModule(_ModulePath)
+        #Obj = Module.__MainClass__()
+        Class = eval(ModulePath)
+        Obj = Class()
 
-    MountPathList = MountPath.split(".")
-    SetAttrs(eval(MountPathList[0]), MountPathList[1:], Obj)
+        ObjRoot = kw.get("ObjRoot")
+        ObjCurrent = kw.get("ObjCurrent")
+        
+        MountPath = MountPath.replace("&^", "ObjRoot.")
+        MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
+        MountPath = MountPath.replace("&", "ObjCurrent.")
 
-BuildObject = BuildObj
+        MountPathList = MountPath.split(".")
+        SetAttrs(eval(MountPathList[0]), MountPathList[1:], Obj)
+
+def SaveObj(Args, **kw):
+    #SaveNameList = utils_torch.ToList(Args.SaveName)
+    SaveObjList = utils_torch.ToList(Args.SaveObj)
+    SaveDirList = utils_torch.ToList(Args.SaveDir)
+
+    for SaveObj, SaveDir in zip(SaveObjList, SaveDirList):
+        if SaveDir in ["auto", "Auto"]:
+            SaveDir = utils_torch.GetSaveDirForModel()
+        Obj = utils_torch.parse.ResolveStr(SaveObj, **kw)
+        Obj.Save(SaveDir)
+
 
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
+def SaveObj(Args):
+    Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetArgsGlobal()),
+    Obj.Save(SaveDir=Args.SaveDir)
+
+def LoadObj(Args):
+    return
 
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
 def IsIterable(Obj):
@@ -176,6 +234,14 @@ def ToNpArray(data, DataType=np.float32):
         return Tensor2NpArray(data)
     else:
         raise Exception()
+
+def ToTorchTensor(data):
+    if isinstance(data, np.ndarray):
+        return NpArray2Tensor(data)
+    elif isinstance(data, list):
+        return NpArray2Tensor(List2NpArray(data))
+    else:
+        raise Exception(type(data))
 
 def Line2Square(data):
     DimensionNum = utils_torch.GetDimensionNum(data)
@@ -256,13 +322,19 @@ def List2NpArray(data, Type=None):
     else:
         return np.ndarray(data)
 
-def ToList(data):
-    if isinstance(data, list):
-        return data
-    elif isinstance(data, np.ndarray):
-        return data.tolist()
-    else:
+def ToList(Obj):
+    if isinstance(Obj, list):
+        return Obj
+    elif isinstance(Obj, np.ndarray):
+        return Obj.tolist()
+    elif isinstance(Obj, torch.Tensor):
+        return NpArray2List(Tensor2NpArray(Obj))
+    elif utils_torch.IsListLikePyObj(Obj):
+        return Obj.ToList()
+    elif isinstance(Obj, dict) or utils_torch.IsDictLikePyObj(Obj):
         raise Exception()
+    else:
+        return [Obj]
 
 # def GetFunction(FunctionName, ObjRoot=None, ObjCurrent=None, **kw):
 #     return eval(FunctionName.replace("&^", "ObjRoot.").replace("&", "ObjCurrent"))
@@ -443,58 +515,6 @@ def GetItemsFromDict(dict_, keys):
         return items[0]
     else:
         return tuple(items)   
-
-# def GetFromDict(dict_, key, default=None, write_default=False, throw_keyerror=True):
-#     # try getting dict[key]. 
-#     # if key exists, return dict[key].
-#     # if no such key, return default, and set dict[key]=default if write_default==True.
-#     '''
-#     if isinstance(key, list):
-#         items = []
-#         for name in key:
-#             items.append(dict_[name])
-#         return tuple(items)
-#     else:
-#     '''
-#     if dict_.get(key) is None:
-#         if write_default:
-#             dict_[key] = default
-#         else:
-#             if default is not None:
-#                 return default
-#             else:
-#                 if throw_keyerror:
-#                     raise Exception('KeyError: dict has not such key: %s'%str(key))
-#                 else:
-#                     return None
-#     return dict_[key]
-
-# def search_dict(dict_, keys, default=None, write_default=False, write_default_key=None, throw_multi_error=False, throw_none_error=True):
-#     values = []
-#     for key in keys:
-#         value = dict_.get(key)
-#         if value is not None:
-#             values.append(value)
-#     if len(values)>1:
-#         if throw_multi_error:
-#             raise Exception('search_dict: found multiple keys.')
-#         else:
-#             return values
-#     elif len(values)==0:
-#         if default is not None:
-#             if write_default:
-#                 if write_default_key is None: # write value to all keys
-#                     for key in keys:
-#                         dict_[key] = default
-#                 else:
-#                     dict_[write_default_key] = default
-#             return default
-#         if throw_none_error:
-#             raise Exception('search_dict: no keys matched.')
-#         else:
-#             return None
-#     else:
-#         return values[0]
 
 def write_dict_info(dict_, save_path='./', save_name='dict info.txt'): # write readable dict info into file.
     values_remained = []
@@ -1003,6 +1023,13 @@ def Data2TextFile(data, Name=None, FilePath=None):
     utils_torch.Str2File(str(data), FilePath)
 
 def Float2StrDisplay(Float):
+    if np.isinf(Float):
+        return "inf"
+    if np.isneginf(Float):
+        return "-inf"
+    if np.isnan(Float):
+        return "NaN"
+
     if Float==0.0:
         return "0.0"
 
@@ -1035,3 +1062,4 @@ def Floats2StrWithEqualLength(Floats):
     Floats = utils_torch.ToNpArray(Floats)
     Base, Exp = utils_torch.math.Floats2BaseAndExponent(Floats)
     # to be implemented
+

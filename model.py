@@ -87,6 +87,19 @@ def CreateExcitatoryInhibitoryMask(InputNum, OutputNum, ExcitatoryNum, Inhibitor
     ExcitatoryInhibitoryMask = np.concatenate([ExcitatoryMask, InhibitoryMask], axis=0)
     return ExcitatoryInhibitoryMask
 
+def ParseExciInhiNum(param):
+    if not HasAttrs(param, "Excitatory.Num"):
+        EnsureAttrs(param, "Excitatory.Ratio", default=0.8)
+        if hasattr(param, "Size"):
+            SetAttrs(param, "Excitatory.Num", value=round(param.Excitatory.Ratio * param.Size[0]))
+            SetAttrs(param, "Inhibitory.Num", value=param.Size[0] - param.Excitatory.Num)
+        elif hasattr(param, "Num"):
+            SetAttrs(param, "Excitatory.Num", value=round(param.Excitatory.Ratio * param.Num))
+            SetAttrs(param, "Inhibitory.Num", value=param.Num - param.Excitatory.Num)     
+        else:
+            raise Exception()
+
+    return
 def CreateMask(N_num, OutputNum, device=None):
     if device is None:
         device = torch.device('cpu')
@@ -621,6 +634,37 @@ def SetTrainWeightForModel(self):
     else:
         return {}
 
+def GetPlotWeightForModel(self):
+    cache = self.cache
+    if not hasattr(cache, "PlotWeight"):
+        self.SetPlotWeight()
+    weights = {}
+    for name, method in cache.PlotWeight.items():
+        weights[name] = method()
+    return weights
+
+def SetPlotWeightForModel(self):
+    ClearPlotWeightForModel(self)
+    cache = self.cache
+    cache.PlotWeight = {}
+    if hasattr(cache, "Modules"):
+        for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
+            if hasattr(Module, "GetPlotWeight"):
+                PlotWeightMethod = Module.SetPlotWeight()
+                for name, method in PlotWeightMethod.items():
+                    cache.PlotWeight[ModuleName + "." + name] = method
+            else:
+                if isinstance(Module, nn.Module):
+                    utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method."%Module)
+        return cache.PlotWeight
+    else:
+        return {}
+
+def ClearPlotWeightForModel(self):
+    cache = self.cache
+    if hasattr(cache, "PlotWeight"):
+        delattr(cache, "PlotWeight")
+
 def ClearTrainWeightForModel(self):
     cache = self.cache
     if hasattr(cache, "TrainWeight"):
@@ -723,6 +767,7 @@ def GetTensorLocationForModel(self):
 def GetTrainWeightForModel(self):
     return self.cache.TrainWeight
 
+
 def PlotWeightForModel(self, SaveDir=None):
     if SaveDir is None:
         SaveDir = utils_torch.GetSaveDir() + "weights/"
@@ -769,5 +814,49 @@ def SetMethodForModelClass(Class):
         Class.SetTrainWeight = SetTrainWeightForModel
     if not hasattr(Class, "GetTrainWeight"):
         Class.GetTrainWeight = GetTrainWeightForModel
+    if not hasattr(Class, "ClearTrainWeight"):
+        Class.ClearTrainWeight = ClearTrainWeightForModel
+    if not hasattr(Class, "SetPlotWeight"):
+        Class.SetPlotWeight = SetPlotWeightForModel
+    if not hasattr(Class, "GetPlotWeight"):
+        Class.GetPlotWeight = GetPlotWeightForModel
+    if not hasattr(Class, "ClearPlotWeight"):
+        Class.ClearPlotWeight = ClearPlotWeightForModel
+
     Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModel
     Class.LogWeight = LogWeightForModel
+
+def ParseRoutersForModel(self):
+    param = self.param
+    cache = self.cache
+    cache.Dynamics = utils_torch.EmptyPyObj()
+    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+        utils_torch.router.ParseRouterStatic(RouterParam)
+    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+        Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
+            ObjRefList=[cache.Modules, cache.Dynamics, cache,
+                param, self, utils_torch.Models.Operators
+            ]
+        )
+        setattr(cache.Dynamics, Name, Router)
+    if not HasAttrs(param.Dynamics, "__Entry__"):
+        SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
+    cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
+    return
+
+def SaveForModel(self, SaveDir, Name=None):
+    param = self.param
+    if Name is None:
+        Name = param.FullName
+    SavePath = SaveDir + param.FullName
+    PyObj2JsonFile(param, SaveDir)
+
+def LoadForModel(self, SaveDir, Name):
+    param = JsonFile2PyObj(SaveDir + Name + ".param")
+    data = JsonFile2PyObj(SaveDir + Name + ".data")
+    self.param = param
+    self.data = data
+    self.Init(Load=True)
+
+def Interest():
+    return

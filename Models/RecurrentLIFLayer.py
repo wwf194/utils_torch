@@ -70,22 +70,26 @@ class RecurrentLIFLayer(nn.Module):
         if param.IsExciInhi:
             if not (HasAttrs(param, "TimeConst.Excitatory") and HasAttrs(param, "TimeConst.Inhibitory")):
                 EnsureAttrs(param, "TimeConst", default=0.1)
-                SetAttrs(param, "TimeConst.Excitatory", param.TimeConst)
-                SetAttrs(param, "TimeConst.Inhibitory", param.TimeConst)
-            ExciNeuronsNum = param.Neurons.Excitatory.Num
-            InhiNeuronsNum = param.Neuorns.Inhibitory.Num
+                SetAttrs(param, "TimeConst.Excitatory", GetAttrs(param.TimeConst))
+                SetAttrs(param, "TimeConst.Inhibitory", GetAttrs(param.TimeConst))
+                utils_torch.model.ParseExciInhiNum(param.Neurons)
+                ExciNeuronsNum = param.Neurons.Excitatory.Num
+                InhiNeuronsNum = param.Neurons.Inhibitory.Num
+                #ExciNeuronsNum = 80
+
             if param.TimeConst.Excitatory==param.TimeConst.Inhibitory:
                 TimeConst = param.TimeConst.Excitatory
                 Modules.CellStateDecay = lambda CellState: TimeConst * CellState
-                Modules.ProcessTotalInput = lambda TotalInput: (1.0 - TimeConst) * TotalInput
-                Modules.ProcessCellStateAndTotalInput = lambda CellState, TotalInput: \
+                Modules.ProcessTotalInput = \
+                    lambda TotalInput: (1.0 - TimeConst) * TotalInput
+                Modules.ProcessCellStateAndTotalInput = \
+                    lambda CellState, TotalInput: \
                     CellState + Modules.ProcessTotalInput(TotalInput)
             else:
                 TimeConstExci = param.TimeConst.Excitatory
                 TimeConstInhi = param.TimeConst.Inhibitory
                 if not (0.0 <= TimeConstExci <= 1.0 and 0.0 <= TimeConstExci <= 1.0):
                     raise Exception()
-                
                 Modules.CellStateDecay = lambda CellState: \
                     torch.concatenate([
                             CellState[:, :ExciNeuronsNum] * TimeConstExci, 
@@ -126,7 +130,7 @@ class RecurrentLIFLayer(nn.Module):
             setattr(cache.Dynamics, Name, Router)
         if not HasAttrs(param.Dynamics, "__Entry__"):
             SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-        cache.Dynamics.__Entry__ = utils_torch.parse.Resolve(param.Dynamics.__Entry__, ObjRefList=[cache, self])
+        cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
         return
     def forward(self, CellState, RecurrentInput, Input):
         cache = self.cache

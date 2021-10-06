@@ -2,6 +2,8 @@ from sre_constants import SUCCESS
 from utils_torch.attrs import *
 from utils_torch.json import *
 
+from collections import defaultdict
+
 def ParseShape(Shape):
     if isinstance(Shape, int):
         Shape = (Shape)
@@ -58,16 +60,16 @@ def ParseFunctionArg(Arg, ContextInfo):
             return ContextInfo.get(Arg)
         elif "&" in Arg:
             #ArgParsed = ResolveArg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
-            return Resolve2Dict(Arg, ContextInfo)
+            return ResolveStrDict(Arg, ContextInfo)
         else:
             return Arg
     else:
         return Arg
 
-def Resolve(param, **kw):
-    return Resolve2Dict(param, kw)
+def ResolveStr(param, **kw):
+    return ResolveStrDict(param, kw)
 
-def Resolve2Dict(param, ContextInfo):
+def ResolveStrDict(param, ContextInfo):
     if not isinstance(param, str):
         return param
     if "&" in param:
@@ -95,7 +97,7 @@ def Resolve2Dict(param, ContextInfo):
         try:
             return eval(sentence)
         except Exception:
-            utils_torch.AddWarning("Resolve2Dict: Failed to run: %s"%sentence)
+            utils_torch.AddWarning("ResolveStrDict: Failed to run: %s"%sentence)
             return param
     else:
         return eval(param)
@@ -214,8 +216,8 @@ def _ParsePyObjDynamicInPlace(Obj, parent, attr, RaiseFailedParse, **kw):
                 ObjParsed = eval(sentence)
                 success = True
             except Exception:
-                if sentence in ["ObjRoot.Object.world.GetArenaByIndex(0).BoundaryBox.Size * 0.07"]:
-                    print("aaa")
+                # if sentence in ["ObjRoot.Object.world.GetArenaByIndex(0).BoundaryBox.Size * 0.07"]:
+                #     print("aaa")
                 utils_torch.AddWarning("_ParsePyObjDynamicInPlace: Failed to run: %s"%sentence)
                 return
         parent[attr] = ObjParsed
@@ -361,14 +363,24 @@ def _ProcessPyObj(Obj, Function, ObjParsed, Attrs, **kw):
 
 def ParsePyObjStatic(Obj, ObjRoot=None, ObjCurrent=None, InPlace=True, **kw):
     #CheckIsPyObj(Obj)
-    _ParseResolveBaseInPlace(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent)
+    _ParseResolveBaseInPlace(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent, ParsedObj=defaultdict(lambda:None))
     if InPlace:
-        _ParsePyObjStaticInPlace(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent)
+        _ParsePyObjStaticInPlace(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent, ParsedObj=defaultdict(lambda:None))
         return Obj
     else:
-        return _ParsePyObjStatic(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent)
+        return _ParsePyObjStatic(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent, ParsedObj=defaultdict(lambda:None))
 
 def _ParseResolveBaseInPlace(Obj, parent, Attr, RemainJson=True, **kw):
+    kw.setdefault("RecurDepth", 1)
+    kw["RecurDepth"] += 1
+    if kw["RecurDepth"] > 200:
+        print("aaa")
+    # if kw["ParsedObj"][id(Obj)] is not None:
+    #     return
+    # kw["ParsedObj"][id(Obj)] = "Parsed"
+    kw.setdefault("Attrs", [])
+    kw["Attrs"].append(Attr)
+    Attrs = kw["Attrs"]
     if isinstance(Obj, list):
         if parent is not None and Attr not in ["__value__"]:
             SetAttr(parent, Attr, utils_torch.PyObj({
@@ -386,15 +398,23 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, RemainJson=True, **kw):
         if Obj.IsResolveBase():
             kw["ObjCurrent"] = Obj
         setattr(Obj.cache, "__ResolveRef__", kw.get("ObjCurrent"))
-        
         for _Attr, Value in ListAttrsAndValues(Obj):
-            if _Attr in ["DynamicParseAttrs"]:
-                print("aaa")
+            # if _Attr in ["DynamicParseAttrs"]:
+            #     print("aaa")
+            # print(_Attr)
+            # print(Value)
             _ParseResolveBaseInPlace(Value, Obj, _Attr, RemainJson, **kw)
     else:
         pass
 
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, RemainJson=True, **kw):
+    kw.setdefault("RecurDepth", 1)
+    kw["RecurDepth"] += 1
+    if kw["RecurDepth"] > 200:
+        print("aaa")
+    # if kw["ParsedObj"][id(Obj)] is not None:
+    #     return
+    # kw["ParsedObj"][id(Obj)] = "Parsed"
     # if Obj in ["$Loss.ActivityConstrain.Coefficient"]:
     #     print("aaa")
     if isinstance(Obj, list):

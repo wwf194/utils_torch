@@ -3,6 +3,7 @@ import re
 import pandas as pd
 
 import utils_torch
+from utils_torch.attrs import *
 
 def RemoveAllFiles(path, verbose=True):
     if not os.path.exists(path):
@@ -293,3 +294,29 @@ def Table2TextFileColumns(*Columns, **kw):
     for Index, Column in enumerate(Columns):
         Dict[Names[Index]] = Column
     Table2TextFileDict(Dict, kw["SavePath"])
+
+def LoadParamFromFile(Args, ArgsGlobal):
+    if isinstance(Args, dict):
+        _LoadParamFromFile(utils_torch.json.JsonObj2PyObj(Args), ArgsGlobal)
+    elif isinstance(Args, list) or utils_torch.IsListLikePyObj(Args):
+        for Arg in Args:
+            _LoadParamFromFile(Arg, ArgsGlobal)
+    elif utils_torch.IsDictLikePyObj(Args):
+        _LoadParamFromFile(Args, ArgsGlobal)
+    else:
+        raise Exception()
+
+def _LoadParamFromFile(Args, ArgsGlobal):
+    FilePath = utils_torch.ToList(Args.FilePath)
+    MountPath = utils_torch.ToList(Args.MountPath)
+    for _MountPath, _FilePath in zip(MountPath, FilePath):
+        Obj = utils_torch.json.JsonFile2PyObj(_FilePath)
+        if not isinstance(Obj, list):
+            EnsureAttrs(Args, "SetResolveBase", default=True)
+            if Args.SetResolveBase:
+                setattr(Obj, "__ResolveBase__", True)
+        if not _MountPath.startswith("&^"):
+            raise Exception()
+        MountPath = _MountPath.replace("&^", "")
+        SetAttrs(ArgsGlobal, MountPath, Obj)
+    return

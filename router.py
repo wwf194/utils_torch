@@ -14,7 +14,7 @@ def ParseRoutersForObj(Obj, ObjRefList):
         setattr(cache, Name, Router)
     if not HasAttrs(param.Dynamics, "__Entry__"):
         SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-    cache.__Entry__ = utils_torch.parse.Resolve(param.Dynamics.__Entry__, ObjRefList=[param])
+    cache.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[param])
     return
 ParseRouterForObj = ParseRoutersForObj
 

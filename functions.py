@@ -71,8 +71,8 @@ def _CallFunction(param, ContextInfo={}):
         param.append([])
     
     FunctionName = param[0]
-    FunctionArgs = param[1]
-    Function = utils_torch.parse.Resolve2Dict(
+    FunctionArgs = utils_torch.ToList(param[1])
+    Function = utils_torch.parse.ResolveStrDict(
         FunctionName,
         ContextInfo
     )
@@ -80,10 +80,8 @@ def _CallFunction(param, ContextInfo={}):
     FunctionOutput = Function(*PositionalArgs, **KeyWordArgs)    
     ContextInfo["__PreviousFunctionOutput__"] = FunctionOutput
     if FunctionOutput is None:
-        #SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
         return []
     else:
-        #SetAttrs(ContextInfo, "__PreviousFunctionOutput__", FunctionOutput)
         return FunctionOutput
 
 def CallGraph(Router, In, **kw):
