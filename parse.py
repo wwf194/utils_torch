@@ -336,27 +336,27 @@ def _ParsePyObjDynamicWithMultiRefsInPlace(Obj, parent, Attr, RaiseFailedParse, 
     else:
         pass
 
-def ProcessPyObj(Obj, Function=lambda x:(x, True), **kw):
+def ApplyMethodOnPyObj(Obj, Function=lambda x:(x, True), **kw):
     # Not Inplace
     ObjParsed = utils_torch.PyObj()
-    return _ProcessPyObj(Obj, Function, ObjParsed, [], **kw)
+    return _ApplyMethodOnPyObj(Obj, Function, ObjParsed, [], **kw)
 
-def _ProcessPyObj(Obj, Function, ObjParsed, Attrs, **kw):
+def _ApplyMethodOnPyObj(Obj, Function, ObjParsed, Attrs, **kw):
     Obj, ContinueParse = Function(Obj)
     if not ContinueParse:
         return Obj
-    if isinstance(Obj, list):
+    if isinstance(Obj, list) or utils_torch.IsListLikePyObj(Obj):
         ObjParsed = []
         for Index, Item in enumerate(Obj):
-            ObjParsed.append(_ParsePyObj(Item, [*Attrs, Index], Obj), **kw)
+            ObjParsed.append(_ApplyMethodOnPyObj(Item, [*Attrs, Index], Obj), **kw)
     elif isinstance(Obj, dict):
         ObjParsed = {}
         for Key, Value in Obj.items():
-            ObjParsed[Key] = _ParsePyObj(Value, ObjParsed, [*Attrs, Key], **kw)
-    elif hasattr(Obj, "__dict__"):
+            ObjParsed[Key] = _ApplyMethodOnPyObj(Value, ObjParsed, [*Attrs, Key], **kw)
+    elif utils_torch.IsDictLikePyObj(Obj):
         ObjParsed = utils_torch.EmptyPyObj()
-        for Attr, Value in Obj.__dict__.items():
-            setattr(ObjParsed, Attr, _ParsePyObj(Value, Obj, [*Attrs, Attr]))
+        for Attr, Value in ListAttrsAndValues(Obj):
+            setattr(ObjParsed, Attr, _ApplyMethodOnPyObj(Value, Obj, [*Attrs, Attr]))
     else:
         ObjParsed = Obj
     return ObjParsed

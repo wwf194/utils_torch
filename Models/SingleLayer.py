@@ -72,14 +72,13 @@ class SingleLayer(nn.Module):
         cache.Tensors.append([data, "Weight", data.Weight])
         GetWeightFunction = [lambda :data.Weight]
 
-        EnsureAttrs(param.Weight, "NoSelfConnection", default=False)
         if param.IsExciInhi:
             param.Weight.IsExciInhi = param.IsExciInhi
-            #utils_torch.model.ParseExciInhiNum(param.Weight)
-            if not HasAttrs(param, "Weight.Excitatory.Num"):
-                EnsureAttrs(param, "Weight.Excitatory.Ratio", default=0.8)
-                SetAttrs(param, "Weight.Excitatory.Num", value=round(param.Weight.Excitatory.Ratio * param.Weight.Size[0]))
-                SetAttrs(param, "Weight.Inhibitory.Num", value=param.Weight.Size[0] - param.Weight.Excitatory.Num)
+            utils_torch.model.ParseExciInhiNum(param.Weight)
+            # if not HasAttrs(param, "Weight.Excitatory.Num"):
+            #     EnsureAttrs(param, "Weight.Excitatory.Ratio", default=0.8)
+            #     SetAttrs(param, "Weight.Excitatory.Num", value=round(param.Weight.Excitatory.Ratio * param.Weight.Size[0]))
+            #     SetAttrs(param, "Weight.Inhibitory.Num", value=param.Weight.Size[0] - param.Weight.Excitatory.Num)
 
             EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")
             cache.WeightConstraintMethod = utils_torch.model.GetConstraintFunction(param.Weight.ConstraintMethod)
@@ -88,7 +87,13 @@ class SingleLayer(nn.Module):
             cache.ExciInhiMask = utils_torch.NpArray2Tensor(ExciInhiMask)
             cache.Tensors.append([cache, "ExciInhiMask", cache.ExciInhiMask])
             GetWeightFunction.append(lambda Weight:Weight * cache.ExciInhiMask)
-        if GetAttrs(param.Weight, "NoSelfConnection"):
+        
+        # Ban self-connection if required.
+        if HasAttrs(param.Weight, "NoSelfConnection"):
+            SetAttrs(param.Weight, "NoSelfConnection", default=GetAttrs(param.Weight.NoSelfConnection))
+        else:
+            EnsureAttrs(param.Weight, "NoSelfConnection", default=False)
+        if GetAttrs(param.Weight.NoSelfConnection):
             if param.Weight.Size[0] != param.Weight.Size[1]:
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
             SelfConnectionMask = utils_torch.model.CreateSelfConnectionMask(param.Weight.Size[0])

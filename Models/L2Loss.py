@@ -7,10 +7,7 @@ from utils_torch.attrs import *
 class L2Loss():
     def __init__(self, param=None):
         super(L2Loss, self).__init__()
-        if param is not None:
-            self.param = param
-            self.data = utils_torch.EmptyPyObj()
-            self.cache = utils_torch.EmptyPyObj()
+        utils_torch.model.InitForModel(self, param, ClassPath="utils_torch.Models.L2Loss")
     def __call__(self, Input, *Args):
         return self.forward(Input, *Args)
     def InitFromParam(self):

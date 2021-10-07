@@ -45,6 +45,7 @@ def TrainEpochBatch(param, **kw):
     # param = utils_torch.parse.ParsePyObjDynamic(param, InPlace=False, **kw)
     RouterTrain = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Train, ObjRefList=[param.Batch.Train], **kw)
     RouterTest = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Test, ObjRefList=[param.Batch.Test], **kw)
+
     In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
     
     logger.SetLocal("EpochNum", param.Epoch.Num)
@@ -54,7 +55,7 @@ def TrainEpochBatch(param, **kw):
     logger.SetLocal("EpochIndex", EpochIndex)
     logger.SetLocal("BatchIndex", BatchIndex)
     utils_torch.CallGraph(RouterTest, In=In)
-    AnalyzeAfterBatch(logger)
+    AnalyzeAfterBatch(logger, **kw)
 
     for EpochIndex in range(param.Epoch.Num):
         logger.SetLocal("EpochIndex", EpochIndex)
@@ -71,9 +72,11 @@ def TrainEpochBatch(param, **kw):
             logger.PlotLogOfGivenType("WeightChangeRatio", PlotType="LineChart", 
                 SaveDir=utils_torch.GetSaveDir() + "log/WeightChange")    
             if BatchIndex % 10 == 0:
-                AnalyzeAfterBatch(logger)
+                AnalyzeAfterBatch(logger, **kw)
 
-def AnalyzeAfterBatch(logger):
+def AnalyzeAfterBatch(logger, **kw):
+    utils_torch.DoTasks("&^param.task.Save", **kw)
+    #utils_torch.CallGraph(kw["RouterSave"])
     utils_torch.analysis.AnalyzeTimeVaryingActivitiesEpochBatch(
         Logs=logger.GetLogOfType("TimeVaryingActivity"),
     )
@@ -85,8 +88,6 @@ def ParseTrainEpochBatchParam(param):
     EnsureAttrs(param, "Nesterov", value=False)
     EnsureAttrs(param, "Dampening", value=0.0)
     EnsureAttrs(param, "Momentum", value=0.0)
-
-
 
 def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
     Xs = []

@@ -13,10 +13,10 @@ import os
 import time
 import logging
 import json5
-import utils
 from inspect import getframeinfo, stack
 
-import os
+import utils_torch
+from utils_torch.attrs import *
 
 class DataLogger:
     def __init__(self, IsRoot=False):
@@ -222,36 +222,6 @@ class LoggerForEpochBatchTrain:
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-                #raise Exception()
-            # if self.PlotType[Name] in ["Unknown"]:
-            #     example = Log[0][2]
-            #     if isinstance(example, np.ndarray):
-            #         if not (len(example.shape)==1 and example.shape[0]==1 or len(example.shape)==0):
-            #             continue
-            # elif self.PlotType[Name] in ["DictItems"]:
-            #     XsDict = defaultdict(lambda:[])
-            #     YsDict = defaultdict(lambda:[])
-            #     for Record in Log:
-            #         for key, value in Record[2].items():
-            #             XsDict[key].append(value)
-            #             YsDict[key].append(utils_torch.train.GetEpochFloat(Record[0], Record[1], self.BatchNum))
-            #     PlotNum = len(Xs.keys())
-            #     fig, axes = utils_torch.plot.CreateFigurePlt(PlotNum)
-            #     for index, key in enumerate(Xs.keys()):
-            #         Xs, Ys = XsDict[key], YsDict[key]
-            #         ax = utils_torch.plot.GetAx(axes, Index=index)
-            #         utils_torch.plot.PlotLineChart(ax, Xs, Ys, Title="%s-Epoch"%key, XLabel="Epoch", YLabel=key)
-            #     plt.tight_layout()
-            #     utils_torch.log.Table2TextFile(
-            #         {
-            #             Name: Xs, 
-            #             "Epoch": Ys,
-            #         },
-            #         SavePath=SaveDir + "%s-Epoch.txt"%Name
-            #     )
-            #     utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png")
-            # else:
-            #     raise Exception()
 
 class Logger:
     def __init__(self, Name):
@@ -329,11 +299,6 @@ def _CreateLogger(Name, SaveDir=None):
     logger.addHandler(file_handler)
     return logger
 
-def SetSaveDir(ArgsGlobal):
-    import utils_torch
-    SaveDir = "./log/Experiment-%s/"%(utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
-    utils_torch.EnsureDir(SaveDir)
-    ArgsGlobal.SaveDir = SaveDir
 
 def SetLoggerGlobal(ArgsGlobal):
     ArgsGlobal.logger.Global = CreateLogger('Global')
@@ -347,3 +312,33 @@ def GetLoggerGlobal():
 def AddLogger(Name):
     import utils_torch
     setattr(utils_torch.ArgsGlobal.logger, Name, CreateLogger(Name))
+
+def SetArgsGlobal(ArgsGlobal):
+    utils_torch.ArgsGlobal = ArgsGlobal
+
+def GetArgsGlobal():
+    return utils_torch.ArgsGlobal
+
+def SetSubSaveDir(SaveDir, Type):
+    SetAttrs(utils_torch.ArgsGlobal, "SaveDir" + "." + Type, value=SaveDir)
+
+def SetSaveDir(ArgsGlobal):
+    import utils_torch
+    SaveDir = "./log/Experiment-%s/"%(utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
+    utils_torch.EnsureDir(SaveDir)
+    SetAttrs(ArgsGlobal, "SaveDir.Main", value=SaveDir)
+
+def GetSaveDir(Type="Main"):
+    return GetAttrs(utils_torch.ArgsGlobal, "SaveDir" + "." + Type)
+
+def GetSaveDirForModel():
+    return utils_torch.SetArgsGlobal.SaveDir.Model
+
+def GetDataLogger():
+    return utils_torch.ArgsGlobal.log.Data
+
+def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
+    TimeStr = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
+    if verbose:
+        print(TimeStr)
+    return TimeStr

@@ -7,7 +7,7 @@ from utils_torch.attrs import *
 class LambdaLayer(nn.Module):
     def __init__(self, param=None):
         super(LambdaLayer, self).__init__()
-        utils_torch.model.InitForModel(self, param)
+        utils_torch.model.InitForModel(self, param, ClassPath="utils_torch.Models.LambdaLayer")
     def InitFromParam(self):
         param = self.param
         self.forward = utils_torch.parse.ResolveStr(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)

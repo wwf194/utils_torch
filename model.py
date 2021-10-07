@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import re
-
 import utils_torch
 #from utils_torch.utils import EnsurePath, Getargs, Getname, Getname_args, GetFromDict, search_dict, contain, contain_all, Getrow_col, prep_title
 from utils_torch.json import *
@@ -311,7 +310,7 @@ def build_scheduler(dict_, optimizer, load=False, verbose=True):
     return scheduler
 
 # search for directory or file of most recently saved models(model with biggest epoch index)
-def Getlast_model(model_prefix, base_dir=None, is_dir=True):
+def GetLastestSubSaveDir(SaveDir, Prefix=None):
     if is_dir:
         max_epoch = None
         pattern = model_prefix+'(\d+)'
@@ -351,234 +350,6 @@ def scatter_label(label, num_class=None, device=None): # label: must be torch.Lo
     #print(label.Type())
     #print(scattered_label.Type())
     return scattered_label # [batch_Size, num_class]
-
-def build_mlp(dict_, load=False, device=None):
-    print(dict_)
-    return MLP(dict_, load=load, device=device)
-
-class MLP(nn.Module):
-    def __init__(self, dict_, load=False, device=None):#InputNum is neuron_num.
-        super(MLP, self).__init__()
-        self.dict = dict_
-        if device is None:
-            self.device = self.dict.setdefault('device', 'cpu')
-        else:
-            self.device = device
-            self.dict['device'] = device
-        self.act_func_on_last_layer = self.dict.setdefault('act_func_on_last_layer', False)
-        self.use_bias = self.dict.setdefault('bias', False)
-        self.bias_on_last_layer = self.dict.setdefault('bias_on_last_layer', True)
-        self.N_nums = self.dict['N_nums']
-        self.layer_num = self.dict['layer_num'] = len(self.N_nums) - 1
-        #print('use_bias: %s'%self.use_bias)
-        self.Params = {}
-        if load:
-            self.weights = self.dict['weights']
-            self.biases = self.dict['biases']
-        else:
-            self.weights = self.dict['weight'] = []
-            self.biases = self.dict['biases'] = []
-            if self.dict.get('init_weight') is None:
-                self.dict['init_weight'] = [['input', 'uniform'], 1.0]
-            self.init_weight = self.dict['init_weight']
-            #print(self.layer_num)
-            #print(self.N_nums)
-            
-            for layer_index in range(self.layer_num):
-                weight = nn.Parameter(torch.zeros(self.N_nums[layer_index], self.N_nums[layer_index + 1], device=self.device))
-                #for Parameter in self.Parameters():
-                #    print(Parameter.Size())
-                init_weight(weight, self.init_weight)
-                #self.register_Parameter(name='w%d'%layer_index, Param=weight)
-                self.weights.append(weight)
-                
-            for layer_index in range(self.layer_num - 1):
-                if self.use_bias:
-                    bias = nn.Parameter(torch.zeros(self.N_nums[layer_index], device=self.device))  
-                else:
-                    bias = 0.0
-                self.biases.append(bias)
-            
-            if self.bias_on_last_layer:
-                bias = nn.Parameter(torch.zeros(self.N_nums[-1], device=self.device))
-                self.biases.append(bias)
-                #self.register_Parameter('b%d'%self.layer_num, bias)
-            else:
-                self.biases.append(0.0)
-            
-        for index, weight in enumerate(self.weights):
-            name = 'w%d'%index
-            self.register_Parameter(name=name, Param=weight)
-            self.Params[name] = weight
-
-        if self.use_bias:
-            for index, bias in enumerate(self.biases):
-                name = 'b%d'%index
-                if isinstance(bias, torch.Tensor):
-                    self.register_Parameter(name, bias)
-                self.Params[name] = bias
-        
-        if not (self.layer_num == 1 and not self.dict['act_func_on_last_layer']):
-            self.act_func = Getact_func(self.dict['act_func'])
-
-        self.alt_weight_scale = self.dict.setdefault('alt_weight_scale', False)
-        
-        if self.alt_weight_scale:
-            self.alt_weight_scale_assess_num = self.dict.setdefault('alt_weight_scale_assess_num', 10)
-            self.forward = self.forward_alt_weight_scale
-            self.alt_weight_scale_assess_count = 0
-        else:
-            self.forward = self.forward_
-
-        #self.use_batch_norm = self.dict.setdefault('batch_norm', False)
-        self.use_batch_norm = search_dict(self.dict, ['batch_norm', 'use_batch_norm'], default=False, write_default=True)
-        if self.use_batch_norm:
-            self.bns = []
-            for layer_index in range(1, len(self.N_nums)):
-                bn = nn.BatchNorm1d(num_features=self.N_nums[layer_index], eps=1.0e-10)
-                self.add_module('bn%d'%layer_index, bn)
-            self.bns.append(bn)
-        self.cache = {}
-        #self.mlp = build_mlp_sequential(dict_=self.dict, load=load)
-        #print(self.Parameters())
-
-        #print_model_Param(self)
-        #input()
-    def forward_alt_weight_scale(self, x, **kw):
-        out = self.forward(x)
-        out_target = search_dict(kw, ['out_target', 'out_truth'])
-        # to be implemented: calculate weight scale
-        self.alt_weight_scale_assess_count += 1
-        if self.alt_weight_scale_assess_count >= self.alt_weight_scale_assess_num:
-            self.forward = self.forward_
-            # to be implemented: alter weight scale
-        return out
-    def forward_(self, x, **kw):
-        x = x.to(self.device)
-        for layer_index in range(self.layer_num - 1):
-            x = self.act_func(torch.mm(x, self.weights[layer_index]) + self.biases[layer_index])
-            if self.use_batch_norm:
-                x = self.bns[layer_index](x)
-        # last layer
-        #print(self.weights)
-        layer_index = self.layer_num - 1
-        x = torch.mm(x, self.weights[layer_index])
-        if self.bias_on_last_layer:
-            x += self.biases[layer_index]
-        if self.act_func_on_last_layer:
-            x = self.act_func(x)
-        if self.use_batch_norm:
-            x = self.bns[-1](x)
-        return x
-    def anal_weight_change(self, title=None, verbose=True):
-        title = prep_title(title)
-        result = title
-        # analyze weight change
-        for index, weight in enumerate(self.weights):
-            name = 'w%d'%index
-            #print(name)
-            w_1 = weight.detach().cpu().numpy()
-            if self.cache.get(name) is not None:
-                w_0 = self.cache[name]
-                w_change_rate = np.sum(abs(w_1 - w_0)) / np.sum(np.abs(w_0))
-                result += '%s_change_rate: %.3f '%(name, w_change_rate)
-            self.cache[name] = w_1
-        # analyze bias change
-        for index, bias in enumerate(self.biases):
-            name = 'b%d'%index
-            #print('%s=%s'%(name, bias))
-            if isinstance(bias, torch.Tensor):
-                b_1 = bias.detach().cpu().numpy()
-                if self.cache.get(name) is not None:
-                    b_0 = self.cache[name]
-                    b_0_abs = np.sum(np.abs(b_0))
-                    if b_0_abs > 0.0:
-                        b_change_rate = np.sum(abs(b_1 - b_0)) / b_0_abs
-                        result += '%s_change_rate: %.3f '%(name, b_change_rate)
-                    else:
-                        b_1_abs = np.sum(np.abs(b_1))
-                        if b_1_abs==0.0:
-                            result += '%s_change_rate: %.3f '%(name, 0.0)
-                        else:
-                            result += '%s_change_rate: +inf'%(name)
-                self.cache[name] = b_1
-            elif isinstance(bias, float):
-                result += '%s===%.3e'%(name, bias)
-            else:
-                raise Exception('Invalid bias Type: %s'%bias.__class__)
-        if verbose:
-            print(result)
-        return result
-    def plot_weight(self, axes=None, save=False, save_path='./', save_name='mlp_weight_plot.png'):
-        row_num, col_num = Getrow_col()
-        if axes is None:
-            fig, axes = plt.subplots(nrows=row_num, ncols=col_num, figSize=(5*col_num, 5*row_num))
-        if save:
-            EnsurePath(save_path)
-            plt.savefig(save_path + save_name)
-        return
-    def print_info(self, name='', verbose=True):
-        report = '%s. MLP Instance. N_nums: %s. bias: %s'%(name, self.N_nums)
-        if verbose:
-            print(report)
-        return report
-    def print_grad(self, verbose=True):
-        result = ''
-        for index, weight in enumerate(self.weights):
-            name = 'w%d'%index
-            result += str(weight.grad)
-            result += 'This is %s.grad'%name
-            if not weight.requires_grad:
-                result += '%s does not require grad.'%name
-            result += '\n'
-        for index, bias in enumerate(self.biases):
-            name = 'b%d'%index
-            if isinstance(bias, torch.Tensor):
-                result += str(bias.grad)
-                result += 'This is %s.grad.'%name
-                if not bias.requires_grad:
-                    result += '%s does not require grad.'%name
-                result += '\n'
-            else:
-                result += '%s is not a tensor, and has not grad.'%name
-        if verbose:
-            print(result)
-        return result
-
-'''
-def build_mlp(dict_):
-    act_func = Getact_func_module(dict_['act_func'])
-    Layers = []
-    layer_dicts = []
-    N_nums = dict_['N_nums'] #InputNum, hidden_layer1_unit_num, hidden_layer2_unit_numm ... OutputNum
-    layer_num = len(N_nums) - 1
-    for layer_index in range(layer_num):
-        current_layer = nn.Linear(N_nums[layer_index], N_nums[layer_index+1], bias=dict['bias'])
-        Layers.append(current_layer)
-        layer_dicts.append(current_layer.state_dict())
-        if not (dict_['act_func_on_last_layer'] and layer_index==layer_num-1):
-            Layers.append(act_func)
-    dict['layer_dicts'] = layer_dicts
-    return torch.nn.Sequential(*Layers)
-'''
-
-def build_mlp_sequential(dict_, load=False):
-    act_func = Getact_func_module(dict_['act_func'])
-    use_bias = dict_['bias']
-    Layers = []
-    layer_dicts = []
-    N_nums = dict_['N_nums'] #InputNum, hidden_layer1_unit_num, hidden_layer2_unit_numm ... OutputNum
-    layer_num = len(N_nums) - 1
-    act_func_on_last_layer = GetFromDict(dict_, 'act_func_on_last_layer', default=True, write_default=True)
-    for layer_index in range(layer_num):
-        layer_current = nn.Linear(N_nums[layer_index], N_nums[layer_index+1], bias=use_bias)
-        if load:
-            layer_current.load_state_dict(dict_['layer_dicts'][layer_index])
-        Layers.append(layer_current)
-        layer_dicts.append(layer_current.state_dict())
-        if not (act_func_on_last_layer and layer_index==layer_num-1):
-            Layers.append(act_func)
-    return torch.nn.Sequential(*Layers)
 
 def print_model_Param(model):
     for name, Param in model.named_Parameters():
@@ -706,13 +477,15 @@ def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
     activity = utils_torch.ToNpArray(activity)
     return
 
-def InitForModel(self, param, DefaultFullName="Unknown"):
+def InitForModel(self, param, DefaultFullName="Unnamed", ClassPath=None):
     if param is not None:
         self.param = param
         self.data = utils_torch.EmptyPyObj()
         self.cache = utils_torch.EmptyPyObj()
         if not hasattr(param, "FullName"):
             param.FullName = DefaultFullName
+    if ClassPath is not None:
+        param.ClassPath = ClassPath
 
 def LogStatisticsForModel(self, data, Name, Type="Statistics"):
     param = self.param
@@ -799,6 +572,47 @@ def InitModulesForModel(self):
         else:
             utils_torch.AddWarning("Module %s has not implemented InitFromParam method."%name)
 
+
+def ParseRoutersForModel(self):
+    param = self.param
+    cache = self.cache
+    cache.Dynamics = utils_torch.EmptyPyObj()
+    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+        utils_torch.router.ParseRouterStatic(RouterParam)
+    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+        Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
+            ObjRefList=[cache.Modules, cache.Dynamics, cache,
+                param, self, utils_torch.Models.Operators
+            ]
+        )
+        setattr(cache.Dynamics, Name, Router)
+    if not HasAttrs(param.Dynamics, "__Entry__"):
+        SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
+    cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
+    return
+
+def SaveForModel(self, SaveDir, IsRoot=True):
+    param = self.param
+    data = self.data
+    cache = self.cache
+    if IsRoot:
+        utils_torch.json.PyObj2JsonFile(param, SaveDir + param.FullName + ".param.jsonc")
+    data = utils_torch.parse.ApplyMethodOnPyObj(data, ToNpArrayIfIsTensor)
+    PyObj2DataFile(data, SaveDir + param.FullName + ".data")
+    if hasattr(cache, "Modules"):
+        for name, module in ListAttrsAndValues(cache.Modules):
+            if HasAttrs(module, "Save"):
+                module.Save(SaveDir, IsRoot=False)
+
+def ToNpArrayIfIsTensor(data):
+    if isinstance(data, torch.Tensor):
+        return utils_torch.ToNpArray(data), False
+    else:
+        return data, True
+
+def Interest():
+    return
+
 def SetMethodForModelClass(Class):
     Class.LogStatistics = LogStatisticsForModel
     Class.LogCache = LogCacheForModel
@@ -822,41 +636,12 @@ def SetMethodForModelClass(Class):
         Class.GetPlotWeight = GetPlotWeightForModel
     if not hasattr(Class, "ClearPlotWeight"):
         Class.ClearPlotWeight = ClearPlotWeightForModel
+    if not hasattr(Class, "Save"):
+        Class.Save = SaveForModel
 
     Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModel
     Class.LogWeight = LogWeightForModel
 
-def ParseRoutersForModel(self):
-    param = self.param
-    cache = self.cache
-    cache.Dynamics = utils_torch.EmptyPyObj()
-    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-        utils_torch.router.ParseRouterStatic(RouterParam)
-    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-        Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
-            ObjRefList=[cache.Modules, cache.Dynamics, cache,
-                param, self, utils_torch.Models.Operators
-            ]
-        )
-        setattr(cache.Dynamics, Name, Router)
-    if not HasAttrs(param.Dynamics, "__Entry__"):
-        SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-    cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
-    return
-
-def SaveForModel(self, SaveDir, Name=None):
-    param = self.param
-    if Name is None:
-        Name = param.FullName
-    SavePath = SaveDir + param.FullName
-    PyObj2JsonFile(param, SaveDir)
-
-def LoadForModel(self, SaveDir, Name):
-    param = JsonFile2PyObj(SaveDir + Name + ".param")
-    data = JsonFile2PyObj(SaveDir + Name + ".data")
-    self.param = param
-    self.data = data
-    self.Init(Load=True)
-
-def Interest():
-    return
+def SetMethodForWorldClass(Class):
+    if not hasattr(Class, "SetFullName"):
+        Class.SetFullName = SetFullNameForModel

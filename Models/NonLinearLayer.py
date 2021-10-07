@@ -15,7 +15,7 @@ from utils_torch.Models.SingleLayer import SingleLayer
 class NonLinearLayer(SingleLayer):
     def __init__(self, param=None):
         super().__init__()
-        utils_torch.model.InitForModel(param)
+        utils_torch.model.InitForModel(self, param, ClassPath="utils_torch.Models.NonLinearLayer")
     def InitFromParam(self, param=None, IsLoad=False):
         super().InitFromParam(param, IsLoad)
         param = self.param        

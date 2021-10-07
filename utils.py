@@ -25,37 +25,15 @@ from inspect import getframeinfo, stack
 from utils_torch.attrs import *
 from utils_torch.files import *
 
-def SetArgsGlobal(ArgsGlobal):
-    utils_torch.ArgsGlobal = ArgsGlobal
-
-def GetArgsGlobal():
-    return utils_torch.ArgsGlobal
-
-def SetSaveDir(SaveDir, Type="Main"):
-    SetAttrs(utils_torch.ArgsGlobal, SaveDir+"."+Type, value=SaveDir)
-
-def GetSaveDir(Type="Main"):
-    return GetAttrs(utils_torch.ArgsGlobal, "SaveDir" + "." + Type)
-
-def GetSaveDirForModel():
-    return utils_torch.SetArgsGlobal.SaveDir.Model
-
-def GetDataLogger():
-    return utils_torch.ArgsGlobal.log.Data
-
-def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
-    TimeStr = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
-    if verbose:
-        print(TimeStr)
-    return TimeStr
-
 def ParseTaskObj(TaskObj, Save=True, **kw):
     if isinstance(TaskObj, str):
         TaskObj = utils_torch.parse.ResolveStr(TaskObj, **kw)
 
-    if utils_torch.IsDictLikePyObj(TaskObj):
+    if utils_torch.IsDictLikePyObj(TaskObj) and hasattr(TaskObj, "Tasks"):
         TaskObj = TaskObj.Tasks
-
+    if utils_torch.IsDictLikePyObj(TaskObj):
+        TaskObj = ListAttrsAndValues(TaskObj)
+    
     if isinstance(TaskObj, list) or utils_torch.IsListLikePyObj(TaskObj):
         TaskList = TaskObj
         TaskListParsed = []
@@ -65,7 +43,7 @@ def ParseTaskObj(TaskObj, Save=True, **kw):
                 #     Task: {},
                 # })
                 TaskListParsed.append([Task, {}])
-            elif isinstance(Task, utils_torch.PyObj) and Task.IsDictLike():
+            elif utils_torch.IsDictLikePyObj(Task):
                 if hasattr(Task, "Type") and hasattr(Task, "Args"):
                     # TaskList[Index] = utils_torch.PyObj({
                     #     Task["Type"]: Task["Args"],
@@ -74,8 +52,10 @@ def ParseTaskObj(TaskObj, Save=True, **kw):
                 else:
                     for key, value in ListAttrsAndValues(Task):
                         TaskListParsed.append([key, value])
-            elif isinstance(Task, utils_torch.PyObj) and Task.IsListLike():
+            elif utils_torch.IsListLikePyObj(Task) or isinstance(Task, list):
                 TaskListParsed.append(Task)
+            elif isinstance(Task, tuple):
+                TaskListParsed.append(list(Task))
             else:
                 raise Exception(type(Task))
     else:
@@ -92,7 +72,12 @@ def ParseTaskObj(TaskObj, Save=True, **kw):
         utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetSaveDir() + "task_parsed.jsonc")
     return TaskListParsed
 
-def ProcessInitTask(Task, **kw):
+def DoTasks(Tasks, **kw):
+    Tasks = ParseTaskObj(Tasks, **kw)
+    for Task in Tasks:
+        DoTask(Task, **kw)
+
+def DoTask(Task, **kw):
     ObjRoot = kw.setdefault("ObjRoot", None)
     ObjCurrent = kw.setdefault("ObjCurrent", None)
     TaskType = Task[0]
@@ -101,6 +86,16 @@ def ProcessInitTask(Task, **kw):
         BuildObjFromParam(TaskArgs, **kw)
     elif TaskType in ["FunctionCall"]:
         utils_torch.CallFunctions(TaskArgs, **kw)
+    elif TaskType in ["CallGraph"]:
+        if not hasattr(TaskArgs, "In"):
+            In = []
+            if hasattr(TaskArgs, "Router"):
+                Router = TaskArgs.Router
+            else:
+                Router = TaskArgs
+        RouterParsed = utils_torch.router.ParseRouterStaticAndDynamic(Router, ObjRefList=[Router], **kw)
+        InParsed = utils_torch.parse.ParsePyObjDynamic(Router, RaiseFailedParse=True, InPlace=False, **kw)
+        utils_torch.CallGraph(RouterParsed, InParsed)
     else:
         raise Exception()
 
@@ -157,7 +152,8 @@ def _BuildObj(Args, **kw):
     for ModulePath, MountPath in zip(ModulePathList, MountPathList):
         # Module = utils_torch.ImportModule(_ModulePath)
         #Obj = Module.__MainClass__()
-        Class = eval(ModulePath)
+        # Class = eval(ModulePath)
+        Class = utils_torch.ParseClass(ModulePath)
         Obj = Class()
 
         ObjRoot = kw.get("ObjRoot")
@@ -182,15 +178,45 @@ def SaveObj(Args, **kw):
         Obj.Save(SaveDir)
 
 
+def LoadObj(Args, **kw):
+    SaveNameList = utils_torch.ToList(Args.SaveName)
+    MountPathList = utils_torch.ToList(Args.MountPathList)
+    if not hasattr(Args.SaveDir, "SaveDir"):
+        SaveDirList = ["auto" for _ in range(len(SaveNameList))]
+    else:
+        SaveDirList = utils_torch.ToList(Args.SaveDir)
+    for Index, SaveDir in SaveDirList:
+        if SaveDir in ["Auto", "auto"]:
+            SaveDirList[Index] = utils_torch.GetSaveDir("Obj")
+
+    for SaveName, SaveDir, MountPath in zip(SaveNameList, SaveDirList, MountPathList):
+        ParamPath = SaveDir + SaveName + ".param"
+        utils_torch.CheckFileExists(ParamPath)
+        param = utils_torch.json.DataFile2PyObj(ParamPath)
+        DataPath = SaveDir + SaveName + ".data"
+        utils_torch.CheckFileExists(DataPath)
+        data = utils_torch.json.DataFile2PyObj(DataPath)
+        Class = ParseClass(param.ClassPath)
+        Obj = Class(param, data)
+        MountObj(Obj, kw.get("ObjRoot"), MountPath)
+
+def ParseClass(ClassPath):
+    try:
+        Module = utils_torch.ImportModule(ClassPath)
+        if hasattr(Module, "__MainClass__"):
+            return Module.__MainClass__
+        else:
+            return Module
+    except Exception:
+        Class = eval(ClassPath)
+        return Class
+
 def MountObj(Obj, ObjRoot, MountPath):
     SetAttrs(ObjRoot, MountPath, Obj)
 
 def SaveObj(Args):
     Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetArgsGlobal()),
     Obj.Save(SaveDir=Args.SaveDir)
-
-def LoadObj(Args):
-    return
 
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
 def IsIterable(Obj):
@@ -1062,4 +1088,3 @@ def Floats2StrWithEqualLength(Floats):
     Floats = utils_torch.ToNpArray(Floats)
     Base, Exp = utils_torch.math.Floats2BaseAndExponent(Floats)
     # to be implemented
-

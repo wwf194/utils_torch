@@ -12,7 +12,7 @@ def load_model(param):
     return
 
 class MLP(torch.nn.Module):
-    def __init__(self, param):
+    def __init__(self, param, ClassPath="utils_torch.Models.MLP"):
         super(MLP, self).__init__()
         if param is not None:
             self.param = param

@@ -172,3 +172,21 @@ def IsJsonObj(Obj):
     isinstance(Obj, list) or \
     isinstance(Obj, dict) or \
     isinstance(Obj, tuple)
+
+import pickle
+def PyObj2DataFile(Obj, FilePath):
+    JsonObj = PyObj2JsonObj(Obj)
+    JsonObj2DataFile(JsonObj, FilePath)
+
+def JsonObj2DataFile(Obj, FilePath):
+    utils_torch.EnsureFileDir(FilePath)
+    with open(FilePath, "wb") as f:
+        pickle.dump(Obj, f)
+
+def DataFile2JsonObj(FilePath):
+    with open(FilePath, "rb") as f:
+        JsonObj = pickle.load(f)
+    return JsonObj
+
+def DataFile2PyObj(FilePath):
+    return JsonObj2PyObj(DataFile2JsonObj(FilePath))

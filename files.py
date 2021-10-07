@@ -97,6 +97,10 @@ def GetAllDirs(DirPath):
 def ExistsFile(FilePath):
     return os.path.isfile(FilePath)
 
+def CheckFileExists(FilePath):
+    if not utils_torch.ExistsFile(FilePath):
+        raise Exception("%s does not exist."%FilePath)
+
 def Path2AbsolutePath(Path):
     return os.path.abspath(Path)
 

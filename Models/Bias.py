@@ -8,10 +8,7 @@ from utils_torch.attrs import *
 class Bias(nn.Module):
     def __init__(self, param=None):
         super(Bias, self).__init__()
-        if param is not None:
-            self.param = param
-            self.cache = utils_torch.EmptyPyObj()
-            self.data = utils_torch.EmptyPyObj()
+        utils_torch.model.InitForModel(self, param, ClassPath="utils_torch.Models.Bias")
     def InitFromParam(self):
         param = self.param
         data = self.data
@@ -21,10 +18,6 @@ class Bias(nn.Module):
         cache.Tensors.append([data, "Bias", data.Bias])
     def forward(self):
         return self.data.Bias
-    def SetTensorLocation(self, Location):
-        utils_torch.model.SetTensorLocationForLeafModel(self, Location)
-        return
-    def GetTensorLocation(self):
-        return self.cache.TensorLocation
+
 __MainClass__ = Bias
 utils_torch.model.SetMethodForModelClass(__MainClass__)

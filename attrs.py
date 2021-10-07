@@ -195,7 +195,7 @@ def GetAttrs(Obj, attrs=[], *args):
                 if hasattr(Obj, attr):
                     Obj = getattr(Obj, attr)
                 else:
-                    raise Exception("GetAttrs: non-existent attr: %s"%(".".join(attrs_reached)))
+                    raise Exception("GetAttrs: Non-Existent Attr: %s"%(".".join(attrs_reached)))
         else:
             raise Exception("GetAttrs: invalid attr type: %s"%(".".join(attrs_reached)))
     
