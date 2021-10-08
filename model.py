@@ -620,10 +620,6 @@ def ParseRoutersForModel(self):
                 InPlace=False
             )
         )
-        #setattr(cache.Dynamics, Name, Router)
-    # if not HasAttrs(param.Dynamics, "__Entry__"):
-    #     SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-    # cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
     return
 
 def SaveForModel(self, SaveDir, Name=None, IsRoot=True):
@@ -687,6 +683,7 @@ def SetMethodForModelClass(Class):
     Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModel
     Class.LogWeight = LogWeightForModel
     Class.LoadFromParam = LoadFromParamForModel
+
 def SetMethodForWorldClass(Class):
     if not hasattr(Class, "SetFullName"):
         Class.SetFullName = SetFullNameForModel

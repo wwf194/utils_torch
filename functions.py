@@ -2,8 +2,8 @@ import functools
 import utils_torch
 from utils_torch.attrs import *
 def ParseFunctionParamsStatic(paramList):
-    for Index, param in enumerate(paramList):
-        paramList[Index] = ParseFunctionParamStatic(param)
+    for index, param in enumerate(paramList):
+        paramList[index] = ParseFunctionParamStatic(param)
 
 def ParseFunctionParamStatic(param, InPlace=False):
     if callable(param):
@@ -13,8 +13,9 @@ def ParseFunctionParamStatic(param, InPlace=False):
     elif utils_torch.IsListLike(param):
         if len(param)==0:
             param.append([])
+        return param
     else:
-        raise Exception()
+        raise Exception(type(param))
 
 def StackFunction(FunctionList, *Functions, Inverse=False, InputNum=1):
     if isinstance(FunctionList, list):

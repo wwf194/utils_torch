@@ -54,12 +54,13 @@ def FunctionsOutputs2List(Functions):
 
 class FunctionsOutputs:
     def __init__(self, param=None, data=None, **kw):
-        if param is not None:
-            self.param = param
-            self.cache = utils_torch.EmptyPyObj()
-    def InitFromParam(self):
+        utils_torch.model.InitForModel(self, param, data, 
+            ClassPath="utils_torch.Models.Operators.FunctionsOutputs", **kw)
+    def InitFromParam(self, IsLoad=False):
         param = self.param
         cache = self.cache
+        cache.IsLoad = IsLoad
+        cache.IsInit = not IsLoad
         utils_torch.ParseFunctionParamsStatic(param.Functions)
         cache.Functions = utils_torch.parse.ParsePyObjDynamic(
             param.Functions,
@@ -71,6 +72,7 @@ class FunctionsOutputs:
         return self.forward()
     def forward(self):
         return FunctionsOutputs2List(self.cache.Functions)
+utils_torch.model.SetMethodForModelClass(FunctionsOutputs)
 OperatorList.append("FunctionsOutputs")
 
 def CalculateGradient(loss):

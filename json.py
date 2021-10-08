@@ -23,26 +23,33 @@ def JsonObj2JsonStr(JsonObj):
     return json.dumps(JsonObj, indent=4, sort_keys=False)
 
 def PyObj2JsonObj(Obj):
+    return _PyObj2JsonObj(Obj, AttrStr="root")
+
+def _PyObj2JsonObj(Obj, **kw):
+    AttrStr = kw["AttrStr"]
     if isinstance(Obj, utils_torch.PyObj) and Obj.IsListLike():
         if len(ListAttrsAndValues(Obj))==1:
             Obj = Obj.ToList()
     if isinstance(Obj, list) or isinstance(Obj, tuple):
         JsonObj = []
-        for Item in Obj:
-            JsonObj.append(PyObj2JsonObj(Item))
+        for Index, Item in enumerate(Obj):
+            kw["AttrStr"] = AttrStr + ".%d"%Index
+            JsonObj.append(_PyObj2JsonObj(Item, **kw))
         return JsonObj
     elif isinstance(Obj, utils_torch.PyObj):
         JsonObj = {}
         for attr, value in ListAttrsAndValues(Obj, Exceptions=[]):
             if attr in ["__ResolveRef__"]:
                 continue
-            JsonObj[attr] = PyObj2JsonObj(value)
+            kw["AttrStr"] = AttrStr + ".%s"%attr
+            JsonObj[attr] = _PyObj2JsonObj(value, **kw)
         return JsonObj
     elif isinstance(Obj, dict):
         JsonObj = {}
         for key, value in Obj.items():
-            JsonObj[key] = PyObj2JsonObj(value)
-        return JsonObj   
+            kw["AttrStr"] = AttrStr +  ".%s"%key
+            JsonObj[key] = _PyObj2JsonObj(value, **kw)
+        return JsonObj
     elif type(Obj) in [str, int, bool, float]:
         return Obj
     elif isinstance(Obj, np.ndarray):
@@ -50,7 +57,7 @@ def PyObj2JsonObj(Obj):
     elif isinstance(Obj, np.float32) or isinstance(Obj, np.float64):
         return float(Obj)
     else:
-        utils_torch.AddWarning("UnserializableObject of type: %s"%type(Obj))
+        utils_torch.AddWarning("%s is of Type: %s Unserializable."%(kw["AttrStr"], type(Obj)))
         return "UnserializableObject of type: %s"%type(Obj)
 
 def PyObj2DataObj(Obj):

@@ -127,8 +127,6 @@ def DoTask(Task, **kw):
         SetTensorLocation(TaskArgs)
     elif TaskType in ["SetLogger", "SetDataLogger"]:
         SetLogger(TaskArgs)
-    elif TaskType in ["FunctionCall"]:
-        utils_torch.CallFunctions(TaskArgs, **kw)
     elif TaskType in ["Train"]:
         utils_torch.train.Train(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), Logger=utils_torch.GetDataLogger())
     elif TaskType in ["DoTasks"]:

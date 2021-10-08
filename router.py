@@ -74,7 +74,6 @@ def CheckRoutingsInputOutputNum(Router):
 def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
     if not isinstance(Router, utils_torch.PyObj):
         utils_torch.AddWarning("Object %s is not a Router."%Router)
-    RouterParsed = utils_torch.EmptyPyObj()
     RouterParsed = utils_torch.parse.ParsePyObjDynamic(Router, ObjRefList=ObjRefList, InPlace=InPlace, RaiseFailedParse=True, **kw)
     return RouterParsed
 
