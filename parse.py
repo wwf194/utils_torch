@@ -140,6 +140,23 @@ def _ParsePyObjDynamic(Obj, parent, attr, RaiseFailedParse, **kw):
                     delattr(Obj, _Attr)
                     break
             Sig = False
+    elif isinstance(Obj, str) and "#" in Obj:
+        if not Obj[0]=="#":
+            ObjParsed = Obj
+            return ObjParsed
+            #raise Exception(Obj)
+        try:
+            ObjParsed = eval(Obj[1:])
+            success = True
+        except Exception:
+            success = False
+            if RaiseFailedParse:
+                raise Exception("_ParsePyObjDynamic: Failed to run: %s"%Obj)
+            else:
+                utils_torch.AddWarning("_ParsePyObjDynamic: Failed to run: %s"%Obj)
+                ObjParsed = Obj
+        if success:
+            ObjParsed = _ParsePyObjDynamic(ObjParsed, Obj, "(eval)", RaiseFailedParse, **kw)
     elif isinstance(Obj, str) and "&" in Obj:
         # Some Tricks
         if "|-->" in Obj:
@@ -151,7 +168,6 @@ def _ParsePyObjDynamic(Obj, parent, attr, RaiseFailedParse, **kw):
                 raise Exception("_ParsePyObjDynamic: Failed to run: %s"%Obj)
             else:
                 utils_torch.AddWarning("_ParsePyObjDynamic: Failed to run: %s"%Obj)
-                return ObjParsed
         else:
             ObjParsed = _ParsePyObjDynamic(ObjParsed, Obj, "(eval)", RaiseFailedParse, **kw)
     else:
@@ -241,6 +257,7 @@ def ParsePyObjDynamicWithMultiRefs(Obj, RaiseFailedParse=False, InPlace=False, *
         return _ParsePyObjDynamicWithMultiRefs(Obj, None, None, RaiseFailedParse=RaiseFailedParse, **kw)
 
 def _ParsePyObjDynamicWithMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
+    # Not In Place. Returns a new ObjParsed.
     ObjRefList = kw["ObjRefList"]
     if isinstance(Obj, dict):
         ObjParsed = {}
@@ -256,14 +273,21 @@ def _ParsePyObjDynamicWithMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
         ObjParsed = utils_torch.EmptyPyObj()
         for Attr, Value in ListAttrsAndValues(Obj, ExcludeCache=False):
             setattr(ObjParsed, Attr, _ParsePyObjDynamicWithMultiRefs(getattr(Obj, Attr), parent, Attr, RaiseFailedParse, **kw))
-    elif isinstance(Obj, str):
-        # if Obj in ["&GetBias"]:
-        #     print("aaa")
+    elif isinstance(Obj, str) and "#" in Obj:
+        if not Obj[0]=="#":
+            return Obj
+        try:
+            ObjParsed = eval(Obj[1:])    
+            success = True
+        except Exception:
+            success = False
+            ObjParsed = Obj
+        if success:
+            ObjParsed = _ParsePyObjDynamicWithMultiRefs(ObjParsed, Obj, "(eval)", RaiseFailedParse, **kw)
+    elif isinstance(Obj, str) and "&" in Obj:
         ObjRoot = kw.get("ObjRoot")
         ObjRef = kw.get("ObjRef")
         sentence = Obj
-        # if "CellStateDecay" in sentence:
-        #     print("aaa")
         if "&" in sentence:
             success = False
             sentence = sentence.replace("&^", "ObjRoot.")
@@ -338,25 +362,24 @@ def _ParsePyObjDynamicWithMultiRefsInPlace(Obj, parent, Attr, RaiseFailedParse, 
 
 def ApplyMethodOnPyObj(Obj, Function=lambda x:(x, True), **kw):
     # Not Inplace
-    ObjParsed = utils_torch.PyObj()
-    return _ApplyMethodOnPyObj(Obj, Function, ObjParsed, [], **kw)
+    return _ApplyMethodOnPyObj(Obj, Function, [], **kw)
 
-def _ApplyMethodOnPyObj(Obj, Function, ObjParsed, Attrs, **kw):
+def _ApplyMethodOnPyObj(Obj, Function, Attrs, **kw):
     Obj, ContinueParse = Function(Obj)
     if not ContinueParse:
         return Obj
     if isinstance(Obj, list) or utils_torch.IsListLikePyObj(Obj):
         ObjParsed = []
         for Index, Item in enumerate(Obj):
-            ObjParsed.append(_ApplyMethodOnPyObj(Item, [*Attrs, Index], Obj), **kw)
+            ObjParsed.append(_ApplyMethodOnPyObj(Item, Function, [*Attrs, Index], **kw))
     elif isinstance(Obj, dict):
         ObjParsed = {}
         for Key, Value in Obj.items():
-            ObjParsed[Key] = _ApplyMethodOnPyObj(Value, ObjParsed, [*Attrs, Key], **kw)
+            ObjParsed[Key] = _ApplyMethodOnPyObj(Value, Function, [*Attrs, Key], **kw)
     elif utils_torch.IsDictLikePyObj(Obj):
         ObjParsed = utils_torch.EmptyPyObj()
         for Attr, Value in ListAttrsAndValues(Obj):
-            setattr(ObjParsed, Attr, _ApplyMethodOnPyObj(Value, Obj, [*Attrs, Attr]))
+            setattr(ObjParsed, Attr, _ApplyMethodOnPyObj(Value, Function, [*Attrs, Attr], **kw))
     else:
         ObjParsed = Obj
     return ObjParsed

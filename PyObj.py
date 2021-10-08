@@ -22,7 +22,7 @@ class PyObjCache(object):
         return
 
 class PyObj(object):
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         self.cache = PyObjCache()
         if param is not None:
             if type(param) is dict:
@@ -59,7 +59,6 @@ class PyObj(object):
         self.__value__ = ListParsed
         return self
     def FromDict(self, Dict):
-        #self.__dict__ = {}
         for key, value in Dict.items():
             # if key in ["Init.Method"]:
             #     print("aaa")
@@ -67,12 +66,12 @@ class PyObj(object):
                 if not hasattr(self, "__ResolveRef__"):
                     setattr(self.cache, key, value)
                 continue
-
-            if "." in key:
+            
+            if "." in key: # and "|-->" not in key:
                 keys = key.split(".")
             else:
                 keys = [key]
-            utils_torch.python.CheckIsLegalPyName(key[0])
+            utils_torch.python.CheckIsLegalPyName(keys[0])
             obj = self
             parent, parentAttr = None, None
             for index, key in enumerate(keys):

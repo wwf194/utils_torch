@@ -4,7 +4,7 @@ from utils_torch.attrs import *
 from utils_torch.python import *
 
 class Router:
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         if param is not None:
             self.param = param
     def InitFromParam(self, param):

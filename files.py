@@ -96,6 +96,7 @@ def GetAllDirs(DirPath):
 
 def ExistsFile(FilePath):
     return os.path.isfile(FilePath)
+FileExists = ExistsFile
 
 def CheckFileExists(FilePath):
     if not utils_torch.ExistsFile(FilePath):
@@ -299,28 +300,66 @@ def Table2TextFileColumns(*Columns, **kw):
         Dict[Names[Index]] = Column
     Table2TextFileDict(Dict, kw["SavePath"])
 
-def LoadParamFromFile(Args, ArgsGlobal):
+def LoadParamFromFile(Args, **kw):
     if isinstance(Args, dict):
-        _LoadParamFromFile(utils_torch.json.JsonObj2PyObj(Args), ArgsGlobal)
+        _LoadParamFromFile(utils_torch.json.JsonObj2PyObj(Args), **kw)
     elif isinstance(Args, list) or utils_torch.IsListLikePyObj(Args):
         for Arg in Args:
-            _LoadParamFromFile(Arg, ArgsGlobal)
+            _LoadParamFromFile(Arg, **kw)
     elif utils_torch.IsDictLikePyObj(Args):
-        _LoadParamFromFile(Args, ArgsGlobal)
+        _LoadParamFromFile(Args, **kw)
     else:
         raise Exception()
 
-def _LoadParamFromFile(Args, ArgsGlobal):
-    FilePath = utils_torch.ToList(Args.FilePath)
-    MountPath = utils_torch.ToList(Args.MountPath)
-    for _MountPath, _FilePath in zip(MountPath, FilePath):
-        Obj = utils_torch.json.JsonFile2PyObj(_FilePath)
+def _LoadParamFromFile(Args, **kw):
+    FilePathList = utils_torch.ToList(Args.FilePath)
+    MountPathList = utils_torch.ToList(Args.MountPath)
+    for MountPath, FilePath in zip(MountPathList, FilePathList):
+        Obj = utils_torch.json.JsonFile2PyObj(FilePath)
         if not isinstance(Obj, list):
             EnsureAttrs(Args, "SetResolveBase", default=True)
             if Args.SetResolveBase:
                 setattr(Obj, "__ResolveBase__", True)
-        if not _MountPath.startswith("&^"):
-            raise Exception()
-        MountPath = _MountPath.replace("&^", "")
-        SetAttrs(ArgsGlobal, MountPath, Obj)
+        utils_torch.MountObj(MountPath, Obj, **kw)
     return
+
+def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
+    # path_rel: file path relevant to path_start
+    if path_main is None:
+        path_main = sys.path[0]
+    if path_start is None:
+        path_start = path_main
+        warnings.warn('cal_path_from_main: path_start is None. using default: %s'%path_main)
+    path_start = os.path.abspath(path_start)
+    path_main = os.path.abspath(path_main)
+    if os.path.isfile(path_main):
+        path_main = os.path.dirname(path_main)
+    if not path_main.endswith('/'):
+        path_main += '/' # necessary for os.path.relpath to calculate correctly
+    if os.path.isfile(path_start):
+        path_start = os.path.dirname(path_start)
+    #path_start_rel = os.path.relpath(path_start, start=path_main)
+
+    if path_rel.startswith('./'):
+        path_rel.lstrip('./')
+    elif path_rel.startswith('/'):
+        raise Exception('path_rel: %s is a absolute path.'%path_rel)
+    
+    path_abs = os.path.abspath(os.path.join(path_start, path_rel))
+    #file_path_from_path_start = os.path.relpath(path_rel, start=path_start)
+    
+    path_from_main = os.path.relpath(path_abs, start=path_main)
+
+    #print('path_abs: %s path_main: %s path_from_main: %s'%(path_abs, path_main, path_from_main))
+    '''
+    print(main_path)
+    print(path_start)
+    print('path_start_rel: %s'%path_start_rel)
+    print(file_name)
+    print('file_path: %s'%file_path)
+    #print('file_path_from_path_start: %s'%file_path_from_path_start)
+    print('file_path_from_main_path: %s'%file_path_from_main_path)
+    print(TargetDir_module(file_path_from_main_path))
+    '''
+    #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
+    return path_from_main

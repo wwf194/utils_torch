@@ -53,7 +53,7 @@ def FunctionsOutputs2List(Functions):
 # Operators.FunctionsOutputs2List = FunctionsOutputs2List
 
 class FunctionsOutputs:
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         if param is not None:
             self.param = param
             self.cache = utils_torch.EmptyPyObj()

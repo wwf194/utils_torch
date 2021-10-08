@@ -5,13 +5,14 @@ import torch.nn.functional as F
 from utils_torch.attrs import *
 
 class NoiseGenerator(nn.Module):
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         super(NoiseGenerator, self).__init__()
-        if param is not None:
-            self.param = param
-            self.cache = utils_torch.EmptyPyObj()
-    def InitFromParam(self):
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.NoiseGenerator")
+    def InitFromParam(self, IsLoad=False):
         param = self.param
+        cache = self.cache
+        cache.IsLoad = IsLoad
+        cache.IsInit = not cache.IsLoad
         if param.Method in ["Adaptive"]:
             if param.SubMethod in ["FromInputStd"]:
                 if param.Distribution in ["Gaussian"]:

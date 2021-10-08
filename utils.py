@@ -73,15 +73,20 @@ def ParseTaskObj(TaskObj, Save=True, **kw):
     return TaskListParsed
 
 def DoTasks(Tasks, **kw):
-    Tasks = ParseTaskObj(Tasks, **kw)
-    for Task in Tasks:
-        DoTask(Task, **kw)
+    if isinstance(Tasks, str) and "&" in Tasks:
+        Tasks = utils_torch.parse.ResolveStr(Tasks, **kw)
+        Tasks = utils_torch.ParseTaskObj(Tasks)
+    for Index, Task in enumerate(Tasks):
+        utils_torch.EnsureAttrs(Task, "Args", default={})
+        utils_torch.DoTask(Task, **kw)
 
 def DoTask(Task, **kw):
     ObjRoot = kw.setdefault("ObjRoot", None)
     ObjCurrent = kw.setdefault("ObjCurrent", None)
     TaskType = Task[0]
     TaskArgs = Task[1]
+    if isinstance(TaskArgs, str) and "&" in TaskArgs:
+        TaskArgs = utils_torch.parse.ResolveStr(TaskArgs, **kw)
     if TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
         BuildObjFromParam(TaskArgs, **kw)
     elif TaskType in ["FunctionCall"]:
@@ -89,15 +94,67 @@ def DoTask(Task, **kw):
     elif TaskType in ["CallGraph"]:
         if not hasattr(TaskArgs, "In"):
             In = []
-            if hasattr(TaskArgs, "Router"):
-                Router = TaskArgs.Router
-            else:
-                Router = TaskArgs
+        if hasattr(TaskArgs, "Router"):
+            Router = TaskArgs.Router
+        else:
+            Router = TaskArgs
         RouterParsed = utils_torch.router.ParseRouterStaticAndDynamic(Router, ObjRefList=[Router], **kw)
         InParsed = utils_torch.parse.ParsePyObjDynamic(Router, RaiseFailedParse=True, InPlace=False, **kw)
         utils_torch.CallGraph(RouterParsed, InParsed)
+    elif TaskType in ["RemoveObj"]:
+        RemoveObj(TaskArgs, **kw)
+    elif TaskType in ["LoadObjFromFile"]:
+        LoadObjFromFile(TaskArgs, **kw)
+    elif TaskType in ["LoadObj"]:
+        utils_torch.LoadObj(TaskArgs, **kw)
+    elif TaskType in ["AddLibraryPath"]:
+        AddLibraryPath(TaskArgs)
+    elif TaskType in ["LoadJsonFile"]:
+        LoadJsonFile(TaskArgs)
+    elif TaskType in ["LoadParamFile"]:
+        utils_torch.LoadParamFromFile(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+    elif TaskType in ["ParseParam", "ParseParamStatic"]:
+        ParseParamStatic(TaskArgs)
+    elif TaskType in ["ParseParamDynamic"]:
+        ParseParamDynamic(TaskArgs)
+    elif TaskType in ["ParseSelf"]:
+        utils_torch.parse.ParsePyObjStatic(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    elif TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
+        utils_torch.BuildObjFromParam(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+    elif TaskType in ["BuildObj"]:
+        utils_torch.BuildObj(TaskArgs, **kw)
+    elif TaskType in ["SetTensorLocation"]:
+        SetTensorLocation(TaskArgs)
+    elif TaskType in ["SetLogger", "SetDataLogger"]:
+        SetLogger(TaskArgs)
+    elif TaskType in ["FunctionCall"]:
+        utils_torch.CallFunctions(TaskArgs, **kw)
+    elif TaskType in ["Train"]:
+        utils_torch.train.Train(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), Logger=utils_torch.GetDataLogger())
+    elif TaskType in ["DoTasks"]:
+        _TaskList = utils_torch.ParseTaskObj(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+        DoTasks(_TaskList, **kw)
+    elif TaskType in ["SaveObj"]:
+        utils_torch.SaveObj(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+    # elif TaskType in ["DoTask"]:
+    #     ProcessTask(TaskType, TaskArgs)
+    else:
+        utils_torch.AddWarning("Unknown Task.Type: %s"%TaskType)
+        raise Exception(TaskType)
+
+def SetTensorLocation(Args):
+    EnsureAttrs(Args, "Method", default="Auto")
+    if Args.Method in ["Auto", "auto"]:
+        Location = utils_torch.GetGPUWithLargestUseableMemory()
     else:
         raise Exception()
+
+    for Obj in utils_torch.ListValues(utils_torch.GetArgsGlobal().object):
+        if hasattr(Obj, "SetTensorLocation"):
+            Obj.SetTensorLocation(Location)
+
+def SetLogger(Args):
+    SetAttrs(utils_torch.GetArgsGlobal(), "log.Data", utils_torch.log.LoggerForEpochBatchTrain())
 
 def BuildObjFromParam(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
@@ -166,6 +223,31 @@ def _BuildObj(Args, **kw):
         MountPathList = MountPath.split(".")
         SetAttrs(eval(MountPathList[0]), MountPathList[1:], Obj)
 
+def RemoveObj(Args, **kw):
+    if isinstance(Args, utils_torch.PyObj):
+        Args = GetAttrs(Args)
+
+    if isinstance(Args, list):
+        for Arg in Args:
+            _RemoveObj(Arg, **kw)
+    elif isinstance(Args, utils_torch.PyObj):
+        _RemoveObj(Args, **kw)
+    else:
+        raise Exception()
+
+def _RemoveObj(Args, **kw):
+    MountPathList = utils_torch.ToList(Args.MountPath)
+
+    for MountPath in MountPathList:
+        ObjRoot = kw.get("ObjRoot")
+        ObjCurrent = kw.get("ObjCurrent")
+        
+        MountPath = MountPath.replace("&^", "ObjRoot.")
+        MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
+        MountPath = MountPath.replace("&", "ObjCurrent.")
+        MountPathList = MountPath.split(".")
+        RemoveAttrs(eval(MountPathList[0]), MountPathList[1:])
+
 def SaveObj(Args, **kw):
     #SaveNameList = utils_torch.ToList(Args.SaveName)
     SaveObjList = utils_torch.ToList(Args.SaveObj)
@@ -177,28 +259,125 @@ def SaveObj(Args, **kw):
         Obj = utils_torch.parse.ResolveStr(SaveObj, **kw)
         Obj.Save(SaveDir)
 
-
 def LoadObj(Args, **kw):
+    SourcePathList = utils_torch.ToList(Args.SourcePath)
+    MountPathList = utils_torch.ToList(Args.MountPath)
+
+    for SourcePath, MountPath in zip(SourcePathList, MountPathList):
+        Obj = utils_torch.parse.ResolveStr(SourcePath, **kw)
+        MountObj(MountPath, Obj, **kw)
+
+def LoadObjFromFile(Args, **kw):
     SaveNameList = utils_torch.ToList(Args.SaveName)
-    MountPathList = utils_torch.ToList(Args.MountPathList)
+    MountPathList = utils_torch.ToList(Args.MountPath)
+    SaveDirList = utils_torch.ToList(Args.SaveDir)
+
     if not hasattr(Args.SaveDir, "SaveDir"):
         SaveDirList = ["auto" for _ in range(len(SaveNameList))]
     else:
         SaveDirList = utils_torch.ToList(Args.SaveDir)
-    for Index, SaveDir in SaveDirList:
+    for Index, SaveDir in enumerate(SaveDirList):
         if SaveDir in ["Auto", "auto"]:
             SaveDirList[Index] = utils_torch.GetSaveDir("Obj")
 
     for SaveName, SaveDir, MountPath in zip(SaveNameList, SaveDirList, MountPathList):
-        ParamPath = SaveDir + SaveName + ".param"
-        utils_torch.CheckFileExists(ParamPath)
-        param = utils_torch.json.DataFile2PyObj(ParamPath)
+        ParamPath = SaveDir + SaveName + ".param.jsonc"
+        assert utils_torch.FileExists(ParamPath)
+        param = utils_torch.json.JsonFile2PyObj(ParamPath)
         DataPath = SaveDir + SaveName + ".data"
-        utils_torch.CheckFileExists(DataPath)
+        assert utils_torch.FileExists(DataPath)
         data = utils_torch.json.DataFile2PyObj(DataPath)
         Class = ParseClass(param.ClassPath)
         Obj = Class(param, data)
-        MountObj(Obj, kw.get("ObjRoot"), MountPath)
+        MountObj(MountPath, Obj, **kw)
+
+
+def LoadTaskFile(FilePath="./task.jsonc", Save=True):
+    TaskObj = utils_torch.json.JsonFile2PyObj(FilePath)
+    return TaskObj
+
+def LoadJsonFile(Args):
+    if isinstance(Args, utils_torch.PyObj):
+        Args = GetAttrs(Args)
+    if isinstance(Args, dict):
+        _LoadJsonFile(utils_torch.json.JsonObj2PyObj(Args))
+    elif isinstance(Args, list):
+        for Arg in Args:
+            _LoadJsonFile(Arg)
+    elif isinstance(Args, utils_torch.PyObj):
+        _LoadJsonFile(Args)
+    else:
+        raise Exception()
+
+def _LoadJsonFile(Args):
+    Obj = utils_torch.json.JsonFile2PyObj(Args.FilePath)
+    if not Args.MountPath.startswith("&^"):
+        raise Exception()
+    MountPath = Args.MountPath.replace("&^", "")
+    SetAttrs(ArgsGlobal, MountPath, Obj)
+
+def AddLibraryPath(Args):
+    if isinstance(Args, dict):
+        _AddLibraryPath(Args)
+    elif isinstance(Args, list):
+        for Args_dict in Args:
+            _AddLibraryPath(Args_dict)
+    else:
+        raise Exception()
+
+def _AddLibraryPath(Args):
+    # requires Args to be a dict.
+    lib_name = Args['name']
+    lib_path = Args['path']
+    if lib_path=="!Getfrom_config":
+        success = False
+        for config_name, config_dict in utils_torch.GetArgsGlobal().ConfigDicts.__dict__.items():
+            if config_dict.get("libs") is not None:
+                libs = config_dict["libs"]
+                if libs.get(lib_name) is not None:
+                    lib_path = libs[lib_name]["path"]
+                    success = True
+                    break
+        if not success:
+            utils_torch.AddWarning('add_lib failed: cannot find path to lib %s'%lib_name)
+            return
+    if os.path.exists(lib_path):
+        if os.path.isdir(lib_path):
+            sys.path.append(lib_path)
+            utils_torch.AddLog("Added library <%s> from path %s"%(lib_name, lib_path))
+        else:
+            utils_torch.AddWarning('add_lib failed: path %s exists but is not a directory.'%lib_path)
+    else:
+        utils_torch.AddWarning('add_lib: invalid lib_path: ', lib_path)
+
+def ParseParamStaticAndDynamic(Args):
+    ParseParamStatic(Args)
+    ParseParamDynamic(Args)
+    return
+
+def ParseParamStatic(Args, Save=True, SavePath=None):
+    if SavePath is None:
+        SavePath = utils_torch.GetSaveDir() + "param_parsed_static.jsonc"
+    # for attr, param in utils_torch.ListAttrsAndValues(ArgsGlobal.param):
+    #     utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    ArgsGlobal = utils_torch.GetArgsGlobal()
+    param = ArgsGlobal.param
+    utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    if Save:
+        SavePath = utils_torch.RenameIfPathExists(SavePath)
+        utils_torch.json.PyObj2JsonFile(ArgsGlobal.param, SavePath)
+    return
+
+def ParseParamDynamic(Args, Save=True, SavePath=None):
+    ArgsGlobal = utils_torch.GetArgsGlobal()
+    if SavePath is None:
+        utils_torch.GetSaveDir() + "param_parsed_dynamic.jsonc"
+    for attr, param in utils_torch.ListAttrsAndValues(ArgsGlobal.param):
+        utils_torch.parse.ParsePyObjDynamic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    if Save:
+        utils_torch.json.PyObj2JsonFile(ArgsGlobal.param, utils_torch.RenameIfPathExists(SavePath))
+    return
+
 
 def ParseClass(ClassPath):
     try:
@@ -211,8 +390,6 @@ def ParseClass(ClassPath):
         Class = eval(ClassPath)
         return Class
 
-def MountObj(Obj, ObjRoot, MountPath):
-    SetAttrs(ObjRoot, MountPath, Obj)
 
 def SaveObj(Args):
     Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetArgsGlobal()),
@@ -474,52 +651,6 @@ def read_data(read_dir): #read data from file.
     f.close()
     return data
 
-def save_data(data, save_path): # save data into given file path. existing file will be overwritten.
-    f = open(save_path, 'wb')
-    torch.save(data, f)
-    f.close()
-
-def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
-    # path_rel: file path relevant to path_start
-    if path_main is None:
-        path_main = sys.path[0]
-    if path_start is None:
-        path_start = path_main
-        warnings.warn('cal_path_from_main: path_start is None. using default: %s'%path_main)
-    path_start = os.path.abspath(path_start)
-    path_main = os.path.abspath(path_main)
-    if os.path.isfile(path_main):
-        path_main = os.path.dirname(path_main)
-    if not path_main.endswith('/'):
-        path_main += '/' # necessary for os.path.relpath to calculate correctly
-    if os.path.isfile(path_start):
-        path_start = os.path.dirname(path_start)
-    #path_start_rel = os.path.relpath(path_start, start=path_main)
-
-    if path_rel.startswith('./'):
-        path_rel.lstrip('./')
-    elif path_rel.startswith('/'):
-        raise Exception('path_rel: %s is a absolute path.'%path_rel)
-    
-    path_abs = os.path.abspath(os.path.join(path_start, path_rel))
-    #file_path_from_path_start = os.path.relpath(path_rel, start=path_start)
-    
-    path_from_main = os.path.relpath(path_abs, start=path_main)
-
-    #print('path_abs: %s path_main: %s path_from_main: %s'%(path_abs, path_main, path_from_main))
-    '''
-    print(main_path)
-    print(path_start)
-    print('path_start_rel: %s'%path_start_rel)
-    print(file_name)
-    print('file_path: %s'%file_path)
-    #print('file_path_from_path_start: %s'%file_path_from_path_start)
-    print('file_path_from_main_path: %s'%file_path_from_main_path)
-    print(TargetDir_module(file_path_from_main_path))
-    '''
-    #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
-    return path_from_main
-
 def ImportModule(module_path):
     return importlib.import_module(module_path)
 
@@ -585,58 +716,6 @@ def update_key(dict_0, dict_1, prefix='', strip=False, strip_only=True, exempt=[
                     dict_0[trunc_key]=dict_1[key]
             else:
                 dict_0[trunc_key]=dict_1[key]
-
-
-
-def plot_train_curve(stat_dir, loss_only=False):
-    try:
-        f=open(stat_dir, 'rb')
-        train_loss_list=pickle.load(f)
-        train_acc_list=pickle.load(f)
-        val_loss_list=pickle.load(f)
-        val_acc_list=pickle.load(f)
-        f.close()
-        if(loss_only==False):
-            plot_training_curve_0(train_loss_list, train_acc_list, val_loss_list, val_acc_list)
-        else:
-            plot_training_curve_1(train_loss_list, val_loss_list)
-    except Exception:
-        print('exception when printing training curve.')
-
-def plot_train_curve_0(train_loss_list, train_acc_list, val_loss_list, val_acc_list, fontsize=40):
-    print('plotting training curve.')
-    x = range(epoch_start, epoch_num)
-    plt.subplot(2, 1, 1)
-    plt.plot(x, train_loss_list, '-', label='train', color='r')
-    plt.plot(x, val_loss_list, '-', label='test', color='b')
-    plt.title('Loss', fontsize=fontsize)
-    plt.ylabel('loss', fontsize=fontsize)
-    plt.xlabel('epoch', fontsize=fontsize)
-    plt.legend(loc='best')
-    plt.subplot(2, 1, 2)
-    plt.plot(x, train_acc_list, '-', label='train', color='r')
-    plt.plot(x, val_acc_list, '-', label='test', color='b')
-    plt.title('Accuracy', fontsize=fontsize)
-    plt.ylabel('acc', fontsize=fontsize)
-    plt.xlabel('epoch', fontsize=fontsize)
-    plt.legend(loc='best')
-    plt.tight_layout(pad=0.4, w_pad=2.0, h_pad=2.0)
-    plt.savefig(save_path_anal+'training_curve.jpg')
-    plt.close()
-
-def plot_train_curve_1(train_loss_list, val_loss_list, fontsize=40):
-    print('plotting training curve.')
-    fig = plt.figure()
-    x = range(len(train_loss_list))
-    plt.plot(x, train_loss_list, '-', label='train', color='r')
-    x = range(len(val_loss_list))
-    plt.plot(x, val_loss_list, '-', label='test', color='b')
-    plt.title('Loss - epoch', fontsize=fontsize)
-    plt.ylabel('loss', fontsize=fontsize)
-    plt.xlabel('epoch', fontsize=fontsize)
-    plt.legend(loc='best')
-    plt.close()
-
 
 def set_instance_attr(self, dict_, keys=None, exception=[]):
     if keys is None: # set all keys as instance variables.
@@ -1088,3 +1167,12 @@ def Floats2StrWithEqualLength(Floats):
     Floats = utils_torch.ToNpArray(Floats)
     Base, Exp = utils_torch.math.Floats2BaseAndExponent(Floats)
     # to be implemented
+
+def MountObj(MountPath, Obj, **kw):
+    ObjRoot = kw.get("ObjRoot")
+    ObjCurrent = kw.get("ObjCurrent")
+
+    MountPath = MountPath.replace("&^", "ObjRoot.")
+    MountPath = MountPath.replace("&", "ObjCurrent.")
+    MountPath = MountPath.split(".")
+    SetAttrs(eval(MountPath[0]), MountPath[1:], value=Obj)

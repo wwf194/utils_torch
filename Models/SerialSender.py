@@ -7,12 +7,15 @@ import numpy as np
 from utils_torch.attrs import *
 
 class SerialSender():
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         #super(SerialSender, self).__init__()
-        utils_torch.model.InitForModel(self, param)
-    def InitFromParam(self):
+        utils_torch.model.InitForModel(self, param, data,  ClassPath="utils_torch.Models.SerialSender")
+    def InitFromParam(self, IsLoad=False):
         param = self.param
-        self.ContentList = []
+        cache = self.cache
+        cache.IsLoad = IsLoad
+        cache.IsInit = not IsLoad
+        cache.ContentList = []
         self.SetSendMethod()
         self.SetReceiveMethod()
     def SetSendMethod(self):
@@ -38,18 +41,18 @@ class SerialSender():
             raise Exception(method)
         return
     def ReceiveDefault(self, content):
-        self.ContentList = content
-        self.NextSendIndex = 0
+        cache = self.cache
+        cache.ContentList = content
+        cache.NextSendIndex = 0
     def _SendDefault(self, ContentList, Index):
         return ContentList[Index]
     def RegisterExtractMethod(self, method):
         self.ExtractMethod = method
     def Send(self):
-        Content = self._Send(self.ContentList, Index=self.NextSendIndex)
-        self.NextSendIndex += 1
+        cache = self.cache
+        Content = self._Send(cache.ContentList, Index=cache.NextSendIndex)
+        cache.NextSendIndex += 1
         return Content
-    def SetFullName(self, FullName):
-        utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = SerialSender
 utils_torch.model.SetMethodForModelClass(__MainClass__)

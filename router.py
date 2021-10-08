@@ -3,7 +3,7 @@ import re
 import utils_torch
 from utils_torch.attrs import *
 
-def ParseRoutersForObj(Obj, ObjRefList):
+def ParseRoutersForModel(Obj, ObjRefList):
     param = Obj.param
     cache = Obj.cache
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__Entry__"]):
@@ -16,12 +16,11 @@ def ParseRoutersForObj(Obj, ObjRefList):
         SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
     cache.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[param])
     return
-ParseRouterForObj = ParseRoutersForObj
+ParseRouterForModel = ParseRoutersForModel
 
 def ParseRouterStaticAndDynamic(Router, **kw):
     ParseRouterStatic(Router, InPlace=True)
     return ParseRouterDynamic(Router, **kw)
-
 ParseRouter = ParseRouterStaticAndDynamic
 
 def ParseRoutersDynamic(Routers, ObjRefList=[], **kw):
@@ -76,7 +75,6 @@ def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
         utils_torch.AddWarning("Object %s is not a Router."%Router)
     RouterParsed = utils_torch.EmptyPyObj()
     RouterParsed = utils_torch.parse.ParsePyObjDynamic(Router, ObjRefList=ObjRefList, InPlace=InPlace, RaiseFailedParse=True, **kw)
-
     return RouterParsed
 
 def ParseRoutingAttrsDynamic(Routing, States):
@@ -95,7 +93,8 @@ def ParseRoutingStatic(Routing):
     #     print("aaa")
     _Routing = Routing
     param = utils_torch.EmptyPyObj()
-    SetAttrs(param, "Str", _Routing.replace("&", "(At)"))
+    # notice that there might be . in _Routing string.
+    SetAttrs(param, "Str", value=_Routing.replace("&", "(At)"))
     Routing = re.sub(" ", "", Routing) # remove all spaces
     Routing = Routing.split("||")
     MainRouting = Routing[0] 

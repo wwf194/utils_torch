@@ -319,17 +319,23 @@ def SetArgsGlobal(ArgsGlobal):
 def GetArgsGlobal():
     return utils_torch.ArgsGlobal
 
-def SetSubSaveDir(SaveDir, Type):
-    SetAttrs(utils_torch.ArgsGlobal, "SaveDir" + "." + Type, value=SaveDir)
-
-def SetSaveDir(ArgsGlobal):
-    import utils_torch
-    SaveDir = "./log/Experiment-%s/"%(utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
+def SetSubSaveDir(SaveDir, Type, ArgsGlobal):
+    SetAttrs(ArgsGlobal, "SaveDir" + "." + Type, value=SaveDir)
     utils_torch.EnsureDir(SaveDir)
-    SetAttrs(ArgsGlobal, "SaveDir.Main", value=SaveDir)
 
+def SetSaveDir(SaveDir=None, Type="Main", ArgsGlobal=None):
+    if ArgsGlobal is None:
+        ArgsGlobal = utils_torch.GetArgsGlobal()
+    if Type in ["Main"]:
+        SaveDir = "./log/Experiment-%s/"%(utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
+        utils_torch.EnsureDir(SaveDir)
+        SetAttrs(utils_torch.GetArgsGlobal(), "SaveDir.Main", value=SaveDir)
+    else:
+        SetSubSaveDir(SaveDir, Type, ArgsGlobal)
 def GetSaveDir(Type="Main"):
-    return GetAttrs(utils_torch.ArgsGlobal, "SaveDir" + "." + Type)
+    if not hasattr(utils_torch.GetArgsGlobal().SaveDir, Type):
+        setattr(utils_torch.GetArgsGlobal().SaveDir, Type, utils_torch.GetSaveDir() + Type + "/")
+    return getattr(utils_torch.GetArgsGlobal().SaveDir, Type)        
 
 def GetSaveDirForModel():
     return utils_torch.SetArgsGlobal.SaveDir.Model

@@ -103,6 +103,9 @@ def CallGraph(Router, In, **kw):
                 for Index, State in enumerate(Routing.In):
                     InputList.append(States[State])
                 InputDict = Routing.InNamed
+                for key, value in InputDict.items():
+                    if value.startswith("%"):
+                        InputDict[key] = States[value[1:]]
                 #InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
                 if isinstance(Routing.Module, utils_torch.PyObj):
                     if len(Routing.InNamed) > 0:

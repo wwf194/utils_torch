@@ -8,16 +8,21 @@ import utils_torch
 from utils_torch.attrs import *
 
 class SerialReceiver():
-    def __init__(self, param=None):
-        utils_torch.model.InitForModel(self, param)
-    def InitFromParam(self):
+    def __init__(self, param=None, data=None):
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.SerialReceiver")
+    def InitFromParam(self, IsLoad=False):
+        cache = self.cache
+        cache.IsLoad = IsLoad
+        cache.IsInit = not IsLoad
         self.ContentList = []
         self.SetSendMethod()
         self.SetReceiveMethod()
         return
     def SetSendMethod(self):
         param = self.param
-        EnsureAttrs(param, "Send.Method", default="Default")
+        cache = self.cache
+        if cache.IsInit:
+            EnsureAttrs(param, "Send.Method", default="Default")
         method = GetAttrs(param.Send.Method)
         if method in ["Default"]:
             self._Send = self._SendDefault
@@ -28,7 +33,9 @@ class SerialReceiver():
         return
     def SetReceiveMethod(self):
         param = self.param
-        EnsureAttrs(param, "Receive.Method", default="Default")
+        cache = self.cache
+        if cache.IsInit:
+            EnsureAttrs(param, "Receive.Method", default="Default")
         method = GetAttrs(param.Receive.Method)
         if method in ["Default"]:
             self.Receive = self.ReceiveDefault
@@ -47,8 +54,6 @@ class SerialReceiver():
         return result
     def SendWithoutFlush(self):
         return self.ContentList
-    def SetFullName(self, FullName):
-        utils_torch.model.SetFullNameForModel(self, FullName)
 
 __MainClass__ = SerialReceiver
 utils_torch.model.SetMethodForModelClass(__MainClass__)

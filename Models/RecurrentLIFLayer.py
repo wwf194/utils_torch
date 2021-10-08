@@ -16,13 +16,10 @@ DefaultRoutings = [
 ]
 
 class RecurrentLIFLayer(nn.Module):
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         super(RecurrentLIFLayer, self).__init__()
-        if param is not None:
-            self.param = param
-            self.data = utils_torch.EmptyPyObj()
-            self.cache = utils_torch.EmptyPyObj()
-    def InitFromParam(self, param=None):
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.RecurrentLIFLayer")
+    def InitFromParam(self, param=None, IsLoad=False):
         if param is None:
             param = self.param
             data = self.data
@@ -32,7 +29,9 @@ class RecurrentLIFLayer(nn.Module):
             self.data = utils_torch.EmptyPyObj()
             self.cache = utils_torch.EmptyPyObj()
         
-        self.cache.Modules = utils_torch.EmptyPyObj()
+        cache.IsLoad = IsLoad
+        cache.IsInit = not IsLoad
+        cache.Modules = utils_torch.EmptyPyObj()
         
         EnsureAttrs(param, "IsExciInhi", default=False)
         cache.Tensors = []
@@ -68,14 +67,15 @@ class RecurrentLIFLayer(nn.Module):
         cache = self.cache
         Modules = cache.Modules
         if param.IsExciInhi:
-            if not (HasAttrs(param, "TimeConst.Excitatory") and HasAttrs(param, "TimeConst.Inhibitory")):
-                EnsureAttrs(param, "TimeConst", default=0.1)
-                SetAttrs(param, "TimeConst.Excitatory", GetAttrs(param.TimeConst))
-                SetAttrs(param, "TimeConst.Inhibitory", GetAttrs(param.TimeConst))
-                utils_torch.model.ParseExciInhiNum(param.Neurons)
-                ExciNeuronsNum = param.Neurons.Excitatory.Num
-                InhiNeuronsNum = param.Neurons.Inhibitory.Num
-                #ExciNeuronsNum = 80
+            if cache.IsInit:
+                if not (HasAttrs(param, "TimeConst.Excitatory") and HasAttrs(param, "TimeConst.Inhibitory")):
+                    EnsureAttrs(param, "TimeConst", default=0.1)
+                    SetAttrs(param, "TimeConst.Excitatory", GetAttrs(param.TimeConst))
+                    SetAttrs(param, "TimeConst.Inhibitory", GetAttrs(param.TimeConst))
+                    utils_torch.model.ParseExciInhiNum(param.Neurons)
+            ExciNeuronsNum = param.Neurons.Excitatory.Num
+            InhiNeuronsNum = param.Neurons.Inhibitory.Num
+            #ExciNeuronsNum = 80
 
             if param.TimeConst.Excitatory==param.TimeConst.Inhibitory:
                 TimeConst = param.TimeConst.Excitatory
@@ -107,7 +107,8 @@ class RecurrentLIFLayer(nn.Module):
                 Modules.ProcessCellStateAndTotalInput = lambda CellState, TotalInput: \
                     CellState + Modules.ProcessTotalInput(TotalInput)
         else:
-            EnsureAttrs(param, "TimeConst", default=0.1)
+            if cache.IsInit:
+                EnsureAttrs(param, "TimeConst", default=0.1)
             TimeConst = GetAttrs(param.TimeConst)
             if not 0.0 <= TimeConst <= 1.0:
                 raise Exception()
@@ -115,43 +116,14 @@ class RecurrentLIFLayer(nn.Module):
             Modules.ProcessTotalInput = lambda TotalInput: (1.0 - TimeConst) * TotalInput
             Modules.ProcessCellStateAndTotalInput = lambda CellState, TotalInput: \
                 CellState + Modules.ProcessTotalInput(TotalInput)
-    def ParseRouters(self):
-        param = self.param
-        cache = self.cache
-        cache.Dynamics = utils_torch.EmptyPyObj()
-        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-            utils_torch.router.ParseRouterStatic(RouterParam)
-        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-            Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
-                ObjRefList=[cache.Modules, cache.Dynamics, cache,
-                    param, self, utils_torch.Models.Operators
-                ]
-            )
-            setattr(cache.Dynamics, Name, Router)
-        if not HasAttrs(param.Dynamics, "__Entry__"):
-            SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-        cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
-        return
     def forward(self, CellState, RecurrentInput, Input):
         cache = self.cache
-        return utils_torch.CallGraph(cache.Dynamics.__Entry__, [CellState, RecurrentInput, Input])  
-
-    # def GetTrainWeight(self):
-    #     return self.cache.TrainWeight
-    # def SetTrainWeight(self):
-    #     return utils_torch.model.SetTrainWeightForModel(self)
-    def ClearTrainWeight(self):
-        cache = self.cache
-        if hasattr(cache, "TrainWeight"):
-            delattr(cache, "TrainWeight")
-    def SetLogger(self, logger):
-        return utils_torch.model.SetLoggerForModel(self, logger)
-    def GetLogger(self):
-        return utils_torch.model.GetLoggerForModel(self)
-    def Log(self, data, Name="Undefined"):
-        return utils_torch.model.LogForModel(self, data, Name)
-    def SetFullName(self, FullName):
-        utils_torch.model.SetFullNameForModel(self, FullName)
-
+        return utils_torch.CallGraph(cache.Dynamics.Main, [CellState, RecurrentInput, Input])  
+    # def SetLogger(self, logger):
+    #     return utils_torch.model.SetLoggerForModel(self, logger)
+    # def GetLogger(self):
+    #     return utils_torch.model.GetLoggerForModel(self)
+    # def Log(self, data, Name="Undefined"):
+    #     return utils_torch.model.LogForModel(self, data, Name)
 __MainClass__ = RecurrentLIFLayer
 utils_torch.model.SetMethodForModelClass(__MainClass__)

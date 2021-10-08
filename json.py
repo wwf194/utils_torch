@@ -50,11 +50,9 @@ def PyObj2JsonObj(Obj):
         return "UnserializableObject"
     #return json.loads(PyObj2JsonStr(obj))
 
-def PyObj2JsonFile(obj, path):
-    # JsonObj = PyObj2JsonObj(obj)
-    # JsonStr = JsonObj2JsonStr(JsonObj)
-    JsonStr = PyObj2JsonStr(obj)
-    JsonStr2JsonFile(JsonStr, path)
+def PyObj2JsonFile(Obj, FilePath):
+    JsonStr = PyObj2JsonStr(Obj)
+    JsonStr2JsonFile(JsonStr, FilePath)
 
 def JsonStr2JsonFile(JsonStr, FilePath):    
     if FilePath.endswith(".jsonc") or FilePath.endswith(".json"):
@@ -133,7 +131,9 @@ def JsonStr2PyObj(JsonStr):
 JsonStr_to_object = JsonStr2PyObj
 
 def JsonFile2PyObj(FilePath):
-    return JsonObj2PyObj(JsonFile2JsonObj(FilePath))
+    JsonObj = JsonFile2JsonObj(FilePath)
+    Obj = JsonObj2PyObj(JsonObj)
+    return Obj
 
 def JsonFile2JsonObj(FilePath):
     # with open(FilePath, "r") as f:

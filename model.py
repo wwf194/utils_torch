@@ -477,13 +477,16 @@ def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
     activity = utils_torch.ToNpArray(activity)
     return
 
-def InitForModel(self, param, DefaultFullName="Unnamed", ClassPath=None):
-    if param is not None:
-        self.param = param
-        self.data = utils_torch.EmptyPyObj()
-        self.cache = utils_torch.EmptyPyObj()
-        if not hasattr(param, "FullName"):
-            param.FullName = DefaultFullName
+def InitForModel(self, param=None, data=None, DefaultFullName="Unnamed", ClassPath=None):
+    if param is None:
+        param = utils_torch.EmptyPyObj()
+    self.param = param
+    if data is None:
+        data = utils_torch.EmptyPyObj()
+    self.data = data
+    self.cache = utils_torch.EmptyPyObj()
+    if not hasattr(param, "FullName"):
+        param.FullName = DefaultFullName
     if ClassPath is not None:
         param.ClassPath = ClassPath
 
@@ -572,6 +575,8 @@ def InitModulesForModel(self):
         else:
             utils_torch.AddWarning("Module %s has not implemented InitFromParam method."%name)
 
+def LoadFromParamForModel(self):
+    self.InitFromParam(IsLoad=True)
 
 def ParseRoutersForModel(self):
     param = self.param
@@ -586,19 +591,28 @@ def ParseRoutersForModel(self):
             ]
         )
         setattr(cache.Dynamics, Name, Router)
-    if not HasAttrs(param.Dynamics, "__Entry__"):
-        SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-    cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
+    # if not HasAttrs(param.Dynamics, "__Entry__"):
+    #     SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
+    # cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])
     return
 
-def SaveForModel(self, SaveDir, IsRoot=True):
+def SaveForModel(self, SaveDir, Name=None, IsRoot=True):
     param = self.param
     data = self.data
     cache = self.cache
+
+    if Name is None:
+        SaveName = param.FullName
+    else:
+        SaveName = Name
+
     if IsRoot:
-        utils_torch.json.PyObj2JsonFile(param, SaveDir + param.FullName + ".param.jsonc")
+        SavePath = SaveDir + SaveName + ".param.jsonc"
+        utils_torch.EnsureFileDir(SavePath)
+        utils_torch.json.PyObj2JsonFile(param, SavePath)
     data = utils_torch.parse.ApplyMethodOnPyObj(data, ToNpArrayIfIsTensor)
-    PyObj2DataFile(data, SaveDir + param.FullName + ".data")
+
+    PyObj2DataFile(data, SaveDir + SaveName + ".data")
     if hasattr(cache, "Modules"):
         for name, module in ListAttrsAndValues(cache.Modules):
             if HasAttrs(module, "Save"):
@@ -638,10 +652,14 @@ def SetMethodForModelClass(Class):
         Class.ClearPlotWeight = ClearPlotWeightForModel
     if not hasattr(Class, "Save"):
         Class.Save = SaveForModel
-
+    if not hasattr(Class, "ParseRouters"):
+        Class.ParseRouters = ParseRoutersForModel
     Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModel
     Class.LogWeight = LogWeightForModel
-
+    Class.LoadFromParam = LoadFromParamForModel
 def SetMethodForWorldClass(Class):
     if not hasattr(Class, "SetFullName"):
         Class.SetFullName = SetFullNameForModel
+    if not hasattr(Class, "Save"):
+        Class.Save = SaveForModel
+    Class.LoadFromParam = LoadFromParamForModel

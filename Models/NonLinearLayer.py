@@ -13,38 +13,45 @@ def InitFromParam(param):
 from utils_torch.Models.SingleLayer import SingleLayer
 
 class NonLinearLayer(SingleLayer):
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         super().__init__()
-        utils_torch.model.InitForModel(self, param, ClassPath="utils_torch.Models.NonLinearLayer")
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.NonLinearLayer")
     def InitFromParam(self, param=None, IsLoad=False):
         super().InitFromParam(param, IsLoad)
         param = self.param        
         data = self.data
+        cache = self.cache
+        cache.IsLoad = IsLoad
+        cache.IsInit = not cache.IsLoad
 
         SetAttrs(param, "Type", value="NonLinearLayer")
         EnsureAttrs(param, "Subtype", default="f(Wx+b)")     
 
         if param.Subtype in ["f(Wx+b)"]:
-            SetAttrs(param, "Bias", True)
-            SetAttrs(param, "Bias.Size", param.Output.Num)
+            if cache.IsInit:
+                SetAttrs(param, "Bias", True)
+                SetAttrs(param, "Bias.Size", param.Output.Num)
             self.SetWeight()
             self.SetBias()
             self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + self.GetBias())
         elif param.Subtype in ["f(Wx)+b"]:
-            SetAttrs(param, "Bias", True)
-            SetAttrs(param, "Bias.Size", param.Output.Num)
+            if cache.IsInit:
+                SetAttrs(param, "Bias", True)
+                SetAttrs(param, "Bias.Size", param.Output.Num)
             self.SetWeight()
             self.SetBias()
             self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight())) + data.Bias
         elif param.Subtype in ["Wx"]:
-            SetAttrs(param, "Bias", False)
+            if cache.IsInit:
+                SetAttrs(param, "Bias", False)
             self.SetWeight()
             self.forward = lambda x:torch.mm(x, self.GetWeight())
         elif param.Subtype in ["f(W(x+b))"]:
-            SetAttrs(param, "Bias", True)
-            SetAttrs(param, "Bias.Size", param.Input.Num)
+            if cache.IsInit:
+                SetAttrs(param, "Bias", True)
+                SetAttrs(param, "Bias.Size", param.Input.Num)
             self.SetWeight()
             self.SetBias()
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + data.Bias)       

@@ -19,25 +19,27 @@ class SingleLayer(nn.Module):
             self.cache = utils_torch.EmptyPyObj()
 
         cache.IsLoad = IsLoad
+        cache.IsInit = not IsLoad
         cache.Tensors = []
 
         EnsureAttrs(param, "IsExciInhi", default=False)
 
-        if not HasAttrs(param, "Output.Num") or not HasAttrs(param, "Input.Num"):
-            if HasAttrs(param, "Weight.Size"):
-                SetAttrs(param, "Input.Num", param.Weight.Size[0])
-                SetAttrs(param, "Output.Num", param.Weight.Size[1])
-            else:
-                raise Exception()
+        if cache.IsInit:
+            if not HasAttrs(param, "Output.Num") or not HasAttrs(param, "Input.Num"):
+                if HasAttrs(param, "Weight.Size"):
+                    SetAttrs(param, "Input.Num", param.Weight.Size[0])
+                    SetAttrs(param, "Output.Num", param.Weight.Size[1])
+                else:
+                    raise Exception()
     def SetBias(self):
         param = self.param
         data = self.data
         cache = self.cache        
         if GetAttrs(param.Bias):
-            if cache.IsLoad:
-                data.Bias = utils_torch.ToTorchTensor(data.Bias)
-            else:
+            if cache.IsInit:
                 data.Bias = (torch.zeros(param.Bias.Size, requires_grad=True))
+            else:
+                data.Bias = utils_torch.ToTorchTensor(data.Bias)
             cache.Tensors.append([data, "Bias", data.Bias])
         else:
             data.Bias = 0.0
@@ -46,41 +48,40 @@ class SingleLayer(nn.Module):
         param = self.param
         data = self.data
         cache = self.cache
-        EnsureAttrs(param, "Weight.Size", value=[param.Input.Num, param.Output.Num])
-        EnsureAttrs(param, "Weight.Init", default=utils_torch.PyObj(
-            {"Method":"kaiming", "Coefficient":1.0})
-        )
-
-        if self.cache.IsLoad:
-            data.Weight = utils_torch.ToTorchTensor(data.Weight)
-        else:
+        if cache.IsInit:
+            EnsureAttrs(param, "Weight.Size", value=[param.Input.Num, param.Output.Num])
+            EnsureAttrs(param, "Weight.Init", default=utils_torch.PyObj(
+                {"Method":"kaiming", "Coefficient":1.0})
+            )
+        if cache.IsInit:
             data.Weight = utils_torch.model.CreateWeight2D(param.Weight)
-
-        utils_torch.AddLog(
-            str(utils_torch.PyObj({
-                param.FullName + ".Weight": param.Weight
-            })),
-            logger="InitWeight",
-            TimeStamp=False, File=False, LineNum=False,
-        )
-        utils_torch.AddLog(
-            utils_torch.Tensor2Str(data.Weight),
-            logger="InitWeight",
-            TimeStamp=False, File=False, LineNum=False,
-        )
+            utils_torch.AddLog(
+                str(utils_torch.PyObj({
+                    param.FullName + ".Weight": param.Weight
+                })),
+                logger="InitWeight",
+                TimeStamp=False, File=False, LineNum=False,
+            )
+            utils_torch.AddLog(
+                utils_torch.Tensor2Str(data.Weight),
+                logger="InitWeight",
+                TimeStamp=False, File=False, LineNum=False,
+            )
+        else:
+            data.Weight = utils_torch.ToTorchTensor(data.Weight)
 
         cache.Tensors.append([data, "Weight", data.Weight])
         GetWeightFunction = [lambda :data.Weight]
 
         if param.IsExciInhi:
             param.Weight.IsExciInhi = param.IsExciInhi
-            utils_torch.model.ParseExciInhiNum(param.Weight)
-            # if not HasAttrs(param, "Weight.Excitatory.Num"):
-            #     EnsureAttrs(param, "Weight.Excitatory.Ratio", default=0.8)
-            #     SetAttrs(param, "Weight.Excitatory.Num", value=round(param.Weight.Excitatory.Ratio * param.Weight.Size[0]))
-            #     SetAttrs(param, "Weight.Inhibitory.Num", value=param.Weight.Size[0] - param.Weight.Excitatory.Num)
-
-            EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")
+            if cache.IsInit:
+                utils_torch.model.ParseExciInhiNum(param.Weight)
+                # if not HasAttrs(param, "Weight.Excitatory.Num"):
+                #     EnsureAttrs(param, "Weight.Excitatory.Ratio", default=0.8)
+                #     SetAttrs(param, "Weight.Excitatory.Num", value=round(param.Weight.Excitatory.Ratio * param.Weight.Size[0]))
+                #     SetAttrs(param, "Weight.Inhibitory.Num", value=param.Weight.Size[0] - param.Weight.Excitatory.Num)
+                EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")
             cache.WeightConstraintMethod = utils_torch.model.GetConstraintFunction(param.Weight.ConstraintMethod)
             GetWeightFunction.append(cache.WeightConstraintMethod)
             ExciInhiMask = utils_torch.model.CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.Excitatory.Num, param.Weight.Inhibitory.Num)
@@ -89,10 +90,11 @@ class SingleLayer(nn.Module):
             GetWeightFunction.append(lambda Weight:Weight * cache.ExciInhiMask)
         
         # Ban self-connection if required.
-        if HasAttrs(param.Weight, "NoSelfConnection"):
-            SetAttrs(param.Weight, "NoSelfConnection", default=GetAttrs(param.Weight.NoSelfConnection))
-        else:
-            EnsureAttrs(param.Weight, "NoSelfConnection", default=False)
+        if cache.IsInit:
+            if HasAttrs(param.Weight, "NoSelfConnection"):
+                SetAttrs(param.Weight, "NoSelfConnection", default=GetAttrs(param.Weight.NoSelfConnection))
+            else:
+                EnsureAttrs(param.Weight, "NoSelfConnection", default=False)
         if GetAttrs(param.Weight.NoSelfConnection):
             if param.Weight.Size[0] != param.Weight.Size[1]:
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
@@ -102,10 +104,6 @@ class SingleLayer(nn.Module):
             GetWeightFunction.append(lambda Weight:Weight * self.SelfConnectionMask)
         self.GetWeight = utils_torch.StackFunction(GetWeightFunction, InputNum=0)
         return
-    def GetTensorLocation(self):
-        return self.cache.TensorLocation
-    def GetTrainWeight(self):
-        return self.cache.TrainWeight
     def SetTrainWeight(self):
         data = self.data
         cache = self.cache
@@ -116,18 +114,6 @@ class SingleLayer(nn.Module):
         if hasattr(data, "Bias") and isinstance(data.Bias, torch.Tensor):
             cache.TrainWeight["Bias"] = data.Bias
         return cache.TrainWeight
-    def ClearTrainWeight(self):
-        cache = self.cache
-        if hasattr(cache, "TrainWeight"):
-            delattr(cache, "TrainWeight")
-    # def SetLogger(self, logger):
-    #     return utils_torch.model.SetLoggerForModel(self, logger)
-    # def GetLogger(self):
-    #     return utils_torch.model.GetLoggerForModel(self)
-    # def Log(self, data, Name="Undefined"):
-    #     return utils_torch.model.LogForModel(self, data, Name)
-    def SetFullName(self, FullName):
-        utils_torch.model.SetFullNameForModel(self, FullName)
     def PlotSelfWeight(self, SaveDir=None):
         param = self.param
         if SaveDir is None:

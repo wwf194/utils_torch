@@ -64,11 +64,10 @@ def TrainEpochBatch(param, **kw):
             logger.SetLocal("BatchIndex", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
             utils_torch.SetSaveDir(
-                utils_torch.GetSaveDir + "SavedModel/Epoch%d-Batch%d/"%(EpochIndex, BatchIndex),
+                utils_torch.GetSaveDir() + "SavedModel/Epoch%d-Batch%d/"%(EpochIndex, BatchIndex),
                 Type="Obj"
             )
             utils_torch.CallGraph(RouterTrain, In=In)
-            #logger.PlotAllLogs(SaveDir=utils_torch.GetSaveDir() + "log/")
             logger.PlotLogOfGivenType("WeightChangeRatio", PlotType="LineChart", 
                 SaveDir=utils_torch.GetSaveDir() + "log/WeightChange")    
             if BatchIndex % 10 == 0:
@@ -76,6 +75,7 @@ def TrainEpochBatch(param, **kw):
 
 def AnalyzeAfterBatch(logger, **kw):
     utils_torch.DoTasks("&^param.task.Save", **kw)
+    utils_torch.DoTasks("&^param.task.Load", **kw)
     #utils_torch.CallGraph(kw["RouterSave"])
     utils_torch.analysis.AnalyzeTimeVaryingActivitiesEpochBatch(
         Logs=logger.GetLogOfType("TimeVaryingActivity"),
@@ -100,7 +100,7 @@ def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
     utils_torch.plot.PlotLineChart(None, Xs, Ys, Save=True, SavePath="./%s.png"%Name)
 
 class GradientDescend:
-    def __init__(self, param=None):
+    def __init__(self, param=None, data=None):
         self.cache = utils_torch.EmptyPyObj()
         self.cache.LastUpdateInfo = defaultdict(lambda:{})
     def InitFromParam(self):
