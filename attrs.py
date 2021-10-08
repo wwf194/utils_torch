@@ -108,8 +108,16 @@ def EnsureAttrs(Obj, attrs=[], *args, **kw):
                 if hasattr(Obj, attr):
                     value = getattr(Obj, attr)
                     if value is not None: # Obj already has a not None attribute
-                        if kw.get("WriteDefault")==True:
-                            setattr(Obj, attr, default)
+                        if kw.get("WriteDefault"):
+                            if utils_torch.IsPyObj(value):
+                                if hasattr(value, "__value__"):
+                                    value.__value__ = default
+                                else:
+                                    value.FromDict({
+                                        "__value__": default
+                                    })                                   
+                            else:
+                                setattr(Obj, attr, default)
                     else:
                         setattr(Obj, attr, default)
                 else:

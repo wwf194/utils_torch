@@ -22,7 +22,7 @@ class PyObjCache(object):
         return
 
 class PyObj(object):
-    def __init__(self, param=None, data=None):
+    def __init__(self, param=None, data=None, **kw):
         self.cache = PyObjCache()
         if param is not None:
             if type(param) is dict:
@@ -47,7 +47,7 @@ class PyObj(object):
         return len(self.__value__)
     def __str__(self):
         return utils_torch.json.PyObj2JsonStr(self)
-    def FromList(self, List):
+    def FromList(self, List, InPlace=True):
         ListParsed = []
         for Index, Item in enumerate(List):
             if type(Item) is dict:
@@ -56,8 +56,11 @@ class PyObj(object):
                 ListParsed.append(PyObj(Item))
             else:
                 ListParsed.append(Item)
-        self.__value__ = ListParsed
-        return self
+        if InPlace:
+            self.__value__ = ListParsed
+            return self
+        else:
+            return ListParsed
     def FromDict(self, Dict):
         for key, value in Dict.items():
             # if key in ["Init.Method"]:
@@ -125,7 +128,7 @@ class PyObj(object):
             return PyObj(value)
         elif isinstance(value, list):
             if key in ["__value__"]:
-                return value
+                return self.FromList(value, InPlace=False)
             else:
                 return PyObj(value)
         elif type(value) is PyObj:

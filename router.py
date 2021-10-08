@@ -20,7 +20,8 @@ ParseRouterForModel = ParseRoutersForModel
 
 def ParseRouterStaticAndDynamic(Router, **kw):
     ParseRouterStatic(Router, InPlace=True)
-    return ParseRouterDynamic(Router, **kw)
+    RouterParsed = ParseRouterDynamic(Router, **kw)
+    return RouterParsed
 ParseRouter = ParseRouterStaticAndDynamic
 
 def ParseRoutersDynamic(Routers, ObjRefList=[], **kw):

@@ -226,8 +226,8 @@ class LoggerForEpochBatchTrain:
 class Logger:
     def __init__(self, Name):
         self.logger = _CreateLogger(Name)
-    def AddLog(self, log, TimeStamp=True, File=True, LineNum=True):
-        Caller = getframeinfo(stack()[1][0])
+    def AddLog(self, log, TimeStamp=True, File=True, LineNum=True, StackIndex=1):
+        Caller = getframeinfo(stack()[StackIndex][0])
         if TimeStamp:
             log = "[%s]%s"%(utils_torch.GetTime(), log)
         if File:
@@ -236,8 +236,8 @@ class Logger:
             log = "%s, line %d"%(log, Caller.lineno)
         self.logger.debug(log)
 
-    def AddWarning(self, log, TimeStamp=True, File=True, LineNum=True):
-        Caller = getframeinfo(stack()[1][0])
+    def AddWarning(self, log, TimeStamp=True, File=True, LineNum=True, StackIndex=1):
+        Caller = getframeinfo(stack()[StackIndex][0])
         if TimeStamp:
             log = "[%s][WARNING]%s"%(utils_torch.GetTime(), log)
         if File:
@@ -262,13 +262,13 @@ def ParseLogger(logger):
     return logger
 
 def AddLog(log, logger=None, *args, **kw):
-    ParseLogger(logger).AddLog(log, *args, **kw)
+    ParseLogger(logger).AddLog(log, *args, StackIndex=2, **kw)
 
 def AddWarning(log, logger=None, *args, **kw):
-    ParseLogger(logger).AddWarning(log, *args, **kw)
+    ParseLogger(logger).AddWarning(log, *args, StackIndex=2, **kw)
 
 def AddError(log, logger=None, *args, **kw):
-    ParseLogger(logger).AddError(log, *args, **kw)
+    ParseLogger(logger).AddError(log, *args, StackIndex=2, **kw)
 
 def GetLogger(Name, CreateIfNone=True):
     if not hasattr(utils_torch.ArgsGlobal.logger, Name):

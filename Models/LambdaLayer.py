@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from utils_torch.attrs import *
 
 class LambdaLayer(nn.Module):
-    def __init__(self, param=None, data=None):
+    def __init__(self, param=None, data=None, **kw):
         super(LambdaLayer, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.LambdaLayer")
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.LambdaLayer", **kw)
     def InitFromParam(self):
         param = self.param
         self.forward = utils_torch.parse.ResolveStr(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)

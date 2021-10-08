@@ -9,9 +9,9 @@ from utils_torch.model import GetNonLinearMethod, GetConstraintFunction, CreateS
 from utils_torch.Models.SingleLayer import SingleLayer
 
 class LinearLayer(SingleLayer):
-    def __init__(self, param=None, data=None):
+    def __init__(self, param=None, data=None, **kw):
         super().__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.LinearLayer")
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.LinearLayer", **kw)
     def InitFromParam(self, param=None):
         super().InitFromParam(param)
         param = self.param

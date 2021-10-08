@@ -16,46 +16,46 @@ from utils_torch.json import *
 from utils_torch.attrs import *
 from utils_torch.LRSchedulers import LinearLR
 
-def BuildModule(param):
+def BuildModule(param, **kw):
     if not HasAttrs(param, "Type"):
         if HasAttrs(param, "Name"):
             SetAttrs(param, "Type", GetAttrs(param.Name))
         else:
             raise Exception()
     if param.Type in ["LinearLayer"]:
-        return utils_torch.Models.LinearLayer(param)
+        return utils_torch.Models.LinearLayer(param, **kw)
     elif param.Type in ["NonLinearLayer"]:
-        return utils_torch.Models.NonLinearLayer(param)
+        return utils_torch.Models.NonLinearLayer(param, **kw)
     elif param.Type in ["MLP", "MultiLayerPerceptron", "mlp"]:
-        return utils_torch.Models.MLP(param)
+        return utils_torch.Models.MLP(param, **kw)
     elif param.Type in ["SerialReceiver"]:
-        return utils_torch.Models.SerialReceiver(param)
+        return utils_torch.Models.SerialReceiver(param, **kw)
     elif param.Type in ["SerialSender"]:
-        return utils_torch.Models.SerialSender(param)
+        return utils_torch.Models.SerialSender(param, **kw)
     elif param.Type in ["Lambda", "LambdaLayer"]:
-        return utils_torch.Models.LambdaLayer(param)
+        return utils_torch.Models.LambdaLayer(param, **kw)
     elif param.Type in ["RecurrentLIFLayer"]:
-        return utils_torch.Models.RecurrentLIFLayer(param)
+        return utils_torch.Models.RecurrentLIFLayer(param, **kw)
     elif param.Type in ["NoiseGenerator"]:
-        return utils_torch.Models.NoiseGenerator(param)
+        return utils_torch.Models.NoiseGenerator(param, **kw)
     elif param.Type in ["Bias"]:
-        return utils_torch.Models.Bias(param)
+        return utils_torch.Models.Bias(param, **kw)
     elif param.Type in ["NonLinear"]:
-        return GetNonLinearMethod(param)
+        return GetNonLinearMethod(param, **kw)
     elif param.Type in ["L2Loss"]:
-        return utils_torch.Models.L2Loss(param)
+        return utils_torch.Models.L2Loss(param, **kw)
     elif param.Type in ["MSE", "MeanSquareError"]:
-        return utils_torch.Models.Loss.GetLossMethod(param)
+        return utils_torch.Models.Loss.GetLossMethod(param, **kw)
     elif param.Type in ["GradientDescend"]:
-        return utils_torch.Models.Operators.GradientDescend(param)
+        return utils_torch.Models.Operators.GradientDescend(param, **kw)
     elif param.Type in ["Internal"]:
         utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
         return None
     elif utils_torch.Models.Operators.IsLegalType(param.Type):
-        return utils_torch.Models.Operators.BuildModule(param)
+        return utils_torch.Models.Operators.BuildModule(param, **kw)
     elif hasattr(param, "ModulePath"):
         Module = utils_torch.ImportModule(param.ModulePath)
-        Obj = Module.__MainClass__(param)
+        Obj = Module.__MainClass__(param, **kw)
         return Obj
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
@@ -477,18 +477,38 @@ def PlotActivity(activity, Name, Save=True, SavePath="./weight.png"):
     activity = utils_torch.ToNpArray(activity)
     return
 
-def InitForModel(self, param=None, data=None, DefaultFullName="Unnamed", ClassPath=None):
+def InitForModel(self, param=None, data=None, DefaultFullName="Unnamed", ClassPath=None, **kw):
+    LoadDir = kw.get("LoadDir")
     if param is None:
         param = utils_torch.EmptyPyObj()
-    self.param = param
-    if data is None:
-        data = utils_torch.EmptyPyObj()
-    self.data = data
-    self.cache = utils_torch.EmptyPyObj()
+    
     if not hasattr(param, "FullName"):
         param.FullName = DefaultFullName
+    param.cache.__object__ = self
+
+    if data is None:
+        data = utils_torch.EmptyPyObj()
+        if LoadDir is not None:
+            DataPath = LoadDir + param.FullName + ".data"
+            if utils_torch.FileExists(DataPath):
+                data = utils_torch.json.DataFile2PyObj(DataPath)
+
+    cache = utils_torch.EmptyPyObj()
+    if LoadDir is not None:
+        cache.LoadDir = LoadDir
+    else:
+        cache.LoadDir = None
     if ClassPath is not None:
         param.ClassPath = ClassPath
+    
+    cache.Modules = utils_torch.EmptyPyObj()
+    cache.Dynamics = utils_torch.EmptyPyObj()
+    
+    self.param = param
+    self.data = data
+    self.cache = cache
+    self.Modules = cache.Modules
+    self.Dynamics = cache.Dynamics
 
 def LogStatisticsForModel(self, data, Name, Type="Statistics"):
     param = self.param
@@ -563,10 +583,14 @@ def BuildModulesForModel(self):
     for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveBase__"]):
         ModuleParam.Name = Name
         ModuleParam.FullName = param.FullName + "." + Name
-        Module = BuildModule(ModuleParam)
+        if cache.IsInit:
+            Module = BuildModule(ModuleParam)
+        else:
+            Module = BuildModule(ModuleParam, LoadDir=cache.LoadDir)
         if isinstance(Module, nn.Module) and isinstance(self, nn.Module):
             self.add_module(Name, Module)
         setattr(cache.Modules, Name, Module)
+
 def InitModulesForModel(self):
     cache = self.cache
     for name, module in ListAttrsAndValues(cache.Modules):
@@ -584,13 +608,19 @@ def ParseRoutersForModel(self):
     cache.Dynamics = utils_torch.EmptyPyObj()
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
         utils_torch.router.ParseRouterStatic(RouterParam)
+        setattr(RouterParam, "Name", param.FullName + "." + Name) # For Debug
+        setattr(cache.Dynamics, Name, utils_torch.EmptyPyObj())
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-        Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
-            ObjRefList=[cache.Modules, cache.Dynamics, cache,
-                param, self, utils_torch.Models.Operators
-            ]
+        getattr(cache.Dynamics, Name).FromPyObj(
+            utils_torch.router.ParseRouterDynamic(
+                RouterParam, 
+                ObjRefList=[cache.Modules, cache.Dynamics, cache,
+                    param, self, utils_torch.Models.Operators
+                ],
+                InPlace=False
+            )
         )
-        setattr(cache.Dynamics, Name, Router)
+        #setattr(cache.Dynamics, Name, Router)
     # if not HasAttrs(param.Dynamics, "__Entry__"):
     #     SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
     # cache.Dynamics.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[cache, self])

@@ -288,9 +288,8 @@ def LoadObjFromFile(Args, **kw):
         assert utils_torch.FileExists(DataPath)
         data = utils_torch.json.DataFile2PyObj(DataPath)
         Class = ParseClass(param.ClassPath)
-        Obj = Class(param, data)
+        Obj = Class(param, data, LoadDir=SaveDir)
         MountObj(MountPath, Obj, **kw)
-
 
 def LoadTaskFile(FilePath="./task.jsonc", Save=True):
     TaskObj = utils_torch.json.JsonFile2PyObj(FilePath)
@@ -362,10 +361,11 @@ def ParseParamStatic(Args, Save=True, SavePath=None):
     #     utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
     ArgsGlobal = utils_torch.GetArgsGlobal()
     param = ArgsGlobal.param
+    utils_torch.json.PyObj2JsonFile(param, SavePath)
     utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
     if Save:
         SavePath = utils_torch.RenameIfPathExists(SavePath)
-        utils_torch.json.PyObj2JsonFile(ArgsGlobal.param, SavePath)
+        utils_torch.json.PyObj2JsonFile(param, SavePath)
     return
 
 def ParseParamDynamic(Args, Save=True, SavePath=None):

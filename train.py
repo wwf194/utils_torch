@@ -42,7 +42,6 @@ def TrainEpochBatch(param, **kw):
     logger = kw["Logger"]
     
     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
-    # param = utils_torch.parse.ParsePyObjDynamic(param, InPlace=False, **kw)
     RouterTrain = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Train, ObjRefList=[param.Batch.Train], **kw)
     RouterTest = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Test, ObjRefList=[param.Batch.Test], **kw)
 
@@ -100,7 +99,7 @@ def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
     utils_torch.plot.PlotLineChart(None, Xs, Ys, Save=True, SavePath="./%s.png"%Name)
 
 class GradientDescend:
-    def __init__(self, param=None, data=None):
+    def __init__(self, param=None, data=None, **kw):
         self.cache = utils_torch.EmptyPyObj()
         self.cache.LastUpdateInfo = defaultdict(lambda:{})
     def InitFromParam(self):

@@ -12,9 +12,9 @@ def load_model(param):
     return
 
 class MLP(torch.nn.Module):
-    def __init__(self, param=None, data=None):
+    def __init__(self, param=None, data=None, **kw):
         super(MLP, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.MLP")
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.MLP", **kw)
     def InitFromParam(self, param=None, IsLoad=False):
         if param is None:
             param = self.param
@@ -51,7 +51,7 @@ class MLP(torch.nn.Module):
         cache.Layers = []
         for LayerIndex in range(param.Layers.Num):
             LayerParam = GetAttrs(param, "Modules.Layer%d"%LayerIndex)
-            Layer = utils_torch.model.BuildModule(LayerParam)
+            Layer = utils_torch.model.BuildModule(LayerParam, LoadDir=cache.LoadDir)
             SetAttrs(cache, "Modules.Layer%d"%LayerIndex, Layer)
             cache.Layers.append(Layer)             
             self.add_module("Layer%d"%LayerIndex, Layer)

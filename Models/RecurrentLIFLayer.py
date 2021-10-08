@@ -16,9 +16,9 @@ DefaultRoutings = [
 ]
 
 class RecurrentLIFLayer(nn.Module):
-    def __init__(self, param=None, data=None):
+    def __init__(self, param=None, data=None, **kw):
         super(RecurrentLIFLayer, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.RecurrentLIFLayer")
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.RecurrentLIFLayer", **kw)
     def InitFromParam(self, param=None, IsLoad=False):
         if param is None:
             param = self.param
@@ -79,9 +79,9 @@ class RecurrentLIFLayer(nn.Module):
 
             if param.TimeConst.Excitatory==param.TimeConst.Inhibitory:
                 TimeConst = param.TimeConst.Excitatory
-                Modules.CellStateDecay = lambda CellState: TimeConst * CellState
+                Modules.CellStateDecay = lambda CellState: (1.0 - TimeConst) * CellState
                 Modules.ProcessTotalInput = \
-                    lambda TotalInput: (1.0 - TimeConst) * TotalInput
+                    lambda TotalInput: TimeConst * TotalInput
                 Modules.ProcessCellStateAndTotalInput = \
                     lambda CellState, TotalInput: \
                     CellState + Modules.ProcessTotalInput(TotalInput)
@@ -92,15 +92,15 @@ class RecurrentLIFLayer(nn.Module):
                     raise Exception()
                 Modules.CellStateDecay = lambda CellState: \
                     torch.concatenate([
-                            CellState[:, :ExciNeuronsNum] * TimeConstExci, 
-                            CellState[:, ExciNeuronsNum:] * TimeConstInhi
+                            CellState[:, :ExciNeuronsNum] * (1.0 - TimeConstExci), 
+                            CellState[:, ExciNeuronsNum:] * (1.0 - TimeConstInhi),
                         ], 
                         axis=1
                     )
                 Modules.ProcessTotalInput = lambda TotalInput: \
                     torch.concatenate([
-                            TotalInput[:, :ExciNeuronsNum] * (1.0 - TimeConstExci),
-                            TotalInput[:, ExciNeuronsNum:] * (1.0 - TimeConstInhi),
+                            TotalInput[:, :ExciNeuronsNum] * TimeConstExci,
+                            TotalInput[:, ExciNeuronsNum:] * TimeConstInhi,
                         ], 
                         axis=1
                     )
@@ -112,18 +112,12 @@ class RecurrentLIFLayer(nn.Module):
             TimeConst = GetAttrs(param.TimeConst)
             if not 0.0 <= TimeConst <= 1.0:
                 raise Exception()
-            Modules.CellStateDecay = lambda CellState: TimeConst * CellState
-            Modules.ProcessTotalInput = lambda TotalInput: (1.0 - TimeConst) * TotalInput
+            Modules.CellStateDecay = lambda CellState: (1.0 - TimeConst) * CellState
+            Modules.ProcessTotalInput = lambda TotalInput: TimeConst * TotalInput
             Modules.ProcessCellStateAndTotalInput = lambda CellState, TotalInput: \
                 CellState + Modules.ProcessTotalInput(TotalInput)
     def forward(self, CellState, RecurrentInput, Input):
         cache = self.cache
         return utils_torch.CallGraph(cache.Dynamics.Main, [CellState, RecurrentInput, Input])  
-    # def SetLogger(self, logger):
-    #     return utils_torch.model.SetLoggerForModel(self, logger)
-    # def GetLogger(self):
-    #     return utils_torch.model.GetLoggerForModel(self)
-    # def Log(self, data, Name="Undefined"):
-    #     return utils_torch.model.LogForModel(self, data, Name)
 __MainClass__ = RecurrentLIFLayer
 utils_torch.model.SetMethodForModelClass(__MainClass__)

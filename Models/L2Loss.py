@@ -5,9 +5,9 @@ import torch.nn.functional as F
 from utils_torch.attrs import *
 
 class L2Loss():
-    def __init__(self, param=None, data=None):
+    def __init__(self, param=None, data=None, **kw):
         super(L2Loss, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.L2Loss")
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.L2Loss", **kw)
     def __call__(self, Input, *Args):
         return self.forward(Input, *Args)
     def InitFromParam(self):

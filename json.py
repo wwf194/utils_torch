@@ -8,6 +8,7 @@ from utils_torch.python import CheckIsLegalPyName
 from utils_torch.attrs import *
 # from utils_torch.utils import ListAttrs # leads to recurrent reference.
 
+import numpy as np
 
 def JsonObj2PyObj(JsonObj):
     if isinstance(JsonObj, list):
@@ -16,17 +17,15 @@ def JsonObj2PyObj(JsonObj):
         return utils_torch.EmptyPyObj().FromDict(JsonObj)
     else:
         raise Exception()
-
 Dict2PyObj = JsonObj2PyObj
-
-json_obj_to_object = JsonObj2PyObj
 
 def JsonObj2JsonStr(JsonObj):
     return json.dumps(JsonObj, indent=4, sort_keys=False)
 
 def PyObj2JsonObj(Obj):
     if isinstance(Obj, utils_torch.PyObj) and Obj.IsListLike():
-        Obj = Obj.ToList()
+        if len(ListAttrsAndValues(Obj))==1:
+            Obj = Obj.ToList()
     if isinstance(Obj, list) or isinstance(Obj, tuple):
         JsonObj = []
         for Item in Obj:
@@ -46,10 +45,37 @@ def PyObj2JsonObj(Obj):
         return JsonObj   
     elif type(Obj) in [str, int, bool, float]:
         return Obj
+    elif isinstance(Obj, np.ndarray):
+        return utils_torch.NpArray2List(Obj)
+    elif isinstance(Obj, np.float32) or isinstance(Obj, np.float64):
+        return float(Obj)
     else:
-        return "UnserializableObject"
-    #return json.loads(PyObj2JsonStr(obj))
+        utils_torch.AddWarning("UnserializableObject of type: %s"%type(Obj))
+        return "UnserializableObject of type: %s"%type(Obj)
 
+def PyObj2DataObj(Obj):
+    if isinstance(Obj, utils_torch.PyObj) and Obj.IsListLike():
+        if len(ListAttrsAndValues(Obj))==1:
+            Obj = Obj.ToList()
+    if isinstance(Obj, list) or isinstance(Obj, tuple):
+        JsonObj = []
+        for Item in Obj:
+            JsonObj.append(PyObj2DataObj(Item))
+        return JsonObj
+    elif isinstance(Obj, utils_torch.PyObj):
+        JsonObj = {}
+        for attr, value in ListAttrsAndValues(Obj, Exceptions=[]):
+            if attr in ["__ResolveRef__"]:
+                continue
+            JsonObj[attr] = PyObj2DataObj(value)
+        return JsonObj
+    elif isinstance(Obj, dict):
+        JsonObj = {}
+        for key, value in Obj.items():
+            JsonObj[key] = PyObj2DataObj(value)
+        return JsonObj
+    else:
+        return Obj
 def PyObj2JsonFile(Obj, FilePath):
     JsonStr = PyObj2JsonStr(Obj)
     JsonStr2JsonFile(JsonStr, FilePath)
@@ -62,8 +88,6 @@ def JsonStr2JsonFile(JsonStr, FilePath):
     utils_torch.EnsureFileDir(FilePath)
     with open(FilePath, "w") as f:
         f.write(JsonStr)
-
-object_to_json_obj = PyObj2JsonObj
 
 def JsonDumpsLambda(obj):
     if hasattr(obj, "__dict__"):
@@ -87,7 +111,7 @@ def JsonStr2JsonObj(JsonStr):
     RemoveJsonStrComments(JsonStr)
     JsonStr = re.sub(r"\s", "", JsonStr)
     _JsonStr2JsonObj(JsonStr)
-    #return json.loads(JsonStr)
+
 def _JsonStr2JsonObj(JsonStr):
     #JsonStr = re.sub(r"\".*\"", "", JsonStr)
     #JsonStr = re.sub(r"\'.*\'", "", JsonStr)
@@ -146,15 +170,15 @@ def JsonFile2JsonObj(FilePath):
     with open(FilePath, "r") as f:
         JsonObj = json5.load(f) # json5 allows comments
     return JsonObj
+
 def RemoveJsonStrLinesComments(JsonStrLines): # Remove Single Line Comments Like //...
     for Index, JsonStrLine in enumerate(JsonStrLines):
         JsonStrLines[Index] = re.sub(r"//.*\n", "", JsonStrLine)
     return JsonStrLines
+
 def RemoveJsonStrComments(JsonStr):
     JsonStr = re.sub(r"/\*.*\*/", "", JsonStr)
     return JsonStr
-
-load_json_file = JsonFile2JsonObj
 
 def JsonObj2JsonFile(JsonObj, FilePath):
     return JsonStr2JsonFile(JsonObj2JsonStr(JsonObj), FilePath)
@@ -175,8 +199,10 @@ def IsJsonObj(Obj):
 
 import pickle
 def PyObj2DataFile(Obj, FilePath):
-    JsonObj = PyObj2JsonObj(Obj)
-    JsonObj2DataFile(JsonObj, FilePath)
+    DataObj = PyObj2DataObj(Obj)
+    # if "VerticesNp" in DataObj:
+    #     print("aaa")
+    JsonObj2DataFile(DataObj, FilePath)
 
 def JsonObj2DataFile(Obj, FilePath):
     utils_torch.EnsureFileDir(FilePath)
@@ -189,4 +215,7 @@ def DataFile2JsonObj(FilePath):
     return JsonObj
 
 def DataFile2PyObj(FilePath):
-    return JsonObj2PyObj(DataFile2JsonObj(FilePath))
+    DataObj = DataFile2JsonObj(FilePath)
+    # if "VerticesNp" in DataObj:
+    #     print("aaa")
+    return JsonObj2PyObj(DataObj)

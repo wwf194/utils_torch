@@ -292,7 +292,9 @@ def _ParsePyObjDynamicWithMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
             success = False
             sentence = sentence.replace("&^", "ObjRoot.")
             sentence = sentence.replace("&~", "parent.")
+            sentence = sentence.replace("&*", "ObjRef.cache.__object__.")
             sentence = sentence.replace("&", "ObjRef.")
+            
             for ObjRef in ObjRefList:
                 try:
                     ObjParsed = eval(sentence)
@@ -433,8 +435,10 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, RemainJson=True, **kw):
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, RemainJson=True, **kw):
     kw.setdefault("RecurDepth", 1)
     kw["RecurDepth"] += 1
-    if kw["RecurDepth"] > 200:
-        print("aaa")
+    # if kw["RecurDepth"] > 200:
+    #     print("aaa")
+    # if Obj in ["#1000 * 2"]:
+    #     print("aaa")
     # if kw["ParsedObj"][id(Obj)] is not None:
     #     return
     # kw["ParsedObj"][id(Obj)] = "Parsed"
@@ -483,11 +487,10 @@ def _ParsePyObjStaticInPlace(Obj, parent, Attr, RemainJson=True, **kw):
             except Exception:
                 Obj = _Obj
 
-            if not IsJsonObj(Obj):
+            if not IsJsonObj(Obj) and RemainJson:
                 utils_torch.AddLog("_ParsePyObjStaticInPlace: Not a Json Obj: %s of type %s ."%(Obj, type(Obj)))
-                Obj = _Obj
-
-            parent[Attr] = Obj
+            else:
+                parent[Attr] = Obj
         else:
             pass
     else:

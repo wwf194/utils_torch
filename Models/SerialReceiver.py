@@ -8,8 +8,8 @@ import utils_torch
 from utils_torch.attrs import *
 
 class SerialReceiver():
-    def __init__(self, param=None, data=None):
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.SerialReceiver")
+    def __init__(self, param=None, data=None, **kw):
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.SerialReceiver", **kw)
     def InitFromParam(self, IsLoad=False):
         cache = self.cache
         cache.IsLoad = IsLoad
