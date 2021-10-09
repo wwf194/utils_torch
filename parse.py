@@ -1,7 +1,5 @@
-from sre_constants import SUCCESS
 from utils_torch.attrs import *
 from utils_torch.json import *
-
 from collections import defaultdict
 
 def ParseShape(Shape):
@@ -11,30 +9,6 @@ def ParseShape(Shape):
         return Shape
     else:
         raise Exception()
-
-def Redirect2PyObj(PyObj, PyObjRef=None):
-    # Traverse Attributes in PyObj, recursively
-    # If an Attribute Value is str and begins with &, redirect this Attribute to Attribute in PyObjRef it points to.
-    if PyObjRef is None:
-        PyObjRef = PyObj
-    _Redirect2PyObj(PyObj, PyObjRef, None, None)
-
-def _Redirect2PyObj(PyObj, PyObjRef, parent, Attr):
-    if isinstance(PyObj, dict):
-        for key, Value in PyObj.items():
-            _Redirect2PyObj(Value, PyObjRef, PyObj, key)
-    elif isinstance(PyObj, list):
-        for Index, Item in enumerate(list):
-            _Redirect2PyObj(Item, PyObjRef, PyObj, Index)
-    elif isinstance(PyObj, str):
-        if PyObj[0]=="&":
-            ValueRef = GetAttrs(PyObjRef, PyObj[1:])
-            SetAttrs(parent, Attr, Value=ValueRef)
-    elif hasattr(PyObj, "__dict__"):
-        for Attr, Value in ListAttrs(PyObj):
-            _Redirect2PyObj(getattr(PyObj, Attr), PyObjRef, PyObj, Attr)
-    else:
-        pass
 
 def ParseFunctionArgs(Args, ContextInfo):
     # if type(Args) is not list:
