@@ -44,22 +44,29 @@ def TrainEpochBatch(param, **kw):
     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
     RouterTrain = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Train, ObjRefList=[param.Batch.Train], **kw)
     RouterTest = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Test, ObjRefList=[param.Batch.Test], **kw)
-
     In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
     
+    EpochNum = param.Epoch.Num
+    BatchNum = param.Batch.Num
+
     logger.SetLocal("EpochNum", param.Epoch.Num)
     logger.SetLocal("BatchNum", param.Batch.Num)
     
-    EpochIndex, BatchIndex = -1, 0
+    EpochIndex, BatchIndex = -1, BatchNum - 1
     logger.SetLocal("EpochIndex", EpochIndex)
     logger.SetLocal("BatchIndex", BatchIndex)
     utils_torch.CallGraph(RouterTest, In=In)
-    AnalyzeAfterBatch(logger, **kw)
+    AnalyzeAfterBatch(
+        logger,
+        EpochNum=EpochNum, EpochIndex=EpochIndex,
+        BatchNum=BatchNum, BatchIndex=BatchIndex,
+        **kw
+    )
 
-    for EpochIndex in range(param.Epoch.Num):
+    for EpochIndex in range(EpochNum):
         logger.SetLocal("EpochIndex", EpochIndex)
         utils_torch.AddLog("Epoch: %d"%EpochIndex)
-        for BatchIndex in range(param.Batch.Num):
+        for BatchIndex in range(BatchNum):
             logger.SetLocal("BatchIndex", BatchIndex)
             utils_torch.AddLog("Batch: %d"%BatchIndex)
             utils_torch.SetSaveDir(
@@ -67,36 +74,50 @@ def TrainEpochBatch(param, **kw):
                 Type="Obj"
             )
             utils_torch.CallGraph(RouterTrain, In=In)
-            logger.PlotLogOfGivenType("WeightChangeRatio", PlotType="LineChart", 
-                SaveDir=utils_torch.GetSaveDir() + "log/WeightChange")    
+            # logger.PlotLogOfGivenType("WeightChangeRatio", PlotType="LineChart", 
+            #     SaveDir=utils_torch.GetSaveDir() + "log/WeightChange")    
             if BatchIndex % 10 == 0:
-                AnalyzeAfterBatch(logger, **kw)
+                AnalyzeAfterBatch(
+                    logger,
+                    EpochNum=EpochNum, EpochIndex=EpochIndex,
+                    BatchNum=BatchNum, BatchIndex=BatchIndex,
+                    **kw
+                )
 
 def AnalyzeAfterBatch(logger, **kw):
+    EpochIndex = kw["EpochIndex"]
+    BatchIndex = kw["BatchIndex"]
+
     utils_torch.DoTasks("&^param.task.Save", **kw)
     utils_torch.DoTasks("&^param.task.Load", **kw)
-    #utils_torch.CallGraph(kw["RouterSave"])
+
+    utils_torch.analysis.AnalyzeTrajectory(
+        utils_torch.GetArgsGlobal().object.agent,
+        utils_torch.GetArgsGlobal().object.world,
+        logger.GetLog("agent.model.Outputs")["Value"],
+        logger.GetLog("agent.model.OutputTargets")["Value"],
+        SaveDir = utils_torch.GetSaveDir() + "Trajectory/",
+        SaveName = "Trajectory-Truth-Predicted-Epoch%d-Batch%d"%(EpochIndex, BatchIndex)
+    )
+
+    utils_torch.analysis.AnalyzeLossEpochBatch(
+        Logs=logger.GetLogOfType("Loss"), **kw
+    )
     utils_torch.analysis.AnalyzeTimeVaryingActivitiesEpochBatch(
         Logs=logger.GetLogOfType("TimeVaryingActivity"),
     )
     utils_torch.analysis.AnalyzeWeightsEpochBatch(
         Logs=logger.GetLogOfType("Weight"),
     )
+    utils_torch.analysis.AnalyzeWeightStatAlongTrainingEpochBatch(
+        Logs=logger.GetLogOfType("Weight-Stat"), **kw
+    )
 
-def ParseTrainEpochBatchParam(param):
+    
+def ParseTrainParamEpochBatch(param):
     EnsureAttrs(param, "Nesterov", value=False)
     EnsureAttrs(param, "Dampening", value=0.0)
     EnsureAttrs(param, "Momentum", value=0.0)
-
-def PlotTrainCurve(records, EpochNum, BatchNum, Name="Train"):
-    Xs = []
-    Ys = []
-    for record in records:
-        EpochIndex = record["Epoch"]
-        BatchIndex = record["Batch"]
-        Xs.append(EpochIndex + BatchIndex / BatchNum)
-        Ys.append(record["Value"])
-    utils_torch.plot.PlotLineChart(None, Xs, Ys, Save=True, SavePath="./%s.png"%Name)
 
 class GradientDescend:
     def __init__(self, param=None, data=None, **kw):
@@ -220,3 +241,10 @@ def evaluate_iter(net, testloader, criterion, scheduler, augment, device):
 
 def GetEpochFloat(EpochIndex, BatchIndex, BatchNum):
     return EpochIndex + BatchIndex / BatchNum * 1.0
+
+def EpochBatchIndices2EpochsFloat(EpochIndices, BatchIndices, **kw):
+    BatchNum = kw["BatchNum"]
+    EpochIndices = utils_torch.ToNpArray(EpochIndices)
+    BatchIndices = utils_torch.ToNpArray(BatchIndices)
+    EpochsFloat = EpochIndices + BatchIndices / BatchNum
+    return utils_torch.NpArray2List(EpochsFloat)

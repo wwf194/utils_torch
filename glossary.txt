@@ -1,0 +1,3 @@
+ExciInhi - Excitatory-Inhibitory
+Multi - Multiple
+Stat - Statistics

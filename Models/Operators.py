@@ -23,10 +23,11 @@ def IsLegalType(Type):
         return False
 
 def Add(*Args):
-    Sum = Args[0]
-    for Index in range(1, len(Args)):
-        Sum += Args[Index]
-    return Sum
+    # Sum = Args[0]
+    # for Index in range(1, len(Args)):
+    #     Sum += Args[Index]
+    # return Sum
+    return sum(Args)
 # Operators.Add = Add
 OperatorList.append(["Add"])
 
@@ -92,7 +93,7 @@ def PlotDistribution(Activity, Name="UnNamed"):
     activity = utils_torch.ToNpArray(Activity)
     utils_torch.plot.PlotDistribution1D(activity, Name=Name)
 
-def LogStatistics(data, Name):
+def LogStat(data, Name):
     data = ToNpArray(data)
     statistics = utils_torch.math.NpStatistics(data, ReturnType="Dict")
     utils_torch.GetDataLogger().AddLogDict({statistics})
@@ -102,7 +103,7 @@ def Tensor2Statistics2File(data, Name, FilePath=None):
     if FilePath is None:
         FilePath = utils_torch.GetSaveDir() + Name + "-statistics" + ".txt"
         FilePath = utils_torch.RenameIfPathExists(FilePath)
-    statistics = utils_torch.math.TorchTensorStatistics(data)
+    statistics = utils_torch.math.TorchTensorStat(data)
     utils_torch.Data2TextFile(statistics, FilePath=FilePath)
 
 from utils_torch.utils import Data2TextFile, ToNpArray

@@ -25,7 +25,7 @@ class RNNLIF(nn.Module):
     # Singel-Layer Recurrent Neural Network with Leaky Integrate-and-Fire Dynamics
     def __init__(self, param=None, data=None, **kw):
         super(RNNLIF, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="Models.RNNLIF", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.RNNLIF", **kw)
     def InitFromParam(self, param=None, IsLoad=False):
         if param is not None:
             self.param = param

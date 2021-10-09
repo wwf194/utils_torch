@@ -55,18 +55,27 @@ class SingleLayer(nn.Module):
             )
         if cache.IsInit:
             data.Weight = utils_torch.model.CreateWeight2D(param.Weight)
-            utils_torch.AddLog(
-                str(utils_torch.PyObj({
+            
+            # Log and plot for debugging.
+            SaveDir = utils_torch.GetSaveDir() + "Weight-Init/"
+            utils_torch.EnsureDir(SaveDir)
+            utils_torch.json.PyObj2JsonFile( # Save Weight Init param.
+                utils_torch.PyObj({
                     param.FullName + ".Weight": param.Weight
-                })),
-                logger="InitWeight",
-                TimeStamp=False, File=False, LineNum=False,
+                }),
+                SaveDir + param.FullName + ".Weight.jsonc"
             )
-            utils_torch.AddLog(
-                utils_torch.Tensor2Str(data.Weight),
-                logger="InitWeight",
-                TimeStamp=False, File=False, LineNum=False,
+            utils_torch.Tensor2File( # Save Weight values.
+                data.Weight,
+                SaveDir + param.FullName + ".Weight.txt"
             )
+            utils_torch.plot.PlotWeightAndDistribution( # Visualize Weight.
+                axes=None,
+                weight=data.Weight,
+                Name=param.FullName + ".Weight",
+                SavePath=SaveDir + param.FullName + ".Weight.svg"
+            )
+
         else:
             data.Weight = utils_torch.ToTorchTensor(data.Weight)
 

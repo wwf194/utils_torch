@@ -114,9 +114,9 @@ def DoTask(Task, **kw):
     elif TaskType in ["LoadParamFile"]:
         utils_torch.LoadParamFromFile(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
     elif TaskType in ["ParseParam", "ParseParamStatic"]:
-        ParseParamStatic(TaskArgs)
+        utils_torch.parse.ParseParamStatic(TaskArgs)
     elif TaskType in ["ParseParamDynamic"]:
-        ParseParamDynamic(TaskArgs)
+        utils_torch.parse.ParseParamDynamic(TaskArgs)
     elif TaskType in ["ParseSelf"]:
         utils_torch.parse.ParsePyObjStatic(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
     elif TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
@@ -125,8 +125,6 @@ def DoTask(Task, **kw):
         utils_torch.BuildObj(TaskArgs, **kw)
     elif TaskType in ["SetTensorLocation"]:
         SetTensorLocation(TaskArgs)
-    elif TaskType in ["SetLogger", "SetDataLogger"]:
-        SetLogger(TaskArgs)
     elif TaskType in ["Train"]:
         utils_torch.train.Train(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), Logger=utils_torch.GetDataLogger())
     elif TaskType in ["DoTasks"]:
@@ -150,9 +148,6 @@ def SetTensorLocation(Args):
     for Obj in utils_torch.ListValues(utils_torch.GetArgsGlobal().object):
         if hasattr(Obj, "SetTensorLocation"):
             Obj.SetTensorLocation(Location)
-
-def SetLogger(Args):
-    SetAttrs(utils_torch.GetArgsGlobal(), "log.Data", utils_torch.log.LoggerForEpochBatchTrain())
 
 def BuildObjFromParam(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
@@ -208,7 +203,7 @@ def _BuildObj(Args, **kw):
         # Module = utils_torch.ImportModule(_ModulePath)
         #Obj = Module.__MainClass__()
         # Class = eval(ModulePath)
-        Class = utils_torch.ParseClass(ModulePath)
+        Class = utils_torch.parse.ParseClass(ModulePath)
         Obj = Class()
 
         ObjRoot = kw.get("ObjRoot")
@@ -247,7 +242,6 @@ def _RemoveObj(Args, **kw):
         RemoveAttrs(eval(MountPathList[0]), MountPathList[1:])
 
 def SaveObj(Args, **kw):
-    #SaveNameList = utils_torch.ToList(Args.SaveName)
     SaveObjList = utils_torch.ToList(Args.SaveObj)
     SaveDirList = utils_torch.ToList(Args.SaveDir)
 
@@ -285,11 +279,11 @@ def LoadObjFromFile(Args, **kw):
         DataPath = SaveDir + SaveName + ".data"
         assert utils_torch.FileExists(DataPath)
         data = utils_torch.json.DataFile2PyObj(DataPath)
-        Class = ParseClass(param.ClassPath)
+        Class = utils_torch.parse.ParseClass(param.ClassPath)
         Obj = Class(param, data, LoadDir=SaveDir)
         MountObj(MountPath, Obj, **kw)
 
-def LoadTaskFile(FilePath="./task.jsonc", Save=True):
+def LoadTaskFile(FilePath="./task.jsonc"):
     TaskObj = utils_torch.json.JsonFile2PyObj(FilePath)
     return TaskObj
 
@@ -306,12 +300,9 @@ def LoadJsonFile(Args):
     else:
         raise Exception()
 
-def _LoadJsonFile(Args):
+def _LoadJsonFile(Args, **kw):
     Obj = utils_torch.json.JsonFile2PyObj(Args.FilePath)
-    if not Args.MountPath.startswith("&^"):
-        raise Exception()
-    MountPath = Args.MountPath.replace("&^", "")
-    SetAttrs(ArgsGlobal, MountPath, Obj)
+    MountObj(Args.MountPath, Obj, **kw)
 
 def AddLibraryPath(Args):
     if isinstance(Args, dict):
@@ -347,51 +338,18 @@ def _AddLibraryPath(Args):
     else:
         utils_torch.AddWarning('add_lib: invalid lib_path: ', lib_path)
 
-def ParseParamStaticAndDynamic(Args):
-    ParseParamStatic(Args)
-    ParseParamDynamic(Args)
-    return
-
-def ParseParamStatic(Args, Save=True, SavePath=None):
-    if SavePath is None:
-        SavePath = utils_torch.GetSaveDir() + "param_parsed_static.jsonc"
-    # for attr, param in utils_torch.ListAttrsAndValues(ArgsGlobal.param):
-    #     utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
-    ArgsGlobal = utils_torch.GetArgsGlobal()
-    param = ArgsGlobal.param
-    utils_torch.json.PyObj2JsonFile(param, SavePath)
-    utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
-    if Save:
-        SavePath = utils_torch.RenameIfPathExists(SavePath)
-        utils_torch.json.PyObj2JsonFile(param, SavePath)
-    return
-
-def ParseParamDynamic(Args, Save=True, SavePath=None):
-    ArgsGlobal = utils_torch.GetArgsGlobal()
-    if SavePath is None:
-        utils_torch.GetSaveDir() + "param_parsed_dynamic.jsonc"
-    for attr, param in utils_torch.ListAttrsAndValues(ArgsGlobal.param):
-        utils_torch.parse.ParsePyObjDynamic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
-    if Save:
-        utils_torch.json.PyObj2JsonFile(ArgsGlobal.param, utils_torch.RenameIfPathExists(SavePath))
-    return
-
-
-def ParseClass(ClassPath):
-    try:
-        Module = utils_torch.ImportModule(ClassPath)
-        if hasattr(Module, "__MainClass__"):
-            return Module.__MainClass__
-        else:
-            return Module
-    except Exception:
-        Class = eval(ClassPath)
-        return Class
-
-
 def SaveObj(Args):
     Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetArgsGlobal()),
     Obj.Save(SaveDir=Args.SaveDir)
+
+def IsClassInstance(Obj):
+    # It seems that in Python, all variables are instances of some class.
+    return
+
+import types
+def IsFunction(Obj):
+    return isinstance(Obj, types.FunctionType) \
+        or isinstance(Obj, types.BuiltinFunctionType)
 
 from collections.abc import Iterable   # import directly from collections for Python < 3.3
 def IsIterable(Obj):
@@ -426,6 +384,9 @@ def NpArrayType(data):
         return "Not an np.ndarray, but %s"%type(data)
     return data.dtype
 
+def List2NpArray(data):
+    return np.array(data)
+
 def ToNpArray(data, DataType=np.float32):
     if isinstance(data, np.ndarray):
         return data
@@ -450,10 +411,6 @@ def Line2Square(data):
         raise Exception(DimensionNum)
 
     dataNum = data.shape[0]
-    # RowNum = round(dataNum ** 0.5)
-    # ColNum = dataNum // RowNum
-    # if dataNum % RowNum > 0:
-    #     ColNum += 1
     RowNum, ColNum = utils_torch.plot.ParseRowColNum(dataNum)
     mask = np.ones((RowNum, ColNum), dtype=np.bool8)
 
@@ -507,6 +464,10 @@ def Tensor2NpArray(data):
 
 def Tensor2Str(data):
     return NpArray2Str(Tensor2NpArray(data))
+
+def Tensor2File(data, SavePath):
+    EnsureFileDir(SavePath)
+    np.savetxt(SavePath, utils_torch.Tensor2NpArray(data))
 
 def Tensor2NumpyOrFloat(data):
     try:
@@ -1046,8 +1007,6 @@ def visit_path(args=None, func=None, recur=False, path=None):
 
 visit_dir = visit_path
 
-from utils_torch.Router import BuildRouter
-
 def GetAllMethodsOfModule(ModulePath):
     from inspect import getmembers, isfunction
     Module = ImportModule(ModulePath)
@@ -1060,7 +1019,22 @@ ListAllMethodsOfModule = GetAllMethodsOfModule
 # })
 
 def RandomSelect(List, SelectNum):
-    return random.sample(List, SelectNum)
+    if isinstance(List, int):
+        Num = List
+        List = range(Num)
+    else:
+        Num = utils_torch.GetLength(List)
+
+    if Num > SelectNum:
+        return random.sample(List, SelectNum)
+    else:
+        return List
+
+def GetLength(Obj):
+    if utils_torch.IsIterable(Obj):
+        return len(Obj)
+    else:
+        raise Exception()
 
 import subprocess
 def runcmd(command):

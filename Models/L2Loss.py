@@ -56,7 +56,6 @@ class L2Loss():
             return cache.Coefficient
     def forward(self, Input, *Args):
         param = self.param
-        Input = Args[0]
         if isinstance(Input, tuple) or isinstance(Input, list):
             Loss = 0.0
             for _Input in Input:

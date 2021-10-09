@@ -43,11 +43,12 @@ class NonLinearLayer(SingleLayer):
             self.SetBias()
             self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight())) + data.Bias
-        elif param.Subtype in ["Wx"]:
+        elif param.Subtype in ["f(Wx)"]:
             if cache.IsInit:
                 SetAttrs(param, "Bias", False)
             self.SetWeight()
-            self.forward = lambda x:torch.mm(x, self.GetWeight())
+            self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
+            self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()))
         elif param.Subtype in ["f(W(x+b))"]:
             if cache.IsInit:
                 SetAttrs(param, "Bias", True)

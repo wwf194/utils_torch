@@ -27,6 +27,20 @@ ColorPlt = utils_torch.EmptyPyObj().FromDict({
     "Grey":  (0.5, 0.5, 0.5),
 })
 
+
+# def get_cmap(n, name='gist_rainbow'):
+#     '''Returns a function that maps each index in 0, 1, ..., n-1 to a distinct 
+#     RGB color; the keyword argument name must be a standard mpl colormap name.'''
+#     return plt.cm.get_cmap(name, n)
+
+def GenerateColors(Num=10, ColorMap="gist_rainbow"):
+    # ColorMap: hsv: some colors look too similar.
+    ColorFunction = plt.cm.get_cmap(ColorMap, Num)
+    Colors = []
+    for Index in range(Num):
+        Colors.append(ColorFunction(Index))
+    return Colors
+
 def PlotLinesPlt(ax, XYsStart, XYsEnd=None, Width=1.0, Color=ColorPlt.Black):
     if XYsEnd is None:
         Edges = ToNpArray(XYsStart)
@@ -85,14 +99,24 @@ def ParsePointTypePlt(Type):
         elif Type in ["Triangle"]:
             return "^"
         else:
-            raise Exception(Type)
+            #raise Exception(Type)
+            return Type
     else:
-        raise Exception(Type)
+        #raise Exception(Type)
+        return Type
 
-def PlotPoint(ax, XY, Color=ColorPlt.Blue, Type="Circle"):
+def PlotPoint(ax, XY, Color=ColorPlt.Blue, Type="Circle", Size=None):
     Color = ParseColorPlt(Color)
     Type = ParsePointTypePlt(Type)
-    ax.scatter([XY[0]], [XY[1]], color=Color, marker=Type)
+    
+    if Size is not None:
+        if isinstance(Size, float):
+            Size = mpl.rcParams['lines.markersize'] ** 2 * Size ** 2
+    ax.scatter(
+        [XY[0]], [XY[1]], 
+        s = Size,
+        color=Color, marker=Type
+    )
 
 def PlotPointsPltNp(ax, Points, Color=ColorPlt.Blue):
     Points = ToNpArray(Points)
@@ -173,6 +197,8 @@ def ParseColorPlt(Color):
     if isinstance(Color, tuple):
         if len(Color)==3:
             return Color
+        elif len(Color)==4:
+            return Color[0:3]
         else:
             raise Exception()
     elif isinstance(Color, str):
@@ -288,11 +314,45 @@ def PlotPolyLineFromVerticesCV(img, points, closed=False, Color=(0,0,0), Width=2
         point_1 = utils_torch.geometry2D.XY2PixelIndex(points[(i+1)%PointNum][0], points[(i+1)%PointNum][1], BoundaryBox, ResolutionX, ResolutionY)
         cv.line(img, point_0, point_1, Color, Width, type)
 
-def SetAxRangeFromBoundaryBox(ax, BoundaryBox):
+def SetAxRangeFromBoundaryBox(ax, BoundaryBox, SetTicks=True):
     ax.set_xlim(BoundaryBox.XMin, BoundaryBox.XMax)
     ax.set_ylim(BoundaryBox.YMin, BoundaryBox.YMax)
-    #ax.set_xticks(np.linspace(BoundaryBox.XMin, BoundaryBox.XMax, 5))
-    #ax.set_yticks(np.linspace(BoundaryBox.YMin, BoundaryBox.YMax, 5))
+    if SetTicks:
+        SetXTicksFloat(ax, BoundaryBox.XMin, BoundaryBox.XMax)
+        SetYTicksFloat(ax, BoundaryBox.YMin, BoundaryBox.YMax)
+
+def GetDefaultBoundaryBox():
+    return utils_torch.PyObj({
+        "XMin": 0.0,
+        "XMax": 1.0,
+        "YMin": 0.0,
+        "YMax": 1.0,
+    })
+
+def XYs2BoundaryBox(XYs):
+    XYs = XYs.reshape(-1, 2) # Flatten to [:, (x, y)]
+    Xs = XYs[:, 0]
+    Ys = XYs[:, 1]
+    BoundaryBox = [np.min(Xs), np.min(Ys), np.max(Xs), np.max(Ys),]
+    return utils_torch.PyObj({
+        "XMin": BoundaryBox[0],
+        "XMax": BoundaryBox[2],
+        "YMin": BoundaryBox[1],
+        "YMax": BoundaryBox[3],
+    })
+
+def UpdateBoundaryBox(BoundaryBox, _BoundaryBox):
+    BoundaryBox.XMin = min(BoundaryBox.XMin, _BoundaryBox.XMin)
+    BoundaryBox.YMin = min(BoundaryBox.YMin, _BoundaryBox.YMin)
+    BoundaryBox.XMax = max(BoundaryBox.XMax, _BoundaryBox.XMax)
+    BoundaryBox.YMax = max(BoundaryBox.YMax, _BoundaryBox.YMax)
+    BoundaryBox.__value__ = [
+        BoundaryBox.XMin,
+        BoundaryBox.YMin,
+        BoundaryBox.XMax,
+        BoundaryBox.YMax,
+    ]
+    return BoundaryBox
 
 def SetAxRangeAndTicksFromBoundaryBox(ax, BoundaryBox):
     SetAxRangeFromBoundaryBox(ax, BoundaryBox)
@@ -682,7 +742,7 @@ def ParseRowColNum(PlotNum, RowNum=None, ColNum=None):
         else:
             return RowNum, ColNum
 
-def CreateFigurePlt(PlotNum, RowNum=None, ColNum=None, Width=None, Height=None):
+def CreateFigurePlt(PlotNum=1, RowNum=None, ColNum=None, Width=None, Height=None):
     RowNum, ColNum = ParseRowColNum(PlotNum, RowNum, ColNum)
     if Width is None and Height is None:
         Width = ColNum * 5.0 # inches
@@ -753,13 +813,57 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
 
 def PlotLineChart(ax=None, Xs=None, Ys=None,
         XLabel=None, YLabel=None, Title="Undefined",
-        Color="Black", LineWidth=2.0,
+        Color="Black", LineWidth=2.0, XTicks=None, YTicks=None,
         Save=False, SavePath=None,
     ):
     if ax is None:
-        fig, ax = plt.subplots()
+        fig, ax = CreateFigurePlt()
     Color = ParseColorPlt(Color)
     ax.plot(Xs, Ys, color=Color, linewidth=LineWidth)
+
+    if XTicks in ["Float"]:
+        SetXTicksFloat(ax, np.nanmin(Xs), np.nanmax(Xs))
+    if YTicks in ["Float"]:
+        SetYTicksFloat(ax, np.nanmin(Ys), np.nanmax(Ys))
+
+    SetXYLabelForAx(ax, XLabel, YLabel)
+    SetTitleForAx(ax, Title)
+    SaveFigForPlt(Save, SavePath)
+    return ax
+
+def PlotMultiLineChart(ax=None, Xs=None, YsDict=None,
+        XLabel=None, YLabel=None, Title="Undefined",
+        Color="Auto", LineWidth=1.0, XTicks=None, YTicks=None,
+        Save=False, SavePath=None,
+    ):
+    if ax is None:
+        fig, ax = CreateFigurePlt()
+    PlotNum = len(YsDict)
+    if Color in ["Auto", "auto"]:
+        Colors = GenerateColors(PlotNum)
+
+    for Index, (Name, Ys) in enumerate(YsDict.items()):
+        ax.plot(
+            Xs, Ys, color=Colors[Index],
+            linewidth=LineWidth,
+            label=Name,
+        )
+    ax.legend()
+
+    if XTicks in ["Float"]:
+        Min, Max = np.nanmin(Xs), np.nanmax(Xs)
+        SetXTicksFloat(ax, Min, Max)
+        SetXRangeMinMax(ax, Min, Max, Pad=0.0)
+    if YTicks in ["Float"]:
+        Min = []
+        Max = []
+        for Ys in YsDict.values():
+            Min.append(np.nanmin(Ys))
+            Max.append(np.nanmax(Ys))
+        Min, Max = np.nanmin(Min), np.nanmax(Max)
+        SetYTicksFloat(ax, Min, Max)
+        SetYRangeMinMax(ax, Min, Max, Pad=0.0)
+
     SetXYLabelForAx(ax, XLabel, YLabel)
     SetTitleForAx(ax, Title)
     SaveFigForPlt(Save, SavePath)
@@ -895,6 +999,7 @@ def CalculateTickIntervalFloat(Min, Max):
     Range = Max - Min
     if Range == 0.0:
         return 0.0, None, None
+
 
     Log = round(math.log(Range, 10))
     Base = 1.0
@@ -1032,8 +1137,11 @@ def SetColorBarTicks(ColorBar, Ticks, Orientation, Min=None, Max=None, **kw):
     if Min==Max:
         if Min == 0.0:
             Min, Max = -1.0, 1.0
-        else:
+        elif Min > 0.0:
             Min, Max = 0.5 * Min, 1.5 * Max
+        else:  
+            Min, Max = - 0.5 * Min, - 1.5 * Max
+    
     if Ticks in ["Auto", "auto"]:
         #Ticks = np.linspace(Min, Max, num=5)
         Ticks, TicksStr = CalculateTicksFloat("Auto", Min, Max)
@@ -1055,8 +1163,10 @@ def SetXTicksFloat(ax, Min, Max, Method="Auto", Rotate45=True):
     if Min==Max:
         if Min == 0.0:
             Min, Max = -1.0, 1.0
-        else:
+        elif Min > 0.0:
             Min, Max = 0.5 * Min, 1.5 * Max
+        else:  
+            Min, Max = - 0.5 * Min, - 1.5 * Max
 
     Ticks, TicksStr = CalculateTicksFloat(Method, Min, Max)
     Ticks, TicksStr = CalculateTicksFloat(Method, Min, Max)
@@ -1172,17 +1282,23 @@ def PlotGaussianDensityCurve(
 
 PlotDensityCurve = PlotGaussianDensityCurve
 
-def GetAxRangeMinMax(Min, Max):
+def GetAxRangeMinMax(Min, Max, Pad=0.0):
     Range = Max - Min
-    Left = Min - 0.05 * Range
-    Right = Max + 0.05 * Range
+    Left = Min - Pad * Range
+    Right = Max + Pad * Range
     return Left, Right
 
-def SetAxRangeMinMax(ax, Min, Max):
+def SetXRangeMinMax(ax, Min, Max, Pad=0.05):
     Range = Max - Min
-    Left = Min - 0.05 * Range
-    Right = Max + 0.05 * Range
+    Left = Min - Pad * Range
+    Right = Max + Pad * Range
     ax.set_xlim(Left, Right)
+
+def SetYRangeMinMax(ax, Min, Max, Pad=0.05):
+    Range = Max - Min
+    Left = Min - Pad * Range
+    Right = Max + Pad * Range
+    ax.set_ylim(Left, Right)
 
 def SetMatplotlibParamToDefault():
     mpl.rcParams.update(mpl.rcParamsDefault)
@@ -1230,7 +1346,7 @@ def CompareDensityCurve(data1, data2, Name1, Name2, Save=True, SavePath=None):
     utils_torch.plot.PlotGaussianDensityCurve(ax, data1)
     utils_torch.plot.PlotGaussianDensityCurve(ax, data2)
 
-    SetAxRangeMinMax(ax, Min, Max)
+    SetXRangeMinMax(ax, Min, Max)
 
     if SavePath is None:
         SavePath = utils_torch.GetSaveDir() + "%s-%s-GaussianKDE.png"%(Name1, Name2)
@@ -1239,7 +1355,7 @@ def CompareDensityCurve(data1, data2, Name1, Name2, Save=True, SavePath=None):
 
 def PlotMeanAndStdAlongTime(
         ax=None, Xs=None, Mean=None, Std=None,
-        LineWidth=2.0, Color="Black", XTicks="Int",
+        LineWidth=2.0, Color="Black", XTicks="Float",
         Title=None, XLabel=None, YLabel=None,
         Save=False, SavePath=None, **kw
     ):
@@ -1251,6 +1367,8 @@ def PlotMeanAndStdAlongTime(
     elif XTicks in ["Float"]:
         XTicks, XTicksStr = SetXTicksFloat(ax, min(Xs), max(Xs))
 
+    Mean = utils_torch.ToNpArray(Mean)
+    Std = utils_torch.ToNpArray(Std)
     Color = ParseColorPlt(Color)
     Y1 = Mean - Std
     Y2 = Mean + Std
@@ -1280,3 +1398,15 @@ def SetXAxisLocationForAx(ax, XAXisLocation):
         ax.xaxis.tick_top()
     else:
         raise Exception()
+
+def PlotTrajectory(ax, XYs, Color="Black"):
+    # XYs: [StepNum, (x, y)]
+    StepNum = XYs.shape[0] - 1
+    Color=ParseColorPlt(Color)
+    for StepIndex in range(StepNum):
+        utils_torch.plot.PlotArrowFromVertexPairsPlt(
+            ax, XYs[StepIndex, :], XYs[StepIndex+1, :],
+            Color=Color,
+            SizeScale=0.1,
+        )
+    return ax

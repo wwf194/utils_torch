@@ -195,8 +195,8 @@ def _ParsePyObjDynamicInPlace(Obj, parent, attr, RaiseFailedParse, **kw):
     
 def _ParsePyObjDynamicMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
     # Not In Place. Returns a new ObjParsed.
-    if Obj in ["&^object.agent.cache.Dynamics.Test"]:
-        print("aaa")
+    # if Obj in ["&^object.agent.cache.Dynamics.Test"]:
+    #     print("aaa")
     ObjRefList = kw["ObjRefList"]
     if isinstance(Obj, dict):
         ObjParsed = {}
@@ -213,8 +213,8 @@ def _ParsePyObjDynamicMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
         for Attr, Value in ListAttrsAndValues(Obj, ExcludeCache=False):
             setattr(ObjParsed, Attr, _ParsePyObjDynamicMultiRefs(getattr(Obj, Attr), parent, Attr, RaiseFailedParse, **kw))
     elif isinstance(Obj, str):
-        if Obj in ["#utils_torch.GetSaveDir"]:
-            print("aaa")
+        # if Obj in ["#utils_torch.GetSaveDir"]:
+        #     print("aaa")
         if "#" in Obj:
             ObjParsed, success = ParseStrWithWell(Obj, Dynamic=True, **kw)
             if success:
@@ -376,8 +376,8 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
     kw["RecurDepth"] += 1
     WithinJson = kw["WithinJson"]
-    if isinstance(Obj, str) and Obj in ["$~Std1 * 2.0"]:
-        print("aaa")
+    # if isinstance(Obj, str) and Obj in ["$~Std1 * 2.0"]:
+    #     print("aaa")
     # if isinstance(Obj, str) and "lambda data: [" in Obj:
     #     print("aaa")
     if isinstance(Obj, list):
@@ -462,13 +462,13 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
     except Exception:
         Str = _Str
         success = False
-        if Verbose:
-            utils_torch.AddLog("ParseStr: Failed to run %s"%sentence)
+        # if Verbose:
+        #     utils_torch.AddLog("ParseStr: Failed to run %s"%sentence)
     if success:
         if not utils_torch.IsJsonObj(Str):
             if kw.get("WithinJson"):
-                if Verbose:
-                    utils_torch.AddLog("ParseStr: Not a Json Obj: %s of type %s ."%(Str, type(Str)))
+                # if Verbose:
+                #     utils_torch.AddLog("ParseStr: Not a Json Obj: %s of type %s ."%(Str, type(Str)))
                 success = False
                 Str = _Str
     return Str, success
@@ -662,3 +662,42 @@ def SeparateArgs(ArgsString):
         return []
     else:
         return Args
+
+
+def ParseParamStaticAndDynamic(Args):
+    ParseParamStatic(Args)
+    ParseParamDynamic(Args)
+    return
+
+def ParseParamStatic(Args, Save=False, SavePath=None):
+    if SavePath is None:
+        SavePath = utils_torch.GetSaveDir() + "param_parsed_static.jsonc"
+    ArgsGlobal = utils_torch.GetArgsGlobal()
+    param = ArgsGlobal.param
+    utils_torch.json.PyObj2JsonFile(param, SavePath)
+    utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    if Save:
+        SavePath = utils_torch.RenameIfPathExists(SavePath)
+        utils_torch.json.PyObj2JsonFile(param, SavePath)
+    return
+
+def ParseParamDynamic(Args, Save=False, SavePath=None):
+    ArgsGlobal = utils_torch.GetArgsGlobal()
+    if SavePath is None:
+        utils_torch.GetSaveDir() + "param_parsed_dynamic.jsonc"
+    for attr, param in utils_torch.ListAttrsAndValues(ArgsGlobal.param):
+        utils_torch.parse.ParsePyObjDynamic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    if Save:
+        utils_torch.json.PyObj2JsonFile(ArgsGlobal.param, utils_torch.RenameIfPathExists(SavePath))
+    return
+
+def ParseClass(ClassPath):
+    try:
+        Module = utils_torch.ImportModule(ClassPath)
+        if hasattr(Module, "__MainClass__"):
+            return Module.__MainClass__
+        else:
+            return Module
+    except Exception:
+        Class = eval(ClassPath)
+        return Class

@@ -32,36 +32,13 @@ class RecurrentLIFLayer(nn.Module):
         cache.IsLoad = IsLoad
         cache.IsInit = not IsLoad
         cache.Modules = utils_torch.EmptyPyObj()
-        
         EnsureAttrs(param, "IsExciInhi", default=False)
-        cache.Tensors = []
+        
         self.BuildModules()
         self.InitModules()
         self.SetInternalMethods()
         self.ParseRouters()
 
-    def BuildModules(self):
-        param = self.param
-        cache = self.cache
-        for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveRef__"]):
-            # if Name in ["GetBias"]:
-            #     print("aaa")
-            if hasattr(ModuleParam, "Type") and ModuleParam.Type in ["Internal"]:
-                continue
-            setattr(ModuleParam, "Name", Name)
-            setattr(ModuleParam, "FullName", param.FullName + "." + Name)
-            Module = utils_torch.model.BuildModule(ModuleParam)
-            setattr(cache.Modules, Name, Module)
-            if isinstance(Module, nn.Module):
-                self.add_module(Name, Module)
-    def InitModules(self):
-        param = self.param
-        cache = self.cache
-        for Module in ListValues(cache.Modules):
-            if hasattr(Module, "InitFromParam"):
-                Module.InitFromParam()
-            else:
-                utils_torch.AddWarning("Module %s has not implemented InitFromParam method."%Module)
     def SetInternalMethods(self):
         param = self.param
         cache = self.cache

@@ -198,8 +198,16 @@ def Vectors2NormsDirectionsNp(Vectors):
 def Vectors2Directions(Vectors):
     return Vectors2DirectionsNp(np.array(Vectors, dtype=np.float32)).tolist()
 
+def Vector2Direction(Vector):
+    return np.arctan2(Vector[0], Vector[1])
+
+def Vector2Degree(Vector):
+    return Vector2Direction(Vector) * 180.0 / np.pi
+
 def Vectors2RadiansNp(VectorsNp):
     return np.arctan2(VectorsNp[:, 1], VectorsNp[:, 0])
+
+Vectors2DirectionsNp = Vectors2RadiansNp
 
 def Distance2Edges(PointsNp, EdgeVerticesNp, EdgeNormsNp):
     Points2EdgeVertices = EdgeVerticesNp[np.newaxis, :, :] - PointsNp[:, np.newaxis, :] # [1, VertexNum, 2] - [PointNum, 1, 2] = [PointNum, VertexNum, 2]
@@ -220,7 +228,6 @@ def StartEndPoints2VectorsNormDirectionNp(PointsStart, PointsEnd):
     Vectors = StartEndPoints2VectorsNp(PointsStart, PointsEnd)
     return Vectors2NormsDirectionsNp(Vectors)
 
-Vectors2DirectionsNp = Vectors2RadiansNp
 
 def PlotIntersectionTest(SavePath=None, Num=10):
     fig, ax = plt.subplots()

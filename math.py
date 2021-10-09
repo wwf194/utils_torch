@@ -7,6 +7,7 @@ from utils_torch.attrs import GetAttrs
 
 def NpArrayStatistics(data, verbose=False, ReturnType="PyObj"):
     statistics = {
+
         "Min": np.min(data),
         "Max": np.max(data),
         "Mean": np.mean(data),
@@ -34,7 +35,7 @@ def RemoveNaNOrInf(data):
     # @param data: 1D np.ndarray.
     return data[np.isfinite(data)]
 
-def TorchTensorStatistics(tensor, verbose=False, ReturnType="PyObj"):
+def TorchTensorStat(tensor, verbose=False, ReturnType="PyObj"):
     statistics = {
         "Min": torch.min(tensor).item(),
         "Max": torch.max(tensor).item(),
