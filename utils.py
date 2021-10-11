@@ -148,6 +148,7 @@ def SetTensorLocation(Args):
     for Obj in utils_torch.ListValues(utils_torch.GetArgsGlobal().object):
         if hasattr(Obj, "SetTensorLocation"):
             Obj.SetTensorLocation(Location)
+    SetAttrs(utils_torch.GetArgsGlobal(), "system.TensorLocation", Location)
 
 def BuildObjFromParam(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
@@ -397,6 +398,7 @@ def ToNpArray(data, DataType=np.float32):
     else:
         raise Exception()
 
+
 def ToTorchTensor(data):
     if isinstance(data, np.ndarray):
         return NpArray2Tensor(data)
@@ -458,9 +460,10 @@ def Tensor2GivenDataType(data, DataType=torch.float32):
     else:
         return data.to(DataType)
 
-def Tensor2NpArray(data):
+def TorchTensor2NpArray(data):
     data = data.detach().cpu().numpy()
     return data # data.grad will be lost.
+Tensor2NpArray = TorchTensor2NpArray
 
 def Tensor2Str(data):
     return NpArray2Str(Tensor2NpArray(data))

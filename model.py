@@ -60,7 +60,12 @@ def BuildModule(param, **kw):
 def CalculateWeightChangeRatio(Weight, WeightChange):
     Weight = utils_torch.ToNpArray(Weight)
     WeightChange = utils_torch.ToNpArray(WeightChange)
-    WeightChangeRatio = np.sum(np.abs(WeightChange)) / np.sum(np.abs(Weight))
+
+    WeightAbsSum = np.sum(np.abs(Weight))
+    if WeightAbsSum > 0.0:
+        WeightChangeRatio = np.sum(np.abs(WeightChange)) / WeightAbsSum
+    else:
+        WeightChangeRatio = float("inf")
     return WeightChangeRatio
 
 def ListParameter(model):
@@ -164,23 +169,34 @@ def ParseNonLinearMethod(param):
 
 def CreateWeight2D(param, DataType=torch.float32):
     Init = param.Init
-    if Init.Method in ["kaiming", "he"]:
-        Init.Method = "kaiming"
+    if Init.Method in ["Kaiming", "KaimingUniform", "KaimingNormal"]:
+        if Init.Method in ["KaimingNormal"]: #U~(-bound, bound), bound = sqrt(6/(1+a^2)*FanIn)
+            SetAttrs(Init, "Distribution", value="Normal")
+        elif Init.Method in ["KaimingUniform"]:
+            SetAttrs(Init, "Distribution", value="Uniform")
+        else:
+            EnsureAttrs(Init, "Distribution", default="Uniform")
         EnsureAttrs(Init, "Mode", default="In")
-        EnsureAttrs(Init, "Distribution", default="uniform")
         EnsureAttrs(Init, "Coefficient", default=1.0)
         if Init.Mode in ["In"]:
-            if Init.Distribution in ["uniform"]:
-                Init.Range = [ - Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5,
-                    Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
+
+            if Init.Distribution in ["Uniform"]:
+                Init.Range = [
+                    - Init.Coefficient * (6 / param.Size[0]) ** 0.5,
+                    Init.Coefficient * (6 / param.Size[0]) ** 0.5
                 ]
                 weight = np.random.uniform(*Init.Range, tuple(param.Size))
-            elif Init.Distribution in ["uniform+"]:
+            elif Init.Distribution in ["Uniform+"]:
                 Init.Range = [
                     0.0,
                     2.0 * Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
                 ]
                 weight = np.random.uniform(*Init.Range, tuple(param.Size))
+            elif Init.Distribution in ["Normal"]:
+                # std = sqrt(2 / (1 + a^2) * FanIn)
+                Mean = 0.0
+                Std = Init.Coefficient * (2 / param.Size[0]) ** 0.5
+                weight = np.random.normal(Mean, Std, tuple(param.Size))
             else:
                 # to be implemented
                 raise Exception()

@@ -1,5 +1,5 @@
 import torch
-
+import numpy as np
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
@@ -68,7 +68,7 @@ def AnalyzeWeightStatAlongTrainingEpochBatch(Logs, SaveDir=None, **kw):
         EpochIndices = Log["Epoch"]
         BatchIndices = Log["Batch"]
         EpochsFloat = utils_torch.train.EpochBatchIndices2EpochsFloat(
-            EpochIndices, BatchIndices, BatchNum = kw["EpochNum"]
+            EpochIndices, BatchIndices, BatchNum = kw["BatchNum"]
         )
         fig, ax = utils_torch.plot.CreateFigurePlt()
         utils_torch.plot.PlotMeanAndStdAlongTime(
@@ -153,3 +153,62 @@ def AnalyzeTrajectory(agent, world, XYsPredicted, XYsTruth, PlotNum=3, SaveDir=N
     utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + ".svg")
     utils_torch.Table2TextFileDict(TxtTable, SaveDir + SaveName + ".txt")
 
+def AnalyazeSpatialFiringPattern(agent, world, Activity):
+    return
+
+def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
+        ResponseA, ResponseB, WeightUpdate, Weight,
+        SaveDir=None, SaveName=None, 
+    ):
+    ResponseA = utils_torch.ToNpArray(ResponseA)
+    ResponseB = utils_torch.ToNpArray(ResponseB)
+    WeightUpdate = utils_torch.ToNpArray(WeightUpdate)
+    Weight = utils_torch.ToNpArray(Weight)
+    #WeightUpdate = WeightUpdate / np.sign(Weight)
+    WeightUpdate = WeightUpdate / Weight # Ratio
+    WeightUpdate = utils_torch.math.ReplaceNaNOrInfWithZeroNp(WeightUpdate)
+
+    # ResponseA: [BatchSize, TimeNum, NeuronNumA]
+    # ResponseB: [BatchSize, TimeNum, NeuronNumB]
+    ResponseA = ResponseA.reshape(-1, ResponseA.shape[-1])
+    ResponseB = ResponseB.reshape(-1, ResponseB.shape[-1])
+    CorrelationMatrix = utils_torch.math.CalculatePearsonCoefficient(ResponseA, ResponseB)
+
+    assert CorrelationMatrix.shape == WeightUpdate.shape
+    Points = np.stack(
+        [
+            utils_torch.FlattenNpArray(CorrelationMatrix), 
+            utils_torch.FlattenNpArray(WeightUpdate), 
+        ],
+        axis=1
+    ) # [NeuronNumA * NeuronNumB, (Correlation, WeightUpdate)]
+
+    fig, ax = utils_torch.plot.CreateFigurePlt()
+    Title = SaveName + "WeightChangeRatio- ResponseSimilarity",
+    utils_torch.plot.PlotPoints(
+        ax, Points, Color="Blue", Type="EmptyCircle", Size=0.5,
+        XLabel="Response Similarity", YLabel="Minus Gradient", 
+        Title=Title,
+    )
+    plt.tight_layout()
+    utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + "-WCR.svg")
+
+    Points = np.stack(
+        [
+            utils_torch.FlattenNpArray(CorrelationMatrix), 
+            utils_torch.FlattenNpArray(Weight), 
+        ],
+        axis=1
+    ) # [NeuronNumA * NeuronNumB, (Correlation, WeightUpdate)]
+
+    fig, ax = utils_torch.plot.CreateFigurePlt()
+    Title = SaveName + "Weight - ResponseSimilarity"
+    utils_torch.plot.PlotPoints(
+        ax, Points, Color="Blue", Type="EmptyCircle", Size=0.5,
+        XLabel="ResponseSimilarity", YLabel="Connection Strength", 
+        Title=Title,
+    )
+    plt.tight_layout()
+    utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + "-WR.svg")
+    #utils_torch.NpArray2File(CorrelationMatrix, SavePath=SaveDir + SaveName + "-CorrelationMatrix.txt")
+    return

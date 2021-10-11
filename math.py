@@ -112,18 +112,34 @@ def Angles2StandardRangeNp(Angles):
 def IsAcuteAnglesNp(AnglesA, AnglesB):
     return np.abs(Angles2StandardRangeNp(AnglesA, AnglesB)) < np.pi / 2
 
-def Norm2Mean1Std0(data, StdThreshold=1.0e-9):
-    std = np.std(data)
-    mean = np.mean(data)
+def ToMean0Std1Np(data, StdThreshold=1.0e-9):
+    std = np.std(data, keepdims=True)
+    mean = np.mean(data, keepdims=True)
     if std < StdThreshold:
-        utils_torch.AddWarning("Norm2Mean1Std0: StandardDeviation==0.0")
+        utils_torch.AddWarning("ToMean0Std1Np: StandardDeviation==0.0")
         return data - mean
     else:
        return (data - mean) / std
 
-def Norm2GivenMeanStd(data, Mean, Std, StdThreshold=1.0e-9):
-    data = Norm2Mean1Std0(data, StdThreshold)
+ToMean0Std1 = ToMean0Std1Np
+
+def Norm2GivenMeanStdNp(data, Mean, Std, StdThreshold=1.0e-9):
+    data = ToMean0Std1Np(data, StdThreshold)
     return data * Std + Mean
+
+Norm2GivenMeanStd = Norm2GivenMeanStdNp
+
+def ToMean0Std1Torch(data, axis=None, StdThreshold=1.0e-9):
+    std = torch.std(data, dim=axis, keepdim=True)
+    mean = torch.mean(data, dim=axis, keepdim=True)
+    # if std < StdThreshold:
+    #     utils_torch.AddWarning("ToMean0Std1Np: StandardDeviation==0.0")
+    #     return data - mean
+    # else:
+
+
+    # To Be Implemented: Deal with std==0.0
+    return (data - mean) / std
 
 def Norm2Sum1(data, axis=None):
     # @param data: np.ndarray. Non-negative.
@@ -176,3 +192,21 @@ def Floats2BaseAndExponent(Floats, Base=10.0):
     Coefficient = Floats / 10.0 ** Exponent
     return Coefficient, Exponent
 
+def CalculatePearsonCoefficient(dataA, dataB):
+    # dataA: Design matrix of shape [SampleNum, FeatureNumA]
+    # dataB: Design matrix of shape [SampleNum, FeatureNumB]
+    FeatureNumA = dataA.shape[1]
+    FeatureNumB = dataB.shape[1]
+    SampleNum = dataA.shape[0]
+
+    Location = utils_torch.GetArgsGlobal().system.TensorLocation
+
+    dataAGPU = utils_torch.ToTorchTensor(dataA).to(Location)
+    dataBGPU = utils_torch.ToTorchTensor(dataB).to(Location)
+
+    dataANormed = ToMean0Std1Torch(dataAGPU, axis=0)
+    dataBNormed = ToMean0Std1Torch(dataBGPU, axis=0)
+
+    CorrelationMatrix = torch.mm(dataANormed.permute(1, 0), dataBNormed) / SampleNum
+    CorrelationMatrix = utils_torch.TorchTensor2NpArray(CorrelationMatrix)
+    return CorrelationMatrix

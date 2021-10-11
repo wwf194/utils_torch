@@ -45,24 +45,32 @@ def RectangleAContainsRectangleB(RectangleA, RectangelB, Strict=False):
         Condition4 = RectangleA[3] > RectangelB[3]
         return Condition1 and Condition2 and Condition3 and Condition4
 
-def InterceptRatio(p1, p2, ref1, ref2, p1p2=None):
+def SegmentInterceptedByLine(P1, P2, Q1, Q2, P1P2=None):
     # Judge whether p1p2 will be intercepted by ref1-ref2.
     # If yes, gives ratio: p1-InterceptionPoint / ref1-ref2
     # If no, gives ratio 1.0.
-    PointNum = p1.shape[0]
+    PointNum = P1.shape[0]
+    if P1P2 is None:
+        P1P2 = P2 - P1
+    
     Lambda = np.ones((PointNum), )
-    hasIntersection = HasIntersection(p1, p2, ref1, ref2)
+    hasIntersection = HasIntersection(P1, P2, Q1, Q2)
     hasIntersectionIndices = np.argwhere(hasIntersection)
     hasIntersectionNum = hasIntersectionIndices.shape[0]
     hasIntersectionIndices = hasIntersectionIndices.reshape(hasIntersectionNum)
-    p1WithIntersection = p1[hasIntersectionIndices]
-    p2WithIntersection = p2[hasIntersectionIndices]
-    intersectionPoins = IntersectionPoints(p1WithIntersection, p2WithIntersection, ref1, ref2)
-    if p1p2 is None:
-        p1p2 = p2 - p1
-    LambdaWithIntersection = np.mean((intersectionPoins - p1WithIntersection) / p1p2[hasIntersectionIndices], axis=1)
+    P1WithIntersection = P1[hasIntersectionIndices]
+    P2WithIntersection = P2[hasIntersectionIndices]
+    intersectionPoins = IntersectionPoints(P1WithIntersection, P2WithIntersection, Q1, Q2)
+
+    LambdaWithIntersection = np.mean((intersectionPoins - P1WithIntersection) / P1P2[hasIntersectionIndices], axis=1)
     Lambda[hasIntersectionIndices] = LambdaWithIntersection
     return Lambda
+
+def SegmentInterceptedByCircle(P1, P2, XYCenter, Radius, P1P2):
+    PointNum = P1.shape[0]
+    if P1P2 is None:
+        P1P2 = P2 - P1
+    
 
 def Edges2MidPoints(Edges):
     return Edges2MidPointsNp(np.array(Edges, dtype=np.float32)).tolist()

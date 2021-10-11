@@ -37,7 +37,7 @@ class RNNLIF(nn.Module):
         cache.__object__ = self
         cache.IsLoad = IsLoad
         cache.IsInit = not IsLoad
-        utils_torch.AddLog("RNNLIF: Initializing from param...")
+        utils_torch.AddLog("RNNLIF: Initializing...")
         CheckAttrs(param, "Type", value="RNNLIF")
         self.param = param
         Neurons = param.Neurons
@@ -53,38 +53,8 @@ class RNNLIF(nn.Module):
             utils_torch.DoTask(Task, ObjCurrent=self.cache, ObjRoot=utils_torch.GetArgsGlobal())
         
         self.ParseRouters()
-        #self.SetForwardEntry()
-    # def Train(self, Input, OutputTarget, TrainParam):
-    #     cache = self.cache
-    #     Output = utils_torch.CallGraph(cache.Dynamics.Train, [Input, OutputTarget, TrainParam])
-    #     return
-    # def ParseRouters(self):
-    #     cache = self.cache
-    #     param = self.param
-    #     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-    #         utils_torch.router.ParseRouterStatic(RouterParam)
-    #         setattr(cache.Dynamics, Name, RouterParam)
-    #         setattr(RouterParam, "Name", Name) # For Debug
-    #     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-    #         RouterParsed = utils_torch.router.ParseRouterDynamic(RouterParam, InPlace=True, 
-    #             ObjRefList=[cache.Modules, cache.Dynamics, cache, 
-    #                 param.Modules, param.Dynamics, param, self,
-    #                 utils_torch.Models.Operators        
-    #             ])
-    #         setattr(cache.Dynamics, Name, RouterParsed)
-    #     return
-    # def SetForwardEntry(self):
-    #     param = self.param
-    #     data = self.data
-    #     cache = self.cache
-    #     DefaultEntryStr = "&Dynamics.%s"%ListAttrsAndValues(self.param.Dynamics)[0][0]
-    #     EnsureAttrs(param.Dynamics, "__Entry__", default=DefaultEntryStr)
-    #     SetAttrs(cache, "Dynamics.__Entry__", value=utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, 
-    #         ObjRefList=[cache.Modules, cache.Dynamics, cache, param.Modules, param.Dynamics, param]))
-    #     #utils_torch.parse.ParseRouters(data.Routers, ObjRefList=[data.Modules, data.Routers, data])
-    # def forward(self, Input):
-    #     Output = utils_torch.CallGraph(self.cache.Dynamics.__Entry__, Input)
-    #     return Output
+
+        utils_torch.AddLog("RNNLIF: Initialized.")
     def SetTensorLocation(self, Location):
         utils_torch.model.SetTensorLocationForModel(self, Location)
         self.SetTrainWeight()

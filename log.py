@@ -117,7 +117,7 @@ class LoggerForEpochBatchTrain:
         self.log = defaultdict(lambda:[])
         self.IsPlotable = defaultdict(lambda:True)
         self.logType = defaultdict(lambda:"Unknown")
-        # self.PlotType = defaultdict(lambda:"Unknown")
+        self.GetLog = self.GetLogByName
         self.AddLog = self.AddLogList
         self.Get = self.GetLog
     def UpdateEpoch(self, EpochIndex):
@@ -162,7 +162,6 @@ class LoggerForEpochBatchTrain:
             self.log[Name] = {}
         else:
             raise Exception(Type)
-
     def SetPlotType(self, Name, Type):
         self.PlotType[Name] = Type
     def SetEpochNum(self, EpochNum):
@@ -202,9 +201,11 @@ class LoggerForEpochBatchTrain:
         plt.tight_layout()
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png"%Name)
         utils_torch.files.Table2TextFileDict(Log, SavePath=SaveDir + "%s-Epoch"%Name)
-    def GetLog(self, Name):
+    def GetLogByName(self, Name):
         if not Name in self.log:
-            raise Exception(Name)
+            #raise Exception(Name)
+            utils_torch.AddWarning("No such log: %s"%Name)
+            return None
         return self.log[Name]
     def GetLogOfType(self, Type):
         Logs = {}
@@ -221,7 +222,7 @@ class LoggerForEpochBatchTrain:
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-        
+
 class Logger:
     def __init__(self, Name, **kw):
         self.logger = _CreateLogger(Name, **kw)
@@ -337,11 +338,11 @@ def SetSubSaveDir(SaveDir, Type, ArgsGlobal):
     SetAttrs(ArgsGlobal, "SaveDir" + "." + Type, value=SaveDir)
     #utils_torch.EnsureDir(SaveDir)
 
-def SetSaveDir(SaveDir=None, Type="Main", ArgsGlobal=None):
+def SetSaveDir(SaveDir=None, Type="Main", Name="Experiment", ArgsGlobal=None):
     if ArgsGlobal is None:
         ArgsGlobal = utils_torch.GetArgsGlobal()
     if Type in ["Main"]:
-        SaveDir = "./log/Experiment-%s/"%(utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
+        SaveDir = "./log/%s-%s/"%(Name, utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
         utils_torch.EnsureDir(SaveDir)
         SetAttrs(utils_torch.GetArgsGlobal(), "SaveDir.Main", value=SaveDir)
     else:

@@ -51,7 +51,7 @@ class SingleLayer(nn.Module):
         if cache.IsInit:
             EnsureAttrs(param, "Weight.Size", value=[param.Input.Num, param.Output.Num])
             EnsureAttrs(param, "Weight.Init", default=utils_torch.PyObj(
-                {"Method":"kaiming", "Coefficient":1.0})
+                {"Method":"KaimingUniform", "Coefficient":1.0})
             )
         if cache.IsInit:
             data.Weight = utils_torch.model.CreateWeight2D(param.Weight)

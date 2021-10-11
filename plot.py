@@ -94,7 +94,7 @@ def PlotText(ax, XY, Text, Color=ColorPlt.Blue):
 
 def ParsePointTypePlt(Type):
     if isinstance(Type, str):
-        if Type in ["Circ", "Circle"]:
+        if Type in ["Circ", "Circle", "EmptyCircle"]:
             return "o"
         elif Type in ["Triangle"]:
             return "^"
@@ -118,11 +118,39 @@ def PlotPoint(ax, XY, Color=ColorPlt.Blue, Type="Circle", Size=None):
         color=Color, marker=Type
     )
 
-def PlotPointsPltNp(ax, Points, Color=ColorPlt.Blue):
+def ParseMarkerSize(Size):
+    if Size is None:
+        pass
+    elif isinstance(Size, float):
+        Size = mpl.rcParams['lines.markersize'] ** 2 * Size ** 2
+    else:
+        raise Exception()
+    return Size
+
+def PlotPointsPltNp(
+        ax, Points, Color="Blue", Type="Circle", Size=None,
+        XLabel=None, YLabel=None, Title=None,    
+    ):
     Points = ToNpArray(Points)
-    ax.scatter(Points[:, 0], Points[:, 1], color=Color)
+    Xs = Points[:, 0]
+    Ys = Points[:, 1]
+    Color=ParseColorPlt(Color)
+    Size = ParseMarkerSize(Size)
+    Type = ParsePointTypePlt(Type)
+    ax.scatter(Xs, Ys, color=Color, s=Size, marker=Type, facecolors="none")
+    SetAxTicksAndRangeMinMax(ax, Xs, Ys)
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
     return
 PlotPoints = PlotPointsPltNp
+
+def SetAxTicksAndRangeMinMax(ax, Xs, Ys):
+    XMin, XMax = np.nanmin(Xs), np.nanmax(Xs)
+    YMin, YMax = np.nanmin(Ys), np.nanmax(Ys)
+    
+    SetXTicksFloat(ax, XMin, XMax)
+    SetXRangeMinMax(ax, XMin, XMax)
+    SetYRangeMinMax(ax, YMin, YMax)
+    SetYTicksFloat(ax, YMin, YMax)
 
 def PlotDirectionsOnEdges(ax, Edges, Directions, **kw):
     Edges = ToNpArray(Edges)
@@ -1292,7 +1320,16 @@ def SetXRangeMinMax(ax, Min, Max, Pad=0.05):
     Range = Max - Min
     Left = Min - Pad * Range
     Right = Max + Pad * Range
-    ax.set_xlim(Left, Right)
+    if Left==Right:
+        if Left > 0.0:
+            Left, Right = Left * 0.5, Right * 1.5
+        elif Left < 0.0:
+            Left, Right = Left * 1.5, Right * 0.5
+        else:
+            Left, Right = -1.0, 1.0
+        ax.set_xlim(Left, Right)
+    else:
+        ax.set_xlim(Left, Right)
 
 def SetYRangeMinMax(ax, Min, Max, Pad=0.05):
     Range = Max - Min
