@@ -3,21 +3,6 @@ import re
 import utils_torch
 from utils_torch.attrs import *
 
-def ParseRoutersForModel(Obj, ObjRefList):
-    param = Obj.param
-    cache = Obj.cache
-    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__Entry__"]):
-        utils_torch.router.ParseRouterStatic(RouterParam)
-    for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__Entry__"]):
-        Router = utils_torch.router.ParseRouterDynamic(RouterParam, 
-            ObjRefList=[cache.Modules, cache, param, Obj, utils_torch.Models.Operators])
-        setattr(cache, Name, Router)
-    if not HasAttrs(param.Dynamics, "__Entry__"):
-        SetAttrs(param, "Dynamics.__Entry__", "&Dynamics.%s"%ListAttrs(param.Dynamics)[0])
-    cache.__Entry__ = utils_torch.parse.ResolveStr(param.Dynamics.__Entry__, ObjRefList=[param])
-    return
-ParseRouterForModel = ParseRoutersForModel
-
 def ParseRouterStaticAndDynamic(Router, **kw):
     ParseRouterStatic(Router, InPlace=True)
     RouterParsed = ParseRouterDynamic(Router, **kw)
@@ -41,9 +26,6 @@ def ParseRoutersDynamic(Routers, ObjRefList=[], **kw):
 def ParseRouterStatic(Router, InPlace=True, **kw):
     if InPlace:
         for Index, Routing in enumerate(Router.Routings):
-            #RoutingsParsed.append(ParseRoutingStatic(Routing))
-            # if "GetBias" in Routing:
-            #     print("aaa")
             Router.Routings[Index] = ParseRoutingStatic(Routing)
         _Router = Router
     else:
@@ -57,6 +39,7 @@ def ParseRouterStatic(Router, InPlace=True, **kw):
     EnsureAttrs(Router, "In", default=[])
     EnsureAttrs(Router, "Out", default=[])
     CheckRoutingsInputOutputNum(Router)
+    utils_torch.parse.ParsePyObjStatic(Router, InPlace=True, **kw)
     return Router
 
 def CheckRoutingsInputOutputNum(Router):
@@ -72,14 +55,18 @@ def CheckRoutingsInputOutputNum(Router):
                 raise Exception("Routing.Module ouputs %d param, whilc Routing accepts %d param."^(ModuleOutNum, RoutingOutNum))
 
 def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
-    if not isinstance(Router, utils_torch.PyObj):
-        utils_torch.AddWarning("Object %s is not a Router."%Router)
-    RouterParsed = utils_torch.parse.ParsePyObjDynamic(Router, ObjRefList=ObjRefList, InPlace=InPlace, RaiseFailedParse=True, **kw)
+    assert isinstance(Router, utils_torch.PyObj), "Object %s is not a Router."%Router
+    RouterParsed = utils_torch.parse.ParsePyObjDynamic(
+        Router, ObjRefList=ObjRefList, InPlace=InPlace, RaiseFailedParse=True, **kw
+    )
+    for Routing in RouterParsed.Routings:
+        if "RepeatTime" not in Routing.OnlineParseAttrs:
+            Routing.cache.RepeatTime = Routing.RepeatTime 
     return RouterParsed
 
 def ParseRoutingAttrsDynamic(Routing, States):
     #utils_torch.parse.RedirectPyObj(Routing, States)
-    for attr in Routing.DynamicParseAttrs:
+    for attr in Routing.OnlineParseAttrs:
         value = GetAttrs(Routing, attr)    
         #value = re.sub("(%\w+)", lambda matchedStr:"getattr(States, %s)"%matchedStr[1:], value)
         value = eval(value.replace("%", "States."))     
@@ -89,8 +76,6 @@ def ParseRoutingAttrsDynamic(Routing, States):
 def ParseRoutingStatic(Routing):
     if not isinstance(Routing, str):
         return Routing
-    # if "Split" in Routing:
-    #     print("aaa")
     _Routing = Routing
     param = utils_torch.EmptyPyObj()
     # notice that there might be . in _Routing string.
@@ -163,11 +148,10 @@ def ParseRoutingStatic(Routing):
     EnsureAttrs(param, "RepeatTime", value=1)
 
     param.cache.RepeatTime = param.RepeatTime
-    param.DynamicParseAttrs = []
+    param.OnlineParseAttrs = []
     for attr, value in ListAttrsAndValues(param):
         if isinstance(value, str):
-            #if "%" in value:
             if value[0]=="%": # Dynamic Parse
-                param.DynamicParseAttrs.append(attr)
+                param.OnlineParseAttrs.append(attr)
 
     return param

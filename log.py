@@ -80,7 +80,7 @@ class DataLogger:
             if table is None:
                 #raise Exception(TableName)
                 table = self.CreateTable(TableName, [*ColumnValues.keys(), *param.LocalColumnNames], 
-                    SavePath=utils_torch.GetSaveDir() + "data/" + "%s.pdl"%TableName)
+                    SavePath=utils_torch.GetMainSaveDir() + "data/" + "%s.pdl"%TableName)
             if AddLocalColumn:
                 table.insert(**ColumnValues, **self.cache.LocalColumn)
             else:
@@ -222,7 +222,7 @@ class LoggerForEpochBatchTrain:
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-
+    
 class Logger:
     def __init__(self, Name, **kw):
         self.logger = _CreateLogger(Name, **kw)
@@ -251,6 +251,8 @@ class Logger:
             self.logger.error("[%s][ERROR]%s"%(utils_torch.GetTime(), log))
         else:
             self.logger.error("%s"%log)
+    def Save(self):
+        return
 
 def ParseLogger(logger, **kw):
     if logger is None:
@@ -287,7 +289,7 @@ def CreateLogger(Name, **kw):
 
 def _CreateLogger(Name, SaveDir=None, **kw):
     if SaveDir is None:
-        SaveDir = utils_torch.GetSaveDir()
+        SaveDir = utils_torch.GetMainSaveDir()
     
     utils_torch.EnsureDir(SaveDir)
 
@@ -334,23 +336,63 @@ def SetArgsGlobal(ArgsGlobal):
 def GetArgsGlobal():
     return utils_torch.ArgsGlobal
 
-def SetSubSaveDir(SaveDir, Type, ArgsGlobal):
-    SetAttrs(ArgsGlobal, "SaveDir" + "." + Type, value=SaveDir)
-    #utils_torch.EnsureDir(SaveDir)
-
-def SetSaveDir(SaveDir=None, Type="Main", Name="Experiment", ArgsGlobal=None):
+def SetMainSaveDir(SaveDir=None, Name=None, ArgsGlobal=None):
     if ArgsGlobal is None:
         ArgsGlobal = utils_torch.GetArgsGlobal()
-    if Type in ["Main"]:
+    if SaveDir is None:
         SaveDir = "./log/%s-%s/"%(Name, utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
-        utils_torch.EnsureDir(SaveDir)
-        SetAttrs(utils_torch.GetArgsGlobal(), "SaveDir.Main", value=SaveDir)
-    else:
-        SetSubSaveDir(SaveDir, Type, ArgsGlobal)
-def GetSaveDir(Type="Main"):
+
+    utils_torch.EnsureDir(SaveDir)
+    SetAttrs(utils_torch.GetArgsGlobal(), "SaveDir.Main", value=SaveDir)
+
+def SetSubSaveDir(SaveDir=None, Name="Experiment", ArgsGlobal=None):
+    if ArgsGlobal is None:
+        ArgsGlobal = utils_torch.GetArgsGlobal()
+    SetAttrs(ArgsGlobal, "SaveDir" + "." + Name, value=SaveDir)
+    return SaveDir
+
+def GetSubSaveDir(Type):
     if not hasattr(utils_torch.GetArgsGlobal().SaveDir, Type):
-        setattr(utils_torch.GetArgsGlobal().SaveDir, Type, utils_torch.GetSaveDir() + Type + "/")
+        setattr(utils_torch.GetArgsGlobal().SaveDir, Type, utils_torch.GetMainSaveDir() + Type + "/")
     return getattr(utils_torch.GetArgsGlobal().SaveDir, Type)        
+
+def GetMainSaveDir(ArgsGlobal=None):
+    if ArgsGlobal is None:
+        ArgsGlobal = utils_torch.GetArgsGlobal()
+    return ArgsGlobal.SaveDir.Main
+
+def SetSubSaveDirEpochBatch(Name, EpochIndex, BatchIndex, BatchInternalIndex=None, ArgsGlobal=None):
+    if ArgsGlobal is None:
+        ArgsGlobal = utils_torch.GetArgsGlobal()
+    if BatchInternalIndex is None:
+        DirName = "Epoch%d-Batch%d"%(EpochIndex, BatchIndex)
+    else:
+        DirName = "Epoch%d-Batch%d-No%d"%(EpochIndex, BatchIndex, BatchInternalIndex)
+    SaveDir = utils_torch.GetMainSaveDir(ArgsGlobal) + Name + "/" +  DirName + "/"
+    SetSubSaveDir(Name, SaveDir)
+    SetAttrs(ArgsGlobal, "SaveDirs" + "." + Name + "." + DirName, SaveDir)
+    return SaveDir
+def GetSubSaveDirEpochBatch(Name, EpochIndex, BatchIndex, BatchInternalIndex=None, ArgsGlobal=None):
+    if BatchInternalIndex is None:
+        DirName = "Epoch%d-Batch%d"%(EpochIndex, BatchIndex)
+    else:
+        DirName = "Epoch%d-Batch%d-No%d"%(EpochIndex, BatchIndex, BatchInternalIndex)
+    # if HasAttrs(ArgsGlobal, "SaveDirs" + "." + Name + "." + DirName):
+    #     return GetAttrs(ArgsGlobal, "SaveDirs" + "." + Name + "." + DirName)
+    # else: # As a guess
+    #     utils_torch.GetMainSaveDir(ArgsGlobal) + Name + "/" +  DirName + "/"
+    return utils_torch.GetMainSaveDir(ArgsGlobal) + Name + "/" +  DirName + "/"
+
+def GetAllSubSaveDirsEpochBatch(Name, ArgsGlobal=None):
+    if ArgsGlobal is None:
+        ArgsGlobal = utils_torch.GetArgsGlobal()
+    SaveDirs = utils_torch.files.ListAllDirs(utils_torch.GetMainSaveDir(ArgsGlobal) + Name + "/")
+    SaveDirNum = len(SaveDirs)
+    if SaveDirNum == 0:
+        raise Exception(SaveDirNum)
+    for Index, SaveDir in enumerate(SaveDirs):
+        SaveDirs[Index] = utils_torch.GetMainSaveDir(ArgsGlobal) + Name + "/" + SaveDir + "/"
+    return SaveDirs
 
 def GetSaveDirForModel():
     return utils_torch.SetArgsGlobal.SaveDir.Model
@@ -363,3 +405,14 @@ def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
     if verbose:
         print(TimeStr)
     return TimeStr
+
+class SaveDirManagerForEpochBatchTraining:
+    def __init__(self, param):
+        return
+    def SetLogger(self, ArgsGlobal):
+        return
+    def GetCurrentSaveDir():
+        ArgsGlobal.SaveDir.SavedModel.Current
+    def SetSaveDirEpochBatch(self, Name,):
+
+        return

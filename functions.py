@@ -68,6 +68,8 @@ def _CallFunction(param, ContextInfo={}):
     ContextInfo.setdefault("__PreviousFunctionOutput__", None)
     if isinstance(param, str):
         param = [param]
+    elif callable(param):
+        param = [param]
     if len(param)==1:
         param.append([])
     
@@ -90,8 +92,7 @@ def CallGraph(Router, In, **kw):
     # Register Router Input
     for Index, Key in enumerate(Router.In):
         States[Key] = In[Index]
-    # utils_torch.parse.Register2PyObj(In, States, Router.In)
-
+    
     # Run Router Routings
     for RoutingIndex, Routing in enumerate(Router.Routings):
         if isinstance(Routing, list):
@@ -103,7 +104,7 @@ def CallGraph(Router, In, **kw):
                 InputList = []
                 for Index, State in enumerate(Routing.In):
                     InputList.append(States[State])
-                InputDict = Routing.InNamed
+                InputDict = Routing.InNamed.ToDict()
                 for key, value in InputDict.items():
                     if value.startswith("%"):
                         InputDict[key] = States[value[1:]]

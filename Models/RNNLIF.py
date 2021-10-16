@@ -26,17 +26,14 @@ class RNNLIF(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(RNNLIF, self).__init__()
         utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.RNNLIF", **kw)
-    def InitFromParam(self, param=None, IsLoad=False):
-        if param is not None:
-            self.param = param
-        else:
-            param = self.param
-            data = self.data
-            cache = self.cache
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        param = self.param
+        data = self.data
+        cache = self.cache
         
-        cache.__object__ = self
-        cache.IsLoad = IsLoad
-        cache.IsInit = not IsLoad
+        
+
         utils_torch.AddLog("RNNLIF: Initializing...")
         CheckAttrs(param, "Type", value="RNNLIF")
         self.param = param
@@ -60,24 +57,6 @@ class RNNLIF(nn.Module):
         self.SetTrainWeight()
     def GetTensorLocation(self):
         return self.cache.TensorLocation
-    # def BuildModules(self):
-    #     # initialize modules
-    #     # for module in ListAttrs(param.modules):
-    #     param = self.param
-    #     cache = self.cache
-    #     for Name, ModuleParam in ListAttrsAndValues(param.Modules):
-    #         ModuleParam.Name = Name
-    #         ModuleParam.FullName = self.FullName + "." + Name
-    #         Module = BuildModule(ModuleParam)
-    #         if isinstance(Module, nn.Module):
-    #             self.add_module(Name, Module)
-    #         setattr(cache.Modules, Name, Module)
-    # def InitModules(self):
-    #     for name, module in ListAttrsAndValues(self.cache.Modules):
-    #         if hasattr(module, "InitFromParam"):
-    #             module.InitFromParam()
-    #         else:
-    #             utils_torch.AddWarning("Module %s has not implemented InitFromParam method."%name)
     def plot_act(self, data=None, ax=None, data_type='u', save=True, save_path='./', save_name='act_map.png', cmap='jet', plot_N_num=200, select_strategy='first', verbose=False):
         if isinstance(data, torch.Tensor):
             data = data.detach().cpu().Numpy() # [step_num, N_num]

@@ -1,25 +1,20 @@
 import torch
 import math
 import numpy as np
+import scipy
 import utils_torch
 
 from utils_torch.attrs import GetAttrs
 
 def NpArrayStatistics(data, verbose=False, ReturnType="PyObj"):
-    statistics = {
-
+    DataStats = {
         "Min": np.min(data),
         "Max": np.max(data),
         "Mean": np.mean(data),
         "Std": np.std(data),
         "Var": np.var(data)
     }
-    if ReturnType in ["Dict"]:
-        return statistics
-    elif ReturnType in ["PyObj"]:
-        return utils_torch.PyObj(statistics)
-    else:
-        raise Exception()
+    return utils_torch.Dict2GivenType(DataStats, ReturnType)
 
 NpStatistics = NpArrayStatistics
 
@@ -192,7 +187,7 @@ def Floats2BaseAndExponent(Floats, Base=10.0):
     Coefficient = Floats / 10.0 ** Exponent
     return Coefficient, Exponent
 
-def CalculatePearsonCoefficient(dataA, dataB):
+def CalculatePearsonCoefficientMatrix(dataA, dataB):
     # dataA: Design matrix of shape [SampleNum, FeatureNumA]
     # dataB: Design matrix of shape [SampleNum, FeatureNumB]
     FeatureNumA = dataA.shape[1]
@@ -210,3 +205,59 @@ def CalculatePearsonCoefficient(dataA, dataB):
     CorrelationMatrix = torch.mm(dataANormed.permute(1, 0), dataBNormed) / SampleNum
     CorrelationMatrix = utils_torch.TorchTensor2NpArray(CorrelationMatrix)
     return CorrelationMatrix
+
+def CalculateBinnedMeanAndStd(
+        Xs, Ys, BinNum=30, BinMethod="Overlap", ReturnType="PyObj",
+        Range="MinMax",
+    ):
+    if Range in ["MinMax"]:
+        XMin, XMax = np.nanmin(Xs), np.nanmax(Xs)
+    else:
+        raise Exception(Range)
+
+    if BinMethod in ["Overlap"]:
+        BinNumTotal = 2 * BinNum - 1
+        BinCenters = np.linspace(XMin, XMax, BinNumTotal + 2)[1:-1]
+
+        BinWidth = (XMax - XMin) / BinNum
+        Bins1 = np.linspace(XMin, XMax, BinNum + 1)
+        
+        BinMeans1, BinXs, BinNumber = scipy.stats.binned_statistic(
+            Xs, Ys, statistic='mean', bins=Bins1)
+        BinStds1, BinXs, BinNumber = scipy.stats.binned_statistic(
+            Xs, Ys, statistic='std', bins=Bins1)
+        BinCount1, BinXs, BinNumber = scipy.stats.binned_statistic(
+            Xs, Ys, statistic='count', bins=Bins1)
+
+        Bins2 = Bins1 + BinWidth / 2.0
+        Bins2 = Bins2[:-1]
+
+        BinMeans2, BinXs, BinNumber = scipy.stats.binned_statistic(
+            Xs, Ys, statistic='mean', bins=Bins1)
+        BinStds2, BinXs, BinNumber = scipy.stats.binned_statistic(
+            Xs, Ys, statistic='std', bins=Bins1)
+        BinCount2, BinXs, BinNumber = scipy.stats.binned_statistic(
+            Xs, Ys, statistic='count', bins=Bins1)
+
+        BinMeans, BinStds, BinCount = [], [], []
+        for BinIndex in range(BinNum-1):
+            BinMeans.append(BinMeans1[BinIndex])
+            BinMeans.append(BinMeans2[BinIndex])
+            BinStds.append(BinStds1[BinIndex])
+            BinStds.append(BinStds2[BinIndex])
+            BinCount.append(BinCount1[BinIndex])
+            BinCount.append(BinCount2[BinIndex])
+        
+        BinMeans.append(BinMeans1[BinNum - 1])
+        BinStds.append(BinStds1[BinNum - 1])
+        BinCount.append(BinCount1[BinNum - 1])
+
+        BinStats = {
+            "Mean": utils_torch.List2NpArray(BinMeans),
+            "Std": utils_torch.List2NpArray(BinStds),
+            "Num": utils_torch.List2NpArray(BinCount),
+            "BinCenters": BinCenters,
+        }
+        return utils_torch.Dict2GivenType(BinStats, ReturnType)
+    else:
+        raise Exception(BinMethod)

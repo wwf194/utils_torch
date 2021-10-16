@@ -1,3 +1,4 @@
+from typing import List
 import utils_torch
 from utils_torch.attrs import *
 
@@ -44,7 +45,10 @@ class PyObj(object):
         else:
             return self.__dict__[index]
     def __len__(self):
-        return len(self.__value__)
+        if self.IsListLike():
+            return len(self.__value__)
+        else:
+            return len(self.__dict__) - 1
     def __str__(self):
         return utils_torch.json.PyObj2JsonStr(self)
     def FromList(self, List, InPlace=True):
@@ -139,12 +143,20 @@ class PyObj(object):
         if not self.IsListLike():
             raise Exception()
         return self.__value__
+    def ToDict(self):
+        Dict = dict(self.__dict__)
+        Dict.pop("cache")
+        return Dict
     def IsListLike(self):
         return hasattr(self, "__value__") and isinstance(self.__value__, list)
     def IsDictLike(self):
         return not self.IsListLike()
-    def SetResolveBase(self):
-        self.__ResolveBase__ = True
+    def SetResolveBase(self, value=True):
+        if value:
+            self.__ResolveBase__ = True
+        else:
+            if hasattr(self, "__ResolveBase__"):
+                delattr(self, "__ResolveBase__")
     def IsResolveBase(self):
         if hasattr(self, "__ResolveBase__"):
             if self.__ResolveBase__==True or self.__ResolveBase__ in ["here"]:
@@ -161,3 +173,5 @@ class PyObj(object):
                 value = value.ToDict()
             Dict[key] = value
         return Dict
+    def Items(self):
+        return ListAttrsAndValues(self)

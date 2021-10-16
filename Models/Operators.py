@@ -82,7 +82,7 @@ def CalculateGradient(loss):
 # Operators.CalculateGradient = CalculateGradient
 OperatorList.append(["CalculateGradient"])
 
-from utils_torch.train import GradientDescend
+from utils_torch.optimize import GradientDescend
 OperatorList.append("GradientDescend")
 
 def CreateDataLogger():
@@ -101,7 +101,7 @@ def LogStat(data, Name):
 def Tensor2Statistics2File(data, Name, FilePath=None):
     #Name, FilePath = utils_torch.ParseTextFilePathFromName(Name, FilePath)
     if FilePath is None:
-        FilePath = utils_torch.GetSaveDir() + Name + "-statistics" + ".txt"
+        FilePath = utils_torch.GetMainSaveDir() + Name + "-statistics" + ".txt"
         FilePath = utils_torch.RenameIfPathExists(FilePath)
     statistics = utils_torch.math.TorchTensorStat(data)
     utils_torch.Data2TextFile(statistics, FilePath=FilePath)

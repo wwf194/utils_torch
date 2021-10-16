@@ -25,66 +25,103 @@ from inspect import getframeinfo, stack
 from utils_torch.attrs import *
 from utils_torch.files import *
 
+def ParseTaskList(TaskList, InPlace=True, **kw):
+    TaskListParsed = []
+    for Index, Task in enumerate(TaskList):
+        if isinstance(Task, str):
+            TaskParsed = utils_torch.PyObj({
+                "Type": Task,
+                "Args": {}
+            })
+            if InPlace:
+                TaskList[Index] = TaskParsed
+            else:
+                TaskListParsed.append(TaskParsed)
+        elif utils_torch.IsDictLikePyObj(Task):
+            if hasattr(Task, "Type") and hasattr(Task, "Args"):
+                if InPlace:
+                    pass
+                else:
+                    TaskListParsed.append(Task)
+            else:
+                for key, value in ListAttrsAndValues(Task):
+                    TaskParsed = utils_torch.PyObj({
+                        "Type": key, "Args": value
+                    })
+
+                    if InPlace:
+                        TaskList[Index] = TaskParsed
+                    else:
+                        TaskListParsed.append(TaskParsed)
+        elif utils_torch.IsListLikePyObj(Task) or isinstance(Task, list) or isinstance(Task, tuple):
+            TaskParsed = utils_torch.PyObj({
+                "Type": Task[0],
+                "Args": Task[1]
+            })
+            if InPlace:
+                TaskList[Index] = TaskParsed
+            else:
+                TaskListParsed.append(TaskParsed)
+        else:
+            raise Exception(type(Task))
+        
+    if InPlace:
+        return TaskList
+    else:
+        return utils_torch.PyObj(TaskListParsed)
+
 def ParseTaskObj(TaskObj, Save=True, **kw):
     if isinstance(TaskObj, str):
         TaskObj = utils_torch.parse.ResolveStr(TaskObj, **kw)
-
-    if utils_torch.IsDictLikePyObj(TaskObj) and hasattr(TaskObj, "Tasks"):
-        TaskObj = TaskObj.Tasks
-    if utils_torch.IsDictLikePyObj(TaskObj):
-        TaskObj = ListAttrsAndValues(TaskObj)
-    
-    if isinstance(TaskObj, list) or utils_torch.IsListLikePyObj(TaskObj):
-        TaskList = TaskObj
-        TaskListParsed = []
-        for Index, Task in enumerate(TaskList):
-            if isinstance(Task, str):
-                # TaskList[Index] = utils_torch.PyObj({
-                #     Task: {},
-                # })
-                TaskListParsed.append([Task, {}])
-            elif utils_torch.IsDictLikePyObj(Task):
-                if hasattr(Task, "Type") and hasattr(Task, "Args"):
-                    # TaskList[Index] = utils_torch.PyObj({
-                    #     Task["Type"]: Task["Args"],
-                    # })
-                    TaskListParsed.append([Task.Type, Task.Args])
-                else:
-                    for key, value in ListAttrsAndValues(Task):
-                        TaskListParsed.append([key, value])
-            elif utils_torch.IsListLikePyObj(Task) or isinstance(Task, list):
-                TaskListParsed.append(Task)
-            elif isinstance(Task, tuple):
-                TaskListParsed.append(list(Task))
-            else:
-                raise Exception(type(Task))
+    if utils_torch.IsDictLikePyObj(TaskObj) and hasattr(TaskObj, "__Tasks__"):
+        TaskObj.__Tasks__ = ParseTaskList(TaskObj.__Tasks__, **kw)
+        TaskList = TaskObj.__Tasks__
+    # if utils_torch.IsDictLikePyObj(TaskObj):
+    #     TaskObj = ListAttrsAndValues(TaskObj)
+    elif utils_torch.IsListLikePyObj(TaskObj):
+        TaskObj.__Tasks__ = ParseTaskList(TaskObj, InPlace=False, **kw)
+        delattr(TaskObj, "__value__")
+        TaskList = TaskObj.__Tasks__
     else:
-        raise Exception(type(TaskObj))
+        raise Exception()
+    TaskObj.SetResolveBase(True)
+    TaskList.SetResolveBase(False)
+    for Index, Task in enumerate(TaskList):
+        Task.SetResolveBase() # So that "&" in each Task resolves to the task object it is inside.
 
-    TaskListParsed = utils_torch.PyObj(TaskListParsed)
+    if Save:
+        utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetMainSaveDir() + "task_loaded.jsonc")
+    utils_torch.parse.ParsePyObjStatic(TaskObj, ObjCurrent=TaskList, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    if Save:
+        utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetMainSaveDir() + "task_parsed.jsonc")
+    return TaskObj
 
-    for Index, Task in enumerate(TaskListParsed):
-        Task.SetResolveBase()
-    if Save:
-        utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetSaveDir() + "task_loaded.jsonc")
-    utils_torch.parse.ParsePyObjStatic(TaskList, ObjCurrent=TaskList, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
-    if Save:
-        utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetSaveDir() + "task_parsed.jsonc")
-    return TaskListParsed
+def DoTasksForModel(Tasks, **kw):
+    kw["DoNotChangeObjCurrent"] = True
+    DoTasks(Tasks, **kw)
 
 def DoTasks(Tasks, **kw):
+    if not kw.get("DoNotChangeObjCurrent"):
+        kw["ObjCurrent"] = Tasks
     if isinstance(Tasks, str) and "&" in Tasks:
         Tasks = utils_torch.parse.ResolveStr(Tasks, **kw)
-        Tasks = utils_torch.ParseTaskObj(Tasks)
-    for Index, Task in enumerate(Tasks):
-        utils_torch.EnsureAttrs(Task, "Args", default={})
+    Tasks = utils_torch.ParseTaskObj(Tasks)
+
+    In = kw.get("In")
+    if In is not None:
+        Tasks.cache.In = utils_torch.PyObj(In)
+    for Index, Task in enumerate(Tasks.__Tasks__):
+        if not kw.get("DoNotChangeObjCurrent"):
+            kw["ObjCurrent"] = Task
+        #utils_torch.EnsureAttrs(Task, "Args", default={})
         utils_torch.DoTask(Task, **kw)
 
 def DoTask(Task, **kw):
     ObjRoot = kw.setdefault("ObjRoot", None)
     ObjCurrent = kw.setdefault("ObjCurrent", None)
-    TaskType = Task[0]
-    TaskArgs = Task[1]
+    #Task = utils_torch.parse.ParsePyObjDynamic(Task, RaiseFailedParse=False, InPlace=False, **kw)
+    TaskType = Task.Type
+    TaskArgs = Task.Args
     if isinstance(TaskArgs, str) and "&" in TaskArgs:
         TaskArgs = utils_torch.parse.ResolveStr(TaskArgs, **kw)
     if TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
@@ -92,8 +129,6 @@ def DoTask(Task, **kw):
     elif TaskType in ["FunctionCall"]:
         utils_torch.CallFunctions(TaskArgs, **kw)
     elif TaskType in ["CallGraph"]:
-        if not hasattr(TaskArgs, "In"):
-            In = []
         if hasattr(TaskArgs, "Router"):
             Router = TaskArgs.Router
         else:
@@ -117,8 +152,9 @@ def DoTask(Task, **kw):
         utils_torch.parse.ParseParamStatic(TaskArgs)
     elif TaskType in ["ParseParamDynamic"]:
         utils_torch.parse.ParseParamDynamic(TaskArgs)
-    elif TaskType in ["ParseSelf"]:
-        utils_torch.parse.ParsePyObjStatic(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    # elif TaskType in ["ParseSelf"]:
+    #     utils_torch.parse.ParsePyObjStatic(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    # Already parsed statically in ParseTaskObj.
     elif TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
         utils_torch.BuildObjFromParam(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
     elif TaskType in ["BuildObj"]:
@@ -126,24 +162,29 @@ def DoTask(Task, **kw):
     elif TaskType in ["SetTensorLocation"]:
         SetTensorLocation(TaskArgs)
     elif TaskType in ["Train"]:
-        utils_torch.train.Train(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), Logger=utils_torch.GetDataLogger())
+        utils_torch.train.Train(
+            TaskArgs,
+            ObjRoot=utils_torch.GetArgsGlobal(), Logger=utils_torch.GetDataLogger())
     elif TaskType in ["DoTasks"]:
         _TaskList = utils_torch.ParseTaskObj(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
         DoTasks(_TaskList, **kw)
     elif TaskType in ["SaveObj"]:
         utils_torch.SaveObj(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
-    # elif TaskType in ["DoTask"]:
-    #     ProcessTask(TaskType, TaskArgs)
+
     else:
         utils_torch.AddWarning("Unknown Task.Type: %s"%TaskType)
         raise Exception(TaskType)
 
 def SetTensorLocation(Args):
     EnsureAttrs(Args, "Method", default="Auto")
-    if Args.Method in ["Auto", "auto"]:
-        Location = utils_torch.GetGPUWithLargestUseableMemory()
+    ArgsGlobal = utils_torch.GetArgsGlobal()
+    if HasAttrs(ArgsGlobal, "system.TensorLocation"):
+        Location = ArgsGlobal.system.TensorLocation
     else:
-        raise Exception()
+        if Args.Method in ["Auto", "auto"]:
+            Location = utils_torch.GetGPUWithLargestUseableMemory()
+        else:
+            raise Exception()
 
     for Obj in utils_torch.ListValues(utils_torch.GetArgsGlobal().object):
         if hasattr(Obj, "SetTensorLocation"):
@@ -177,6 +218,7 @@ def _BuildObjFromParam(Args, **kw):
         ObjRoot = kw.get("ObjRoot")
         ObjCurrent = kw.get("ObjCurrent")
         
+        MountPath = MountPath.replace("/&", "&")
         MountPath = MountPath.replace("&^", "ObjRoot.")
         MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
         MountPath = MountPath.replace("&", "ObjCurrent.")
@@ -236,6 +278,7 @@ def _RemoveObj(Args, **kw):
         ObjRoot = kw.get("ObjRoot")
         ObjCurrent = kw.get("ObjCurrent")
         
+        MountPath = MountPath.replace("/&", "&")
         MountPath = MountPath.replace("&^", "ObjRoot.")
         MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
         MountPath = MountPath.replace("&", "ObjCurrent.")
@@ -248,7 +291,7 @@ def SaveObj(Args, **kw):
 
     for SaveObj, SaveDir in zip(SaveObjList, SaveDirList):
         if SaveDir in ["auto", "Auto"]:
-            SaveDir = utils_torch.GetSaveDirForModel()
+            SaveDir = utils_torch.GetMainSaveDirForModel()
         Obj = utils_torch.parse.ResolveStr(SaveObj, **kw)
         Obj.Save(SaveDir)
 
@@ -265,15 +308,19 @@ def LoadObjFromFile(Args, **kw):
     MountPathList = utils_torch.ToList(Args.MountPath)
     SaveDirList = utils_torch.ToList(Args.SaveDir)
 
-    if not hasattr(Args.SaveDir, "SaveDir"):
-        SaveDirList = ["auto" for _ in range(len(SaveNameList))]
-    else:
-        SaveDirList = utils_torch.ToList(Args.SaveDir)
-    for Index, SaveDir in enumerate(SaveDirList):
-        if SaveDir in ["Auto", "auto"]:
-            SaveDirList[Index] = utils_torch.GetSaveDir("Obj")
+    # if not hasattr(Args, "SaveDir"):
+    #     SaveDirList = ["auto" for _ in range(len(SaveNameList))]
+    # else:
+    #     SaveDirList = utils_torch.ToList(Args.SaveDir)
+    # for Index, SaveDir in enumerate(SaveDirList):
+    #     if SaveDir in ["Auto", "auto"]:
+    #         SaveDirList[Index] = utils_torch.GetSubSaveDir("Obj")
+    SaveDirParsedList = []
+    for SaveDir in SaveDirList:
+        SaveDirParsedList.append(utils_torch.parse.ResolveStr(SaveDir, **kw))
 
-    for SaveName, SaveDir, MountPath in zip(SaveNameList, SaveDirList, MountPathList):
+
+    for SaveName, SaveDir, MountPath in zip(SaveNameList, SaveDirParsedList, MountPathList):
         ParamPath = SaveDir + SaveName + ".param.jsonc"
         assert utils_torch.FileExists(ParamPath)
         param = utils_torch.json.JsonFile2PyObj(ParamPath)
@@ -388,6 +435,14 @@ def NpArrayType(data):
 def List2NpArray(data):
     return np.array(data)
 
+def Dict2GivenType(Dict, Type):
+    if Type in ["PyObj"]:
+        return utils_torch.PyObj(Dict)
+    elif Type in ["Dict"]:
+        return Dict
+    else:
+        raise Exception(Type)
+
 def ToNpArray(data, DataType=np.float32):
     if isinstance(data, np.ndarray):
         return data
@@ -483,9 +538,9 @@ def Tensor2NumpyOrFloat(data):
 
 def List2NpArray(data, Type=None):
     if Type is not None:
-        return np.ndarray(data, dtype=Type)
+        return np.array(data, dtype=Type)
     else:
-        return np.ndarray(data)
+        return np.array(data)
 
 def ToList(Obj):
     if isinstance(Obj, list):
@@ -1078,7 +1133,7 @@ def Str2File(Str, FilePath):
 # def ParseTextFilePathFromName(Name, FilePath):
 #     if Name is not None:
 #         if FilePath is None:
-#             FilePath = utils_torch.GetSaveDir() + Name + ".txt"
+#             FilePath = utils_torch.GetMainSaveDir() + Name + ".txt"
 #             FilePath = utils_torch.RenameIfPathExists(FilePath)
 #         else:
 #             raise Exception()
@@ -1093,7 +1148,7 @@ def Str2File(Str, FilePath):
 def GetSavePathFromName(Name, Suffix=""):
     if not Suffix.startswith("."):
         Suffix = "." + Suffix
-    FilePath = utils_torch.GetSaveDir() + Name + Suffix
+    FilePath = utils_torch.GetMainSaveDir() + Name + Suffix
     FilePath = utils_torch.RenameIfPathExists(FilePath)
     return FilePath
 
@@ -1147,7 +1202,11 @@ def MountObj(MountPath, Obj, **kw):
     ObjRoot = kw.get("ObjRoot")
     ObjCurrent = kw.get("ObjCurrent")
 
+    MountPath = MountPath.replace("/&", "&")
     MountPath = MountPath.replace("&^", "ObjRoot.")
     MountPath = MountPath.replace("&", "ObjCurrent.")
     MountPath = MountPath.split(".")
     SetAttrs(eval(MountPath[0]), MountPath[1:], value=Obj)
+
+def MountDictOnObj(Obj, Dict):
+    Obj.__dict__.update(Dict)

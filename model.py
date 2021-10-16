@@ -73,7 +73,7 @@ def ListParameter(model):
         utils_torch.AddLog("%s: Shape: %s"%(name, param.size()))
 
 def CreateSelfConnectionMask(Size):
-    return torch.from_numpy(np.ones(Size, Size) - np.eye(Size))
+    return np.ones((Size, Size), dtype=np.float32) - np.eye(Size, dtype=np.float32)
 
 def CreateExcitatoryInhibitoryMask(InputNum, OutputNum, ExcitatoryNum, InhibitoryNum=None):
     # Assumed weight matrix shape: [InputNum, OutputNum]
@@ -179,7 +179,6 @@ def CreateWeight2D(param, DataType=torch.float32):
         EnsureAttrs(Init, "Mode", default="In")
         EnsureAttrs(Init, "Coefficient", default=1.0)
         if Init.Mode in ["In"]:
-
             if Init.Distribution in ["Uniform"]:
                 Init.Range = [
                     - Init.Coefficient * (6 / param.Size[0]) ** 0.5,
@@ -482,6 +481,17 @@ def GetLoggerForModel(self):
     else:
         return None
 
+def InitFromParamForModel(self, IsLoad):
+    cache = self.cache
+    
+    cache.IsLoad = IsLoad
+    cache.IsInit = not IsLoad
+    
+    cache.__object__ = self
+
+    self.Modules = cache.Modules
+    self.Dynamics = cache.Dynamics
+
 def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     LoadDir = kw.get("LoadDir")
     FullName = kw.setdefault("FullName", "Unnamed")
@@ -593,7 +603,7 @@ def GetTrainWeightForModel(self):
 
 def PlotWeightForModel(self, SaveDir=None):
     if SaveDir is None:
-        SaveDir = utils_torch.GetSaveDir() + "weights/"
+        SaveDir = utils_torch.GetMainSaveDir() + "weights/"
     cache = self.cache
     if hasattr(self, "PlotSelfWeight"):
         self.PlotSelfWeight(SaveDir)
@@ -650,10 +660,10 @@ def LoadFromParamForModel(self):
 def ParseRoutersForModel(self):
     param = self.param
     cache = self.cache
-    cache.Dynamics = utils_torch.EmptyPyObj()
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-        utils_torch.router.ParseRouterStatic(RouterParam)
-        setattr(RouterParam, "Name", param.FullName + "." + Name) # For Debug
+        if cache.IsInit:
+            utils_torch.router.ParseRouterStatic(RouterParam)
+            setattr(RouterParam, "Name", param.FullName + "." + Name) # For Debug
         setattr(cache.Dynamics, Name, utils_torch.EmptyPyObj())
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
         getattr(cache.Dynamics, Name).FromPyObj(

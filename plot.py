@@ -129,7 +129,7 @@ def ParseMarkerSize(Size):
 
 def PlotPointsPltNp(
         ax, Points, Color="Blue", Type="Circle", Size=None,
-        XLabel=None, YLabel=None, Title=None,    
+        XLabel=None, YLabel=None, Title=None, XRange=None, YRange=None
     ):
     Points = ToNpArray(Points)
     Xs = Points[:, 0]
@@ -138,17 +138,29 @@ def PlotPointsPltNp(
     Size = ParseMarkerSize(Size)
     Type = ParsePointTypePlt(Type)
     ax.scatter(Xs, Ys, color=Color, s=Size, marker=Type, facecolors="none")
-    SetAxTicksAndRangeMinMax(ax, Xs, Ys)
     SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+    SetTicksAndRangeForAx(ax, Xs, Ys, XRange, YRange)
     return
+
 PlotPoints = PlotPointsPltNp
 
-def SetAxTicksAndRangeMinMax(ax, Xs, Ys):
-    XMin, XMax = np.nanmin(Xs), np.nanmax(Xs)
-    YMin, YMax = np.nanmin(Ys), np.nanmax(Ys)
-    
+def SetTicksAndRangeForAx(ax, Xs, Ys, XRange, YRange):
+    SetXTicksAndRange(ax, Xs, XRange)
+    SetYTicksAndRange(ax, Ys, YRange)
+
+def SetXTicksAndRange(ax, Xs, Range=None):
+    if Range is None:
+        XMin, XMax = np.nanmin(Xs), np.nanmax(Xs)
+    else:
+        XMin, XMax = Range[0], Range[1]
     SetXTicksFloat(ax, XMin, XMax)
     SetXRangeMinMax(ax, XMin, XMax)
+
+def SetYTicksAndRange(ax, Ys, Range=None):
+    if Range is None:
+        YMin, YMax = np.nanmin(Ys), np.nanmax(Ys)    
+    else:
+        YMin, YMax = Range[0], Range[1]
     SetYRangeMinMax(ax, YMin, YMax)
     SetYTicksFloat(ax, YMin, YMax)
 
@@ -572,7 +584,7 @@ def PlotActivityAndDistributionAlongTime(
         XLabel="Time Index", YLabel="Activity", Title="Visualization",
         Coordinate="Fig", Ticks="Int"
     )
-    PlotMeanAndStdAlongTime(
+    PlotMeanAndStdCurve(
         ax2, Xs=range(TimeNum), 
         #Mean=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanmean(activity, axis=(0, 2))),
         #Std=utils_torch.math.ReplaceNaNOrInfWithZero(np.nanstd(activity, axis=(0, 2))),
@@ -636,7 +648,7 @@ def PlotWeightAndDistribution(axes=None, weight=None, Name=None, SavePath=None):
     plt.suptitle("%s Shape:%s"%(Name, weight.shape))
     plt.tight_layout()
     if SavePath is None:
-        SavePath = utils_torch.GetSaveDir + "weights/" + "%s.svg"%Name
+        SavePath = utils_torch.GetMainSaveDir + "weights/" + "%s.svg"%Name
     utils_torch.plot.SaveFigForPlt(SavePath=SavePath)
     return
 
@@ -770,11 +782,19 @@ def ParseRowColNum(PlotNum, RowNum=None, ColNum=None):
         else:
             return RowNum, ColNum
 
-def CreateFigurePlt(PlotNum=1, RowNum=None, ColNum=None, Width=None, Height=None):
+def CreateFigurePlt(PlotNum=1, RowNum=None, ColNum=None, Width=None, Height=None, Size="Small"):
     RowNum, ColNum = ParseRowColNum(PlotNum, RowNum, ColNum)
     if Width is None and Height is None:
-        Width = ColNum * 5.0 # inches
-        Height = RowNum * 5.0 # inches
+        if Size in ["Small", "S"]:
+            AxSize = 5.0
+        elif Size in ["Medium", "M"]:
+            AxSize = 7.5
+        elif Size in ["Large", "L"]:
+            AxSize = 10.0
+        else:
+            raise Exception(Size)
+        Width = ColNum * AxSize # inches
+        Height = RowNum * AxSize # inches
     elif Width is not None and Height is not None:
         pass
     else:
@@ -1386,11 +1406,11 @@ def CompareDensityCurve(data1, data2, Name1, Name2, Save=True, SavePath=None):
     SetXRangeMinMax(ax, Min, Max)
 
     if SavePath is None:
-        SavePath = utils_torch.GetSaveDir() + "%s-%s-GaussianKDE.png"%(Name1, Name2)
+        SavePath = utils_torch.GetMainSaveDir() + "%s-%s-GaussianKDE.png"%(Name1, Name2)
 
     utils_torch.plot.SaveFigForPlt(Save, SavePath)
 
-def PlotMeanAndStdAlongTime(
+def PlotMeanAndStdCurve(
         ax=None, Xs=None, Mean=None, Std=None,
         LineWidth=2.0, Color="Black", XTicks="Float",
         Title=None, XLabel=None, YLabel=None,
@@ -1424,10 +1444,8 @@ def PlotMeanAndStdAlongTime(
             Save=False, **kw
         )
         ax.fill_between(Xs, Y1, Y2)
-    
-    
 
-    SetTitleAndLabelForAx(ax, Title, XLabel, YLabel)
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
     SaveFigForPlt(Save, SavePath)
 
 def SetXAxisLocationForAx(ax, XAXisLocation):

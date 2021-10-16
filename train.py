@@ -4,7 +4,7 @@ import numpy as np
 import pickle
 import time
 import os
-
+import re
 
 import utils_torch
 from utils_torch.attrs import *
@@ -22,12 +22,6 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 
-import torchvision
-from torchvision.datasets import mnist
-import torchvision.transforms as transforms
-
-from collections import defaultdict
-
 def Train(Args, **kw):
     if Args.Type in ["SupervisedLearning"]:
         if Args.SubType in ["EpochBatch"]:
@@ -37,16 +31,13 @@ def Train(Args, **kw):
     else:
         raise Exception()
 
-
 def TrainEpochBatch(param, **kw):
     kw["ObjCurrent"] = param
     logger = kw["Logger"]
     
     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
-    RouterTrain = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Train, ObjRefList=[param.Batch.Train], **kw)
-    RouterTest = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Test, ObjRefList=[param.Batch.Test], **kw)
-    In = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
-    
+    Routers = ParseRoutersFromTrainParam(param, **kw)
+
     EpochNum, BatchNum = param.Epoch.Num, param.Batch.Num
     logger.SetLocal("EpochNum", param.Epoch.Num)
     logger.SetLocal("BatchNum", param.Batch.Num)
@@ -54,7 +45,7 @@ def TrainEpochBatch(param, **kw):
     EpochIndex, BatchIndex = -1, BatchNum - 1
     logger.SetLocal("EpochIndex", EpochIndex)
     logger.SetLocal("BatchIndex", BatchIndex)
-    utils_torch.CallGraph(RouterTest, In=In)
+    utils_torch.CallGraph(Routers.Test, In=Routers.In)
     AnalyzeAfterBatch(
         logger,
         EpochNum=EpochNum, EpochIndex=EpochIndex,
@@ -64,16 +55,16 @@ def TrainEpochBatch(param, **kw):
 
     CheckPointSave = CheckPoint()
     CheckPointAnalyze = CheckPoint()
-    CheckPointSave.SetCheckPoint(EpochNum, BatchNum, IntervalStart=100)
+    CheckPointSave.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
     CheckPointAnalyze.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
 
     for EpochIndex in range(EpochNum):
         logger.SetLocal("EpochIndex", EpochIndex)
-        utils_torch.AddLog("Epoch: %d"%EpochIndex)
+        #utils_torch.AddLog("Epoch: %d"%EpochIndex)
         for BatchIndex in range(BatchNum):
             logger.SetLocal("BatchIndex", BatchIndex)
-            utils_torch.AddLog("Batch: %d"%BatchIndex)
-            utils_torch.CallGraph(RouterTrain, In=In) 
+            utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
+            utils_torch.CallGraph(Routers.Train, In=Routers.In) 
 
             # Do analysis
             if CheckPointAnalyze.AddBatchAndReturnIsCheckPoint():
@@ -86,12 +77,33 @@ def TrainEpochBatch(param, **kw):
 
             # Save and Reload.
             if CheckPointSave.AddBatchAndReturnIsCheckPoint():
-                utils_torch.DoTasks("&^param.task.Save", **kw)
-                utils_torch.DoTasks("&^param.task.Load", **kw)
+                SaveAndLoad(EpochIndex, BatchIndex, **kw)
+                Routers = ParseRoutersFromTrainParam(param, **kw)
 
+def ParseRoutersFromTrainParam(param, **kw):
+    RouterTrain = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Train, ObjRefList=[param.Batch.Train], **kw)
+    RouterTest = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Test, ObjRefList=[param.Batch.Test], **kw)
+    RouterIn = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
+    return utils_torch.PyObj({
+        "Train": RouterTrain,
+        "Test": RouterTest,
+        "In": RouterIn
+    })
 
+def SaveAndLoad(EpochIndex, BatchIndex, **kw):
+    SaveDir = utils_torch.SetSubSaveDirEpochBatch("SavedModel", EpochIndex, BatchIndex)
+    utils_torch.DoTasks(
+            "&^param.task.Save", 
+            In={"SaveDir": SaveDir},
+            **kw
+        )
+    utils_torch.DoTasks(
+        "&^param.task.Load",
+        In={"SaveDir": SaveDir}, 
+        **kw
+    )
 def SetSaveDirForSavedModel(EpochIndex, BatchIndex):
-    SaveDirForSavedModel = utils_torch.GetSaveDir() + "SavedModel/" + "Epoch%d-Batch%d/"%(EpochIndex, BatchIndex)
+    SaveDirForSavedModel = utils_torch.GetMainSaveDir() + "SavedModel/" + "Epoch%d-Batch%d/"%(EpochIndex, BatchIndex)
     utils_torch.SetSubSaveDir(SaveDirForSavedModel, Type="Obj")
 
 def AnalyzeAfterBatch(logger, **kw):
@@ -102,7 +114,7 @@ def AnalyzeAfterBatch(logger, **kw):
         utils_torch.GetArgsGlobal().object.world,
         logger.GetLog("agent.model.Outputs")["Value"],
         logger.GetLog("agent.model.OutputTargets")["Value"],
-        SaveDir = utils_torch.GetSaveDir() + "Trajectory/",
+        SaveDir = utils_torch.GetMainSaveDir() + "Trajectory/",
         SaveName = "Trajectory-Truth-Predicted-Epoch%d-Batch%d"%(EpochIndex, BatchIndex)
     )
 
@@ -125,10 +137,56 @@ def AnalyzeAfterBatch(logger, **kw):
             ResponseB=logger.GetLogByName("agent.model.FiringRates")["Value"],
             WeightUpdate=logger.GetLogByName("MinusGrad")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
             Weight = logger.GetLogByName("Weight")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
-            SaveDir = utils_torch.GetSaveDir() + "Hebb-Analysis/",
-            SaveName = "HiddenNeurons - RecurrentConnection - HiddenNeurons -Epoch%d-Batch%d"%(EpochIndex, BatchIndex),
+            SaveDir = utils_torch.GetMainSaveDir() + "Hebb-Analysis/",
+            SaveName = "Epoch%d-Batch%d-Recurrent.FiringRate2RecurrentInput.Weight"%(EpochIndex, BatchIndex),
         )
 
+def CallGraphEpochBatch(router, In, logger, EpochIndex, BatchIndex):
+    logger.SetLocal("EpochIndex", EpochIndex)
+    logger.SetLocal("BatchIndex", BatchIndex)
+    utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
+    utils_torch.CallGraph(router, In=In) 
+
+def AddAnalysis():
+    kw = {
+        "ObjRoot": utils_torch.GetArgsGlobal()
+    }
+    SaveDirs = utils_torch.GetAllSubSaveDirsEpochBatch("SavedModel")
+    for SaveDir in SaveDirs:
+        EpochIndex, BatchIndex = ParseEpochBatchFromStr(SaveDir)
+        logger = utils_torch.GetArgsGlobal().log.Data
+
+        utils_torch.DoTasks(
+            "&^param.task.Load",
+            In={"SaveDir": SaveDir}, 
+            **kw
+        )
+
+        param = utils_torch.parse.ResolveStr("&^param.task.Train", **kw)
+
+        kw["ObjCurrent"] = param
+        param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
+        Routers = ParseRoutersFromTrainParam(param, **kw)
+        CallGraphEpochBatch(Routers.Test, Routers.In, logger, EpochIndex, BatchIndex)
+
+        utils_torch.analysis.AnalyzeTrajectory(
+            utils_torch.GetArgsGlobal().object.agent,
+            utils_torch.GetArgsGlobal().object.world,
+            logger.GetLog("agent.model.Outputs")["Value"],
+            logger.GetLog("agent.model.OutputTargets")["Value"],
+            SaveDir = utils_torch.GetMainSaveDir() + "Trajectory/",
+            SaveName = "Trajectory-Truth-Predicted-Epoch%d-Batch%d"%(EpochIndex, BatchIndex),
+            PlotNum = 1
+        )
+    return
+
+def ParseEpochBatchFromStr(Str):
+    MatchResult = re.match(r"^.*Epoch(\d*)-Batch(\d*).*$", Str)
+    if MatchResult is None:
+        raise Exception(Str)
+    EpochIndex = int(MatchResult.group(1))
+    BatchIndex = int(MatchResult.group(2))
+    return EpochIndex, BatchIndex
 
 def ParseTrainParamEpochBatch(param):
     EnsureAttrs(param, "Nesterov", value=False)
@@ -167,70 +225,6 @@ def GetCheckPointListEpochBatch(EpochNum, BatchNum, IncreaseCoefficient=1.5, Int
         Interval *= IncreaseCoefficient
     return CheckPointBatchIndices
 
-class GradientDescend:
-    def __init__(self, param=None, data=None, **kw):
-        utils_torch.model.InitForModel(param, data, ClassPath="utils_torch.train.GradientDescend")
-        self.cache = utils_torch.EmptyPyObj()
-        self.cache.LastUpdateInfo = defaultdict(lambda:{})
-    def InitFromParam(self):
-        return
-    def __call__(self, weights, param, ClearGrad=True, 
-            WarnNoneGrad=True, LogWeightChangeRatio=True,
-            LogGrad=True,
-        ):
-        cache = self.cache
-        if LogGrad:
-            GradLog = {}
-        for Name, Weight in weights.items():
-            if Weight.grad is None:
-                if WarnNoneGrad:
-                    utils_torch.AddWarning("%s.grad is None."%Name)
-                continue
-            WeightChange = Weight.grad.data
-            if LogGrad:
-                GradLog[Name] = - Weight.grad.data
-            if param.WeightDecay != 0:
-                #WeightChange.add_(param.WeightDecay, Weight.data)
-                WeightChange.add_(Weight.data, alpha=param.WeightDecay,)
-            if param.Momentum != 0:
-                LastUpdateInfo = cache.LastUpdateInfo[Weight]
-                if 'dW' not in LastUpdateInfo:
-                    WeightChangeMomentum = LastUpdateInfo['dW'] = torch.clone(WeightChange).detach()
-                else:
-                    WeightChangeMomentum = LastUpdateInfo['dW']
-                    #WeightChangeMomentum.mul_(param.Momentum).add_(1 - param.Dampening, WeightChange)
-                    WeightChangeMomentum.mul_(param.Momentum).add_(WeightChange, alpha=1 - param.Dampening, )
-                if param.Nesterov:
-                    WeightChange = WeightChange.add(param.Momentum, alpha=WeightChangeMomentum)
-                else:
-                    WeightChange = WeightChangeMomentum
-            #Weight.data.add_(-param.LearningRate, WeightChange)
-            # if param.LimitWeightChangeRatio:
-            #     RatioMax = param.WeightChangeRatioMax
-            #     1.0 * torch.where(Weight == 0.0)
-            # else:
-            if LogWeightChangeRatio:
-                utils_torch.GetDataLogger().AddLog("%s.ChangeRatio"%Name,
-                    utils_torch.model.CalculateWeightChangeRatio(Weight, WeightChange),
-                    Type="WeightChangeRatio"
-                )
-            Weight.data.add_(WeightChange, alpha=-param.LearningRate)
-            if ClearGrad:
-                Weight.grad.detach_()
-                Weight.grad.zero_()
-        
-        if LogGrad:
-            utils_torch.GetDataLogger().AddLogCache("MinusGrad", GradLog, Type="Grad")
-        return
-        # F.sgd(params: List[Tensor],
-        #     d_p_list: List[Tensor],
-        #     momentum_buffer_list: List[Optional[Tensor]],
-        #     *,
-        #     weight_decay: float,
-        #     momentum: float,
-        #     lr: float,
-        #     dampening: float,
-        #     nesterov: bool)
 
 def ClearGrad(weights):
     for name, weight in weights.items():
