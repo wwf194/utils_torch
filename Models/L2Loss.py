@@ -10,7 +10,8 @@ class L2Loss():
         utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.L2Loss", **kw)
     def __call__(self, Input, *Args):
         return self.forward(Input, *Args)
-    def InitFromParam(self):
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache

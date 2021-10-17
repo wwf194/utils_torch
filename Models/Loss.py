@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import utils_torch
 from utils_torch.attrs import *
 
-def GetLossMethod(param):
+def GetLossMethod(param, **kw):
     if param.Type in ["MeanSquareError", "MSE"]:
         Coefficient = param.Coefficient
         if Coefficient==1.0:

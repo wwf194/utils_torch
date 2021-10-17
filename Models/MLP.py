@@ -15,15 +15,11 @@ class MLP(torch.nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(MLP, self).__init__()
         utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.MLP", **kw)
-    def InitFromParam(self, param=None, IsLoad=False):
-        if param is None:
-            param = self.param
-            data = self.data
-            cache = self.cache
-        else:
-            self.param = param
-        cache.IsLoad = IsLoad
-        cache.IsInit = not cache.IsLoad
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        param = self.param
+        data = self.data
+        cache = self.cache
 
         cache.Modules = utils_torch.EmptyPyObj()
         if cache.IsInit:

@@ -287,7 +287,7 @@ def XYs2PixelIndices(XYs, BoundaryBox, ResolutionX, ResolutionY):
     Xs, Ys = XYs[:, 0], XYs[:, 1]
     XIndices = (Xs - XMin - PixelHalfWidth) / PixelWidth 
     YIndices = (Ys - YMin - PixelHalfHeight) / PixelHeight
-    XYIndices =  np.stack( [XIndices, YIndices], axis=1)
+    XYIndices = np.stack([XIndices, YIndices], axis=1)
     return np.around(XYIndices).astype(np.int32) # np.astype(np.int) do floor, not round.
 
 def PixelIndex2XYs(xIndex, yIndex, BoundaryBox, ResolutionX, ResolutionY):

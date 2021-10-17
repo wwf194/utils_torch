@@ -46,10 +46,21 @@ def ResolveStr(param, **kw):
 def ResolveStrDict(param, ContextInfo):
     if not isinstance(param, str):
         return param
-    if param.startswith("#"):
-        param = eval(param[1:])
-        if not isinstance(param, str):
-            return param
+    if "#" in param:
+        _param = param
+        success = True
+        if param.startswith("#"):
+            param = param[1:]
+        elif param.startswith("&#") or param.startswith("$#"):
+            param = param[2:]
+        else:
+            success = False
+        if success:
+            param = eval(param)
+            if not isinstance(param, str):
+                return param
+        else:
+            param = _param
     if "&" in param:
         # if param in ["&~cache.In.SaveDir"]:
         #     print("aaa")
@@ -234,6 +245,7 @@ def _ParsePyObjDynamicMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
             else:
                 pass # don't return
         if "&" in Obj:
+            success = False
             for ObjRef in ObjRefList:
                 try:
                     kw["ObjCurrent"] = ObjRef
@@ -245,7 +257,6 @@ def _ParsePyObjDynamicMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
                 except Exception:
                     pass
                     #utils_torch.AddLog("Failed to resoolve to current PyObjRef. Try redirecting to next PyObjRef.")
-
             if not success:
                 report = "_ParsePyObjDynamicMultiRefs: Failed to resolve to any PyObjRef in given ObjRefList by running: %s"%Obj
                 if RaiseFailedParse:
@@ -676,23 +687,23 @@ def ParseParamStaticAndDynamic(Args):
 def ParseParamStatic(Args, Save=False, SavePath=None):
     if SavePath is None:
         SavePath = utils_torch.GetMainSaveDir() + "param_parsed_static.jsonc"
-    ArgsGlobal = utils_torch.GetArgsGlobal()
-    param = ArgsGlobal.param
+    GlobalParam = utils_torch.GetGlobalParam()
+    param = GlobalParam.param
     utils_torch.json.PyObj2JsonFile(param, SavePath)
-    utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetGlobalParam(), InPlace=True)
     if Save:
         SavePath = utils_torch.RenameIfPathExists(SavePath)
         utils_torch.json.PyObj2JsonFile(param, SavePath)
     return
 
 def ParseParamDynamic(Args, Save=False, SavePath=None):
-    ArgsGlobal = utils_torch.GetArgsGlobal()
+    GlobalParam = utils_torch.GetGlobalParam()
     if SavePath is None:
         utils_torch.GetMainSaveDir() + "param_parsed_dynamic.jsonc"
-    for attr, param in utils_torch.ListAttrsAndValues(ArgsGlobal.param):
-        utils_torch.parse.ParsePyObjDynamic(param, ObjCurrent=param, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    for attr, param in utils_torch.ListAttrsAndValues(GlobalParam.param):
+        utils_torch.parse.ParsePyObjDynamic(param, ObjCurrent=param, ObjRoot=utils_torch.GetGlobalParam(), InPlace=True)
     if Save:
-        utils_torch.json.PyObj2JsonFile(ArgsGlobal.param, utils_torch.RenameIfPathExists(SavePath))
+        utils_torch.json.PyObj2JsonFile(GlobalParam.param, utils_torch.RenameIfPathExists(SavePath))
     return
 
 def ParseClass(ClassPath):

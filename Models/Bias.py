@@ -9,12 +9,15 @@ class Bias(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(Bias, self).__init__()
         utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.Bias", **kw)
-    def InitFromParam(self):
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
-        cache.Tensors =[]
-        data.Bias = torch.nn.Parameter(torch.zeros(param.Size))
+        if cache.IsInit:
+            data.Bias = torch.nn.Parameter(torch.zeros(param.Size))
+        else:
+            data.Bias = utils_torch.ToTorchTensor(data.Bias)
         cache.Tensors.append([data, "Bias", data.Bias])
     def forward(self):
         return self.data.Bias

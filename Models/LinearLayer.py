@@ -13,13 +13,10 @@ class LinearLayer(SingleLayer):
         super().__init__()
         utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.LinearLayer", **kw)
     def InitFromParam(self, param=None, IsLoad=False):
-        super().InitFromParam(param, IsLoad)
+        super().InitFromParam(IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
-        cache.IsLoad = IsLoad
-        cache.IsInit = not IsLoad
-
 
         SetAttrs(param, "Type", value="LinearLayer")
         EnsureAttrs(param, "Subtype", default="Wx+b")     

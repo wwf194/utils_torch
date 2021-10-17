@@ -75,6 +75,8 @@ def _CallFunction(param, ContextInfo={}):
     
     FunctionName = param[0]
     FunctionArgs = utils_torch.ToList(param[1])
+    # if FunctionName in ["&#utils_torch.ExternalMethods.AddObjRefForParseRouters"]:
+    #     print("aaa")
     Function = utils_torch.parse.ResolveStrDict(
         FunctionName,
         ContextInfo
@@ -106,7 +108,7 @@ def CallGraph(Router, In, **kw):
                     InputList.append(States[State])
                 InputDict = Routing.InNamed.ToDict()
                 for key, value in InputDict.items():
-                    if value.startswith("%"):
+                    if isinstance(value, str) and value.startswith("%"):
                         InputDict[key] = States[value[1:]]
                 #InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
                 if isinstance(Routing.Module, utils_torch.PyObj):

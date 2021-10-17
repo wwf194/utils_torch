@@ -178,25 +178,30 @@ def PlotDirectionOnEdge(ax, Edge, Direction, **kw):
 
 def Map2Color(
         data, ColorMap="jet", Method="MinMax", Alpha=False,
-        dataForMap=None,
+        dataForMap=None, **kw
     ):
     data = ToNpArray(data)
 
-    if Method in ["MinMax"]:
-        if dataForMap is not None:
-            if dataForMap.size > 0:
-                dataMin, dataMax = np.nanmin(dataForMap), np.nanmax(dataForMap)
+    if Method in ["MinMax", "GivenRange", "GivenMinMax"]:
+        if Method in ["MinMax"]:
+            if dataForMap is not None:
+                if dataForMap.size > 0:
+                    dataMin, dataMax = np.nanmin(dataForMap), np.nanmax(dataForMap)
+                else:
+                    dataMin, dataMax = np.NaN, np.NaN
             else:
-                dataMin, dataMax = np.NaN, np.NaN
-        else:
-            dataMin, dataMax = np.nanmin(data), np.nanmax(data)
+                dataMin, dataMax = np.nanmin(data), np.nanmax(data)
+        elif Method in ["GivenRange", "GivenMinMax"]:
+            dataMin, dataMax = kw["Min"], kw["Max"]
+
         if dataMin == dataMax or not np.isfinite(dataMin) or not np.isfinite(dataMax):
             dataColored = np.full([*data.shape, 4], 0.5)
         else:
             dataNormed = (data - dataMin) / (dataMax - dataMin) # normalize to [0, 1]
             dataColored = ParseColorMapPlt(ColorMap)(dataNormed) # [*data.Shape, (r,g,b,a)]
+
     else:
-        raise Exception()
+        raise Exception(Method)
 
     if not Alpha:
         dataColored = eval("dataColored[%s 0:3]"%("".join(":," for _ in range(len(data.shape)))))
@@ -369,6 +374,8 @@ def GetDefaultBoundaryBox():
         "YMax": 1.0,
     })
 
+
+
 def XYs2BoundaryBox(XYs):
     XYs = XYs.reshape(-1, 2) # Flatten to [:, (x, y)]
     Xs = XYs[:, 0]
@@ -392,6 +399,24 @@ def UpdateBoundaryBox(BoundaryBox, _BoundaryBox):
         BoundaryBox.XMax,
         BoundaryBox.YMax,
     ]
+    BoundaryBox.Width = BoundaryBox.XMax - BoundaryBox.XMin
+    BoundaryBox.Height = BoundaryBox.YMax - BoundaryBox.YMin
+    return BoundaryBox
+
+def CopyBoundaryBox(_BoundaryBox):
+    BoundaryBox = GetDefaultBoundaryBox()
+    BoundaryBox.XMin = _BoundaryBox.XMin
+    BoundaryBox.YMin = _BoundaryBox.YMin
+    BoundaryBox.XMax = _BoundaryBox.XMax
+    BoundaryBox.YMax = _BoundaryBox.YMax
+    BoundaryBox.__value__ = [
+        BoundaryBox.XMin,
+        BoundaryBox.YMin,
+        BoundaryBox.XMax,
+        BoundaryBox.YMax,
+    ]
+    BoundaryBox.Width = BoundaryBox.XMax - BoundaryBox.XMin
+    BoundaryBox.Height = BoundaryBox.YMax - BoundaryBox.YMin
     return BoundaryBox
 
 def SetAxRangeAndTicksFromBoundaryBox(ax, BoundaryBox):
@@ -537,7 +562,12 @@ def PlotMatrix(
         PixelHeightWidthRatio = "equal"
 
     if Ticks is not None:
-        if Ticks in ["int", "Int"]:
+        if isinstance(Ticks, dict):
+            ax.set_xticks(Ticks["XTicks"])
+            ax.set_xticklabels(Ticks["XTicksStr"])
+            ax.set_yticks(Ticks["YTicks"])
+            ax.set_yticklabels(Ticks["YTicksStr"])
+        elif Ticks in ["int", "Int"]:
             SetXTicksInt(ax, extent[0], extent[1])
             SetYTicksInt(ax, extent[2], extent[3])
         elif Ticks in ["float", "Float",]:

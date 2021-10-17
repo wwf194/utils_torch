@@ -11,10 +11,9 @@ class SerialSender():
         #super(SerialSender, self).__init__()
         utils_torch.model.InitForModel(self, param, data,  ClassPath="utils_torch.Models.SerialSender", **kw)
     def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param
         cache = self.cache
-        cache.IsLoad = IsLoad
-        cache.IsInit = not IsLoad
         cache.ContentList = []
         self.SetSendMethod()
         self.SetReceiveMethod()

@@ -8,20 +8,11 @@ from utils_torch.attrs import *
 class SingleLayer(nn.Module):
     def __init__(self):
         super(SingleLayer, self).__init__()
-    def InitFromParam(self, param=None, IsLoad=False):
-        if param is None:
-            param = self.param
-            data = self.data
-            cache = self.cache
-        else:
-            self.param = param
-            self.data = utils_torch.EmptyPyObj()
-            self.cache = utils_torch.EmptyPyObj()
-
-        cache.IsLoad = IsLoad
-        cache.IsInit = not IsLoad
-        cache.Tensors = []
-
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        param = self.param
+        cache = self.cache
+        
         EnsureAttrs(param, "IsExciInhi", default=False)
 
         if cache.IsInit:

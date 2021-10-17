@@ -17,7 +17,6 @@ from utils_torch.attrs import *
 from utils_torch.LRSchedulers import LinearLR
 
 def BuildModule(param, **kw):
-
     if param.Type in ["LinearLayer"]:
         return utils_torch.Models.LinearLayer(param, **kw)
     elif param.Type in ["NonLinearLayer"]:
@@ -117,7 +116,7 @@ def GetConstraintFunction(Method):
     else:
         raise Exception("GetConstraintFunction: Invalid consraint Method: %s"%Method)
 
-def GetNonLinearMethod(param):
+def GetNonLinearMethod(param, **kw):
     param = ParseNonLinearMethod(param)
     if param.Type in ["NonLinear"]:
         if hasattr(param, "Subtype"):
@@ -295,31 +294,6 @@ def build_optimizer(dict_, Params=None, model=None, load=False):
         dict_['state_dict'] = optimizer.state_dict()
     return optimizer
 
-def build_scheduler(dict_, optimizer, load=False, verbose=True):
-    #lr_decay = dict['lr_decay']
-    scheduler_dict = dict_['scheduler']
-    scheduler_Type = search_dict(scheduler_dict, ['Type', 'Method'], default='None', write_default=True)
-    if verbose:
-        print('build_scheduler: scheduler_Type: %s'%scheduler_Type)
-    if scheduler_Type is None or scheduler_Type in ['None', 'none']:
-        scheduler = None
-        #update_lr = update_lr_none
-    elif scheduler_Type in ['exp']:
-        decay = search_dict(scheduler_dict, ['decay', 'coeff'], default=0.98, write_default=True, write_default_dict='decay')
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, gamma=decay)
-        #update_lr = update_lr_
-    elif scheduler_Type in ['stepLR', 'exp_interval']:
-        decay = search_dict(scheduler_dict, ['decay', 'coeff'], default=0.98, write_default=True, write_default_key='decay')
-        step_Size = search_dict(scheduler_dict, ['interval', 'step_Size'], default=0.98, write_default=True, write_default_key='decay')
-        scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer, step_Size=step_Size, gamma=decay)
-        #update_lr = update_lr_
-    elif scheduler_Type in ['Linear', 'linear']:
-        milestones = search_dict(scheduler_dict, ['milestones'], throw_none_error=True)
-        scheduler = LinearLR(optimizer, milestones=milestones, epoch_num=dict_['epoch_num'])
-        #update_lr = update_lr_
-    else:
-        raise Exception('build_scheduler: Invalid lr decay Method: '+str(scheduler_Type))
-    return scheduler
 
 # search for directory or file of most recently saved models(model with biggest epoch index)
 def GetLastestSubSaveDir(SaveDir, Prefix=None):
@@ -528,67 +502,75 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
-def LogStatForModel(self, data, Name, Type="Stat"):
+def LogStatForModel(self, data, Name, Type="Stat", logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
     data = utils_torch.ToNpArray(data)
     stat = utils_torch.math.NpStatistics(data, ReturnType="Dict")
-    utils_torch.GetDataLogger().AddLogDict(Name + "-Stat", stat, Type)
+    logger.AddLogDict(Name + "-Stat", stat, Type)
 
-def LogActivityStatForModel(self, data, Name, Type="Activity-Stat"):
-    LogStatForModel(self, data, Name, Type=Type)
+def LogActivityStatForModel(self, data, Name, Type="Activity-Stat", logger="Data"):
+    LogStatForModel(self, data, Name, Type=Type, logger=logger)
 
-def LogWeightStatForModel(self, weights, Type="Weight-Stat"):
+def LogWeightStatForModel(self, weights, Type="Weight-Stat", logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     param = self.param
     for Name, Weight in weights.items():
         WeightStat = utils_torch.math.TorchTensorStat(Weight, ReturnType="Dict")
-        utils_torch.GetDataLogger().AddLogDict(Name, WeightStat, Type)
+        logger.AddLogDict(Name, WeightStat, Type)
 
-def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity"):
+def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity", logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     param = self.param
     data = utils_torch.ToNpArray(data)
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
-    utils_torch.GetDataLogger().AddLogCache(Name, data, Type)
+    logger.AddLogCache(Name, data, Type)
 
-def LogForModel(self, data, Name, Type=None):
+def LogForModel(self, data, Name, Type=None, logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
     data = ProcessLogData(data)
-    utils_torch.GetDataLogger().AddLog(Name, data, Type)
+    logger.AddLog(Name, data, Type)
 
-def LogWeightForModel(self, weights, Name="Weight", Type="Weight"):
+def LogWeightForModel(self, weights, Name="Weight", Type="Weight", logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     param = self.param
     _weights = {}
     for name, weight in weights.items():
         _weights[name] = utils_torch.ToNpArray(weight)
-    utils_torch.GetDataLogger().AddLogCache(Name, _weights, Type)
+    logger.AddLogCache(Name, _weights, Type)
 
-def LogFloatForModel(self, data, Name, Type="Float"):
+def LogFloatForModel(self, data, Name, Type="Float", logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     param = self.param
     if isinstance(data, torch.Tensor):
         data = data.item()
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
-    utils_torch.GetDataLogger().AddLog(Name, data, Type)
+    logger.AddLog(Name, data, Type)
 
-def LogLossForModel(self, loss, Name, Type="Loss"):
+def LogLossForModel(self, loss, Name, Type="Loss", logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     # param = self.param
     if isinstance(loss, torch.Tensor):
         data = loss.item()
     # Generally, loss is global, so FullName isnt's used here.
     # if hasattr(param, "FullName"):
     #     Name = param.FullName + "." + Name
-    utils_torch.GetDataLogger().AddLog(Name, data, Type)
+    logger.AddLog(Name, data, Type)
 
-def LogCacheForModel(self, data, Name, Type=None):
+def LogCacheForModel(self, data, Name, Type=None, logger="Data"):
+    logger = utils_torch.GetLogger(logger)
     data = ProcessLogData(data)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
-    utils_torch.GetDataLogger().AddLogCache(Name, data, Type)
+    logger.AddLogCache(Name, data, Type)
 
 def ProcessLogData(data):
     if isinstance(data, torch.Tensor):
@@ -642,7 +624,7 @@ def InitModulesForModel(self):
     cache = self.cache
     for name, module in ListAttrsAndValues(cache.Modules):
         if hasattr(module, "InitFromParam"):
-            module.InitFromParam()
+            module.InitFromParam(IsLoad=cache.IsLoad)
         else:
             if HasAttrs(module, "param.ClassPath"):
                 Class = module.param.ClassPath
@@ -657,7 +639,14 @@ def InitModulesForModel(self):
 def LoadFromParamForModel(self):
     self.InitFromParam(IsLoad=True)
 
+def Add2ObjRefListForParseRouters(ObjRef):
+    GlobalParam = utils_torch.GetGlobalParam()
+    if not hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
+        GlobalParam.cache.AdditionalObjRefListForParseRouters = []
+    GlobalParam.cache.AdditionalObjRefListForParseRouters.append(ObjRef)
+
 def ParseRoutersForModel(self):
+    GlobalParam = utils_torch.GetGlobalParam()
     param = self.param
     cache = self.cache
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
@@ -665,13 +654,18 @@ def ParseRoutersForModel(self):
             utils_torch.router.ParseRouterStatic(RouterParam)
             setattr(RouterParam, "Name", param.FullName + "." + Name) # For Debug
         setattr(cache.Dynamics, Name, utils_torch.EmptyPyObj())
+    
+    ObjRefList = [
+        cache.Modules, cache.Dynamics, cache,
+        param, self, utils_torch.Models.Operators,
+    ]
+    if hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
+        ObjRefList += GlobalParam.cache.AdditionalObjRefListForParseRouters
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
         getattr(cache.Dynamics, Name).FromPyObj(
             utils_torch.router.ParseRouterDynamic(
                 RouterParam, 
-                ObjRefList=[cache.Modules, cache.Dynamics, cache,
-                    param, self, utils_torch.Models.Operators
-                ],
+                ObjRefList = ObjRefList,
                 InPlace=False
             )
         )

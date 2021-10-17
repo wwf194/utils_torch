@@ -19,19 +19,11 @@ class RecurrentLIFLayer(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(RecurrentLIFLayer, self).__init__()
         utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.RecurrentLIFLayer", **kw)
-    def InitFromParam(self, param=None, IsLoad=False):
-        if param is None:
-            param = self.param
-            data = self.data
-            cache = self.cache
-        else:
-            self.param = param
-            self.data = utils_torch.EmptyPyObj()
-            self.cache = utils_torch.EmptyPyObj()
-        
-        cache.IsLoad = IsLoad
-        cache.IsInit = not IsLoad
-        cache.Modules = utils_torch.EmptyPyObj()
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        param = self.param
+        data = self.data
+        cache = self.cache
         EnsureAttrs(param, "IsExciInhi", default=False)
         
         self.BuildModules()

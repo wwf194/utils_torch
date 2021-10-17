@@ -11,9 +11,8 @@ class SerialReceiver():
     def __init__(self, param=None, data=None, **kw):
         utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.SerialReceiver", **kw)
     def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
         cache = self.cache
-        cache.IsLoad = IsLoad
-        cache.IsInit = not IsLoad
         self.ContentList = []
         self.SetSendMethod()
         self.SetReceiveMethod()

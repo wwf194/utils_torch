@@ -8,11 +8,11 @@ from utils_torch.attrs import GetAttrs
 
 def NpArrayStatistics(data, verbose=False, ReturnType="PyObj"):
     DataStats = {
-        "Min": np.min(data),
-        "Max": np.max(data),
-        "Mean": np.mean(data),
-        "Std": np.std(data),
-        "Var": np.var(data)
+        "Min": np.nanmin(data),
+        "Max": np.nanmax(data),
+        "Mean": np.nanmean(data),
+        "Std": np.nanstd(data),
+        "Var": np.nanvar(data)
     }
     return utils_torch.Dict2GivenType(DataStats, ReturnType)
 
@@ -194,7 +194,7 @@ def CalculatePearsonCoefficientMatrix(dataA, dataB):
     FeatureNumB = dataB.shape[1]
     SampleNum = dataA.shape[0]
 
-    Location = utils_torch.GetArgsGlobal().system.TensorLocation
+    Location = utils_torch.GetGlobalParam().system.TensorLocation
 
     dataAGPU = utils_torch.ToTorchTensor(dataA).to(Location)
     dataBGPU = utils_torch.ToTorchTensor(dataB).to(Location)

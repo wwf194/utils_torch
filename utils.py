@@ -91,7 +91,7 @@ def ParseTaskObj(TaskObj, Save=True, **kw):
 
     if Save:
         utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetMainSaveDir() + "task_loaded.jsonc")
-    utils_torch.parse.ParsePyObjStatic(TaskObj, ObjCurrent=TaskList, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    utils_torch.parse.ParsePyObjStatic(TaskObj, ObjCurrent=TaskList, ObjRoot=utils_torch.GetGlobalParam(), InPlace=True)
     if Save:
         utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetMainSaveDir() + "task_parsed.jsonc")
     return TaskObj
@@ -147,16 +147,16 @@ def DoTask(Task, **kw):
     elif TaskType in ["LoadJsonFile"]:
         LoadJsonFile(TaskArgs)
     elif TaskType in ["LoadParamFile"]:
-        utils_torch.LoadParamFromFile(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+        utils_torch.LoadParamFromFile(TaskArgs, ObjRoot=utils_torch.GetGlobalParam())
     elif TaskType in ["ParseParam", "ParseParamStatic"]:
         utils_torch.parse.ParseParamStatic(TaskArgs)
     elif TaskType in ["ParseParamDynamic"]:
         utils_torch.parse.ParseParamDynamic(TaskArgs)
     # elif TaskType in ["ParseSelf"]:
-    #     utils_torch.parse.ParsePyObjStatic(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal(), InPlace=True)
+    #     utils_torch.parse.ParsePyObjStatic(TaskArgs, ObjRoot=utils_torch.GetGlobalParam(), InPlace=True)
     # Already parsed statically in ParseTaskObj.
     elif TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
-        utils_torch.BuildObjFromParam(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+        utils_torch.BuildObjFromParam(TaskArgs, ObjRoot=utils_torch.GetGlobalParam())
     elif TaskType in ["BuildObj"]:
         utils_torch.BuildObj(TaskArgs, **kw)
     elif TaskType in ["SetTensorLocation"]:
@@ -164,12 +164,14 @@ def DoTask(Task, **kw):
     elif TaskType in ["Train"]:
         utils_torch.train.Train(
             TaskArgs,
-            ObjRoot=utils_torch.GetArgsGlobal(), Logger=utils_torch.GetDataLogger())
+            ObjRoot=utils_torch.GetGlobalParam(),
+            Logger=utils_torch.GetDataLogger()
+        )
     elif TaskType in ["DoTasks"]:
-        _TaskList = utils_torch.ParseTaskObj(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+        _TaskList = utils_torch.ParseTaskObj(TaskArgs, ObjRoot=utils_torch.GetGlobalParam())
         DoTasks(_TaskList, **kw)
     elif TaskType in ["SaveObj"]:
-        utils_torch.SaveObj(TaskArgs, ObjRoot=utils_torch.GetArgsGlobal())
+        utils_torch.SaveObj(TaskArgs, ObjRoot=utils_torch.GetGlobalParam())
 
     else:
         utils_torch.AddWarning("Unknown Task.Type: %s"%TaskType)
@@ -177,19 +179,19 @@ def DoTask(Task, **kw):
 
 def SetTensorLocation(Args):
     EnsureAttrs(Args, "Method", default="Auto")
-    ArgsGlobal = utils_torch.GetArgsGlobal()
-    if HasAttrs(ArgsGlobal, "system.TensorLocation"):
-        Location = ArgsGlobal.system.TensorLocation
+    GlobalParam = utils_torch.GetGlobalParam()
+    if HasAttrs(GlobalParam, "system.TensorLocation"):
+        Location = GlobalParam.system.TensorLocation
     else:
         if Args.Method in ["Auto", "auto"]:
             Location = utils_torch.GetGPUWithLargestUseableMemory()
         else:
             raise Exception()
 
-    for Obj in utils_torch.ListValues(utils_torch.GetArgsGlobal().object):
+    for Obj in utils_torch.ListValues(utils_torch.GetGlobalParam().object):
         if hasattr(Obj, "SetTensorLocation"):
             Obj.SetTensorLocation(Location)
-    SetAttrs(utils_torch.GetArgsGlobal(), "system.TensorLocation", Location)
+    SetAttrs(utils_torch.GetGlobalParam(), "system.TensorLocation", Location)
 
 def BuildObjFromParam(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
@@ -308,13 +310,6 @@ def LoadObjFromFile(Args, **kw):
     MountPathList = utils_torch.ToList(Args.MountPath)
     SaveDirList = utils_torch.ToList(Args.SaveDir)
 
-    # if not hasattr(Args, "SaveDir"):
-    #     SaveDirList = ["auto" for _ in range(len(SaveNameList))]
-    # else:
-    #     SaveDirList = utils_torch.ToList(Args.SaveDir)
-    # for Index, SaveDir in enumerate(SaveDirList):
-    #     if SaveDir in ["Auto", "auto"]:
-    #         SaveDirList[Index] = utils_torch.GetSubSaveDir("Obj")
     SaveDirParsedList = []
     for SaveDir in SaveDirList:
         SaveDirParsedList.append(utils_torch.parse.ResolveStr(SaveDir, **kw))
@@ -367,7 +362,7 @@ def _AddLibraryPath(Args):
     lib_path = Args['path']
     if lib_path=="!Getfrom_config":
         success = False
-        for config_name, config_dict in utils_torch.GetArgsGlobal().ConfigDicts.__dict__.items():
+        for config_name, config_dict in utils_torch.GetGlobalParam().ConfigDicts.__dict__.items():
             if config_dict.get("libs") is not None:
                 libs = config_dict["libs"]
                 if libs.get(lib_name) is not None:
@@ -387,7 +382,7 @@ def _AddLibraryPath(Args):
         utils_torch.AddWarning('add_lib: invalid lib_path: ', lib_path)
 
 def SaveObj(Args):
-    Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetArgsGlobal()),
+    Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetGlobalParam()),
     Obj.Save(SaveDir=Args.SaveDir)
 
 def IsClassInstance(Obj):
@@ -1072,7 +1067,7 @@ def GetAllMethodsOfModule(ModulePath):
 
 ListAllMethodsOfModule = GetAllMethodsOfModule
 
-# ArgsGlobal = utils_torch.json.JsonObj2PyObj({
+# GlobalParam = utils_torch.json.JsonObj2PyObj({
 #     "Logger": None
 # })
 
@@ -1210,3 +1205,7 @@ def MountObj(MountPath, Obj, **kw):
 
 def MountDictOnObj(Obj, Dict):
     Obj.__dict__.update(Dict)
+
+ExternalMethods = utils_torch.PyObj()
+def RegisterExternalMethods(Name, Method):
+    setattr(ExternalMethods, Name, Method)

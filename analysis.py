@@ -118,6 +118,14 @@ def AnalyzeTrajectory(agent, world, XYsPredicted, XYsTruth, PlotNum="Auto", Save
     TrajectoryNum = XYsTruth.shape[0]
     StepNum = XYsTruth.shape[1]
 
+    if PlotNum in ["Auto", "auto"]:
+        if StepNum < 50:
+            PlotNum = 5
+        elif StepNum < 100:
+            PlotNum = 2
+        else:
+            PlotNum = 1
+
     PlotIndices = utils_torch.RandomSelect(TrajectoryNum, PlotNum)
 
     #BoundaryBox = utils_torch.plot.GetDefaultBoundaryBox()
@@ -157,6 +165,7 @@ def AnalyzeTrajectory(agent, world, XYsPredicted, XYsTruth, PlotNum="Auto", Save
     utils_torch.Table2TextFileDict(TxtTable, SaveDir + SaveName + ".txt")
 
 def AnalyazeSpatialFiringPattern(agent, world, Activity):
+
     return
 
 def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
@@ -214,14 +223,12 @@ def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
         
     ax = utils_torch.plot.GetAx(axes, 0)
     Title = "%s- ResponseSimilarity"%WeightUpdateName
-    #Title = None
     utils_torch.plot.PlotPoints(
         ax, XYs, Color="Blue", Type="EmptyCircle", Size=0.5,
         XLabel="Response Similarity", YLabel=WeightUpdateName, 
         Title=Title, YRange=YRange
     )
 
-    
     ax = utils_torch.plot.GetAx(axes, 1)
     WeightFlat = utils_torch.FlattenNpArray(Weight)
     XYs = np.stack(

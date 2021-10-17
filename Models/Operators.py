@@ -7,7 +7,7 @@ import utils_torch
 #Operators = utils_torch.PyObj()
 OperatorList = []
 
-def BuildModule(param, RaiseIfFail=False):
+def BuildModule(param, RaiseIfFail=False, **kw):
     if param.Type in ["FunctionsOutputs"]:
         return FunctionsOutputs(param)
     else:
