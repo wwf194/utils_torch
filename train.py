@@ -157,8 +157,9 @@ def AnalyzeSptialActivity(param, **kw):
         utils_torch.AddLog("Analyzing Spatial Activity. Batch%d"%_BatchIndex)
         utils_torch.CallGraph(Routers.Test, In=Routers.In)
         activity = logger.GetLogByName("agent.model.FiringRates")["Value"]
-        XYs = logger.GetLogByName("agent.model.Outputs")["Value"]
+        XYsTruth = logger.GetLogByName("agent.model.Outputs")["Value"]
         XYsPredicted = logger.GetLogByName("agent.model.OutputTargets")["Value"]
+        # Use either XYsTruth or XYsPredicted for spatial activity map plotting.
         utils_torch.ExternalMethods.LogSpatialActivity(SpatialActivity, activity, XYsPredicted)
     utils_torch.ExternalMethods.CalculateSpatialActivity(SpatialActivity)
     utils_torch.ExternalMethods.PlotSpatialActivity(
@@ -219,13 +220,16 @@ def CallGraphEpochBatch(router, In, logger, EpochIndex, BatchIndex):
     utils_torch.CallGraph(router, In=In) 
 
 def AddAnalysis():
+    # Do supplementary analysis for all saved models under main save directory.
     kw = {
         "ObjRoot": utils_torch.GetGlobalParam()
     }
     SaveDirs = utils_torch.GetAllSubSaveDirsEpochBatch("SavedModel")
     for SaveDir in SaveDirs:
         EpochIndex, BatchIndex = ParseEpochBatchFromStr(SaveDir)
-        logger = utils_torch.GetGlobalParam().log.Data
+        logger = utils_torch.GetLogger("DataTest")
+        logger.NotifyEpochIndex(EpochIndex)
+        logger.NotifyBatchIndex(BatchIndex)
 
         utils_torch.DoTasks(
             "&^param.task.Load",
@@ -238,21 +242,34 @@ def AddAnalysis():
         kw["ObjCurrent"] = param
         param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
         Routers = ParseRoutersFromTrainParam(param, **kw)
+        # AnalyzeSptialActivity(
+        #     param=param.TestForSpatialActivityAnalysis,
+        #     Routers=Routers,
+        #     EpochIndex=EpochIndex, BatchIndex=BatchIndex,
+        #     ObjCurrent=param, ObjRoot=utils_torch.GetGlobalParam()
+        # )
         CallGraphEpochBatch(Routers.Test, Routers.In, logger, EpochIndex, BatchIndex)
 
-        utils_torch.analysis.AnalyzeTrajectory(
-            utils_torch.GetGlobalParam().object.agent,
-            utils_torch.GetGlobalParam().object.world,
-            logger.GetLog("agent.model.Outputs")["Value"],
-            logger.GetLog("agent.model.OutputTargets")["Value"],
-            SaveDir = utils_torch.GetMainSaveDir() + "Trajectory/",
-            SaveName = "Trajectory-Truth-Predicted-Epoch%d-Batch%d"%(EpochIndex, BatchIndex),
-            PlotNum = 1
+        # utils_torch.analysis.AnalyzeTrajectory(
+        #     utils_torch.GetGlobalParam().object.agent,
+        #     utils_torch.GetGlobalParam().object.world,
+        #     logger.GetLog("agent.model.Outputs")["Value"],
+        #     logger.GetLog("agent.model.OutputTargets")["Value"],
+        #     SaveDir = utils_torch.GetMainSaveDir() + "Trajectory/",
+        #     SaveName = "Trajectory-Truth-Predicted-Epoch%d-Batch%d"%(EpochIndex, BatchIndex),
+        #     PlotNum = 1
+        # )
+        utils_torch.analysis.AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
+            ResponseA=logger.GetLogByName("agent.model.FiringRates")["Value"],
+            ResponseB=logger.GetLogByName("agent.model.FiringRates")["Value"],
+            WeightUpdate=logger.GetLogByName("MinusGrad")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
+            Weight = logger.GetLogByName("Weight")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
+            SaveDir = utils_torch.GetMainSaveDir() + "Hebb-Analysis/",
+            SaveName = "Epoch%d-Batch%d-Recurrent.FiringRate2RecurrentInput.Weight"%(EpochIndex, BatchIndex),
         )
 
-
 def ParseEpochBatchFromStr(Str):
-    MatchResult = re.match(r"^.*Epoch(\d*)-Batch(\d*).*$", Str)
+    MatchResult = re.match(r"^.*Epoch(-?\d*)-Batch(\d*).*$", Str)
     if MatchResult is None:
         raise Exception(Str)
     EpochIndex = int(MatchResult.group(1))
@@ -375,3 +392,42 @@ def EpochBatchIndices2EpochsFloat(EpochIndices, BatchIndices, **kw):
     BatchIndices = utils_torch.ToNpArray(BatchIndices)
     EpochsFloat = EpochIndices + BatchIndices / BatchNum
     return utils_torch.NpArray2List(EpochsFloat)
+
+def Labels2OneHotVectors(Labels, VectorSize=None):
+    # Labels: [SampleNum]
+    SampleNum = Labels.shape[0]
+    Labels = utils_torch.ToNpArray(Labels, dtype=np.int32)
+    if VectorSize is None:
+        LabelMin, LabelMax = np.min(Labels), np.max(Labels)
+        VectorSize = LabelMax
+    OneHotVectors = np.zeros((SampleNum, VectorSize), dtype=np.float32)
+    OneHotVectors[range(SampleNum), Labels] = 1
+    return OneHotVectors
+
+def Probability2MostProbableClassIndex(Probabilities):
+    # Probabilities: [BatchSize, ClassNum]
+    Max, MaxIndices = torch.max(Probabilities, dim=1)
+    return utils_torch.TorchTensor2NpArray(MaxIndices) # [BatchSize]
+
+def InitAccuracy():
+    Accuracy = utils_torch.PyObj()
+    Accuracy.Num = 0
+    Accuracy.NumCorrect = 0
+    return Accuracy
+
+def ResetAccuracy(Accuracy):
+    Accuracy.Num = 0
+    Accuracy.NumCorrect = 0
+    return Accuracy
+
+def CalculateAccuracy(Accuracy):
+    Accuracy.RatioCorrect = 1.0 * Accuracy.NumCorrect / Accuracy.Num
+    return Accuracy
+
+def LogAccuracyForSingleClassPrediction(Accuracy, Output, OutputTarget):
+    # Output: np.ndarray. Predicted class indices in shape of [BatchNum]
+    # OutputTarget: np.ndarray. Ground Truth class indices in shape of [BatchNum]
+    SampleNum = Output.shape[0]
+    CorrectNum = np.sum(Output==OutputTarget)
+    Accuracy.Num += SampleNum
+    Accuracy.NumCorrect += CorrectNum

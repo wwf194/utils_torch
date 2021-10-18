@@ -247,19 +247,19 @@ def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
     )
 
     ax = utils_torch.plot.GetAx(axes, 2)
-    BinStats = utils_torch.math.CalculateBinnedMeanAndStd(CorrelationMatrixFlat, WeightFlat)
     Title = "%s - Response Similarity Binned Mean And Std"%WeightUpdateName
-    #Title=None
-    utils_torch.plot.PlotMeanAndStdCurve(
-        ax, BinStats.BinCenters, BinStats.Mean, BinStats.Std,
-        XLabel = "Response Similarity", YLabel=WeightUpdateName, Title=Title,
-    )
-
-    ax = utils_torch.plot.GetAx(axes, 3)
     BinStats = utils_torch.math.CalculateBinnedMeanAndStd(CorrelationMatrixFlat, WeightUpdateFlat)
     utils_torch.plot.PlotMeanAndStdCurve(
         ax, BinStats.BinCenters, BinStats.Mean, BinStats.Std,
-        XLabel = "Response Similarity", YLabel="Connection Strength", Title="Weight - Response Similarity Binned Mean And Std"
+        XLabel = "Response Similarity", YLabel=WeightUpdateName, Title=Title
+    )
+
+    ax = utils_torch.plot.GetAx(axes, 3)
+    BinStats = utils_torch.math.CalculateBinnedMeanAndStd(CorrelationMatrixFlat, WeightFlat)
+    
+    utils_torch.plot.PlotMeanAndStdCurve(
+        ax, BinStats.BinCenters, BinStats.Mean, BinStats.Std,
+        XLabel = "Response Similarity", YLabel="Connection Strength", Title="Weight - Response Similarity Binned Mean And Std",
     )
     
     plt.suptitle(SaveName)

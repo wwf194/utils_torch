@@ -1024,20 +1024,6 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
     else:
         return None
 
-import hashlib
-def Getmd5(path, md5=None):
-    if md5 is None:
-        md5 = hashlib.md5()
-    if os.path.isfile(path):
-        with open(path, 'rb') as f:
-            bytes = f.read()
-        md5.update(bytes)
-        md5_str = md5.hexdigest()
-        #print(md5_str.__class__)
-        return md5_str
-    else:
-        warnings.warn('%s is not a file. '%path)
-        return None
 
 def visit_path(args=None, func=None, recur=False, path=None):
     if func is None:
@@ -1125,21 +1111,6 @@ def Str2File(Str, FilePath):
     with open(FilePath, "w") as file:
         file.write(Str)
 
-# def ParseTextFilePathFromName(Name, FilePath):
-#     if Name is not None:
-#         if FilePath is None:
-#             FilePath = utils_torch.GetMainSaveDir() + Name + ".txt"
-#             FilePath = utils_torch.RenameIfPathExists(FilePath)
-#         else:
-#             raise Exception()
-#     else:
-#         if FilePath is None:
-#             raise Exception()
-#         if not FilePath.endswith(".txt"):
-#             FilePath += ".txt"
-#         FilePath = utils_torch.RenameIfPathExists(FilePath)
-#     return Name, FilePath
-
 def GetSavePathFromName(Name, Suffix=""):
     if not Suffix.startswith("."):
         Suffix = "." + Suffix
@@ -1209,3 +1180,9 @@ def MountDictOnObj(Obj, Dict):
 ExternalMethods = utils_torch.PyObj()
 def RegisterExternalMethods(Name, Method):
     setattr(ExternalMethods, Name, Method)
+
+def Bytes2Str(Bytes, Format="utf-8"):
+    return Bytes.decode(Format)
+
+def Str2Bytes(Str, Format="utf-8"):
+    return Str.decode(Format)

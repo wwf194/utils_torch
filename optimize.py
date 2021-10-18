@@ -48,26 +48,18 @@ class GradientDescend:
             #     RatioMax = param.WeightChangeRatioMax
             #     1.0 * torch.where(Weight == 0.0)
             # else:
-            if LogWeightChangeRatio:
-                utils_torch.GetDataLogger().AddLog("%s.ChangeRatio"%Name,
-                    utils_torch.model.CalculateWeightChangeRatio(Weight, WeightChange),
-                    Type="WeightChangeRatio"
-                )
+            # if LogWeightChangeRatio:
+            #     utils_torch.GetDataLogger().AddLog("%s.ChangeRatio"%Name,
+            #         utils_torch.model.CalculateWeightChangeRatio(Weight, WeightChange),
+            #         Type="WeightChangeRatio"
+            #     )
             if Update:
                 Weight.data.add_(WeightChange, alpha=-param.LearningRate)
             if ClearGrad:
                 Weight.grad.detach_()
                 Weight.grad.zero_()
-        
         if LogGrad:
-            utils_torch.GetDataLogger().AddLogCache("MinusGrad", GradLog, Type="Grad")
+            utils_torch.GetLogger("DataTest").AddLogCache("MinusGrad", GradLog, Type="Grad")
         return
-        # F.sgd(params: List[Tensor],
-        #     d_p_list: List[Tensor],
-        #     momentum_buffer_list: List[Optional[Tensor]],
-        #     *,
-        #     weight_decay: float,
-        #     momentum: float,
-        #     lr: float,
-        #     dampening: float,
-        #     nesterov: bool)
+
+utils_torch.model.SetMethodForModelClass(GradientDescend)

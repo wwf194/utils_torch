@@ -1,5 +1,5 @@
 import torch
-def Getdata_stat():
+def GetDataStat():
     print(torch.__version__)
     if torch.cuda.is_available():
         print('cuda is available')

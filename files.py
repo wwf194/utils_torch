@@ -68,7 +68,7 @@ def GetAllFilesAndDirs(DirPath):
             Dirs.append(item)
     return Files, Dirs
 
-def GetAllFiles(DirPath):
+def ListFiles(DirPath):
     if not os.path.exists(DirPath):
         raise Exception()
     if not os.path.isdir(DirPath):
@@ -80,7 +80,7 @@ def GetAllFiles(DirPath):
             Files.append(item)
     return Files
 
-ListAllFiles = GetAllFiles
+ListAllFiles = GetAllFiles = ListFiles
 
 def GetAllDirs(DirPath):
     if not os.path.exists(DirPath):
@@ -363,3 +363,34 @@ def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     '''
     #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
     return path_from_main
+
+def LoadBinaryFilePickle(FilePath):
+    import pickle
+    with open(FilePath, 'rb') as fo:
+        Obj = pickle.load(fo, encoding='bytes')
+    return Obj
+
+def File2MD5(FilePath):
+    import hashlib
+    MD5Calculator = hashlib.md5()
+    assert utils_torch.ExistsFile(FilePath), FilePath
+    with open(FilePath, 'rb') as f:
+        bytes = f.read()
+    MD5Calculator.update(bytes)
+    MD5Str = MD5Calculator.hexdigest()
+    return MD5Str
+
+def FileList2MD5(FilePathList):
+    MD5List = []
+    for FilePath in FilePathList:
+        MD5 = File2MD5(FilePath)
+        MD5List.append(MD5)
+    return MD5List
+
+def ListFilesAndCalculateMD5(Dir):
+    Files = utils_torch.ListAllFiles(Dir)
+    Dict = {}
+    for File in Files:
+        MD5 = utils_torch.files.File2MD5(Dir + File)
+        Dict[File] = MD5
+    return Dict

@@ -173,16 +173,19 @@ def HasAttrs(Obj, attrs, *args, false_if_none=True):
 has_attrs = HasAttrs
 
 def ListAttrsAndValues(Obj, Exceptions=[], ExcludeCache=True):
+    Dict = dict(Obj.__dict__)
     if ExcludeCache:
-        Exceptions = [*Exceptions, "cache"]
-    AttrsAndValues = []
-    for attr, value in Obj.__dict__.items():
-        if attr not in Exceptions:
-            AttrsAndValues.append((attr, value))
-    return AttrsAndValues
+        Exceptions.append("cache")
+    for Exception in Exceptions:
+        if Exception in Dict:
+            Dict.pop(Exception)
+    return Dict.items()
 
-def ListAttrs(Obj):
-    return [attr for attr, value in Obj.__dict__.items()]
+def ListAttrs(Obj, ExcludeCache=True):
+    Dict = dict(Obj.__dict__)
+    if ExcludeCache:
+        Dict.pop("cache")
+    return Dict.keys()
 
 def ListValues(Obj):
     return Obj.__dict__.values()
