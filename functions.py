@@ -1,6 +1,33 @@
 import functools
 import utils_torch
 from utils_torch.attrs import *
+
+def StackFunctions(FunctionList, *Functions, Inverse=False, InputNum=1):
+    if isinstance(FunctionList, list):
+        if len(Functions)>0:
+            raise Exception()
+        Functions = FunctionList
+    else:
+        Functions = [FunctionList, *Functions]
+    
+    if len(Functions)==1:
+        return Functions[0]
+
+    if not Inverse:
+        # Function at head of list is called earlier.
+        # return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions, lambda x: x)
+        if InputNum == 0:
+            _Functions = functools.reduce(lambda f, g: lambda x: g(f(x)), Functions[1:])
+            return lambda :_Functions(Functions[0]())
+        elif InputNum == 1:
+            return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions)
+        else:
+            raise Exception("To Be Implemented")
+    else:
+        # Function at tail of list is called earlier
+        return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions)
+StackFunction = StackFunctions
+
 def ParseFunctionParamsStatic(paramList):
     for index, param in enumerate(paramList):
         paramList[index] = ParseFunctionParamStatic(param)
@@ -17,31 +44,6 @@ def ParseFunctionParamStatic(param, InPlace=False):
     else:
         raise Exception(type(param))
 
-def StackFunction(FunctionList, *Functions, Inverse=False, InputNum=1):
-    if isinstance(FunctionList, list):
-        if len(Functions)>0:
-            raise Exception()
-        Functions = FunctionList
-    else:
-        Functions = [FunctionList, *Functions]
-    
-    if len(Functions)==1:
-        return Functions[0]
-
-    if not Inverse:
-        # Function at head is called earlier.
-        #return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions, lambda x: x)
-        if InputNum == 0:
-            _Functions = functools.reduce(lambda f, g: lambda x: g(f(x)), Functions[1:])
-            return lambda :_Functions(Functions[0]())
-        elif InputNum == 1:
-            return functools.reduce(lambda f, g: lambda x: g(f(x)), Functions)
-        else:
-            raise Exception("To Be Implemented")
-    else:
-        # Function at tail is called earlier
-        return functools.reduce(lambda f, g: lambda x: f(g(x)), Functions)
-
 def CallFunctions(param, **kw):
     ContextInfo = kw
     Outputs = []
@@ -57,8 +59,11 @@ def CallFunctions(param, **kw):
     elif isinstance(param, str):
         Output = _CallFunction([param], ContextInfo)
         Outputs.append(Output)
+    elif callable(param): # Already parsed to methods.
+        Output = _CallFunction([param], ContextInfo)
+        Outputs.append(Output)        
     else:
-        raise Exception()
+        raise Exception(param)
     return Outputs
 
 def CallFunction(param, ContextInfo={}):

@@ -83,6 +83,7 @@ def PyObj2DataObj(Obj):
         return JsonObj
     else:
         return Obj
+
 def PyObj2JsonFile(Obj, FilePath):
     JsonStr = PyObj2JsonStr(Obj)
     JsonStr2JsonFile(JsonStr, FilePath)
@@ -205,12 +206,6 @@ def IsJsonObj(Obj):
     isinstance(Obj, tuple)
 
 import pickle
-def PyObj2DataFile(Obj, FilePath):
-    DataObj = PyObj2DataObj(Obj)
-    # if "VerticesNp" in DataObj:
-    #     print("aaa")
-    JsonObj2DataFile(DataObj, FilePath)
-
 def JsonObj2DataFile(Obj, FilePath):
     utils_torch.EnsureFileDir(FilePath)
     with open(FilePath, "wb") as f:
@@ -226,3 +221,191 @@ def DataFile2PyObj(FilePath):
     # if "VerticesNp" in DataObj:
     #     print("aaa")
     return JsonObj2PyObj(DataObj)
+
+def PyObj2DataFile(Obj, FilePath):
+    DataObj = PyObj2DataObj(Obj)
+    # if "VerticesNp" in DataObj:
+    #     print("aaa")
+    JsonObj2DataFile(DataObj, FilePath)
+
+def EmptyPyObj():
+    return PyObj()
+
+def CheckIsPyObj(Obj):
+    if not IsPyObj(Obj):
+        raise Exception("Obj is not PyObj, but %s"%type(Obj))
+
+def IsPyObj(Obj):
+    return isinstance(Obj, PyObj)
+
+def IsDictLikePyObj(Obj):
+    return isinstance(Obj, PyObj) and not Obj.IsListLike()
+
+def IsListLikePyObj(Obj):
+    return isinstance(Obj, PyObj) and Obj.IsListLike()
+
+class PyObjCache(object):
+    def __init__(self):
+        return
+
+class PyObj(object):
+    # Class that represents a json-like data structure, recursively.
+    # All instances are neither dict-like or list-like, resembling dicts or lists in json files.
+    def __init__(self, param=None, data=None, **kw):
+        self.cache = PyObjCache()
+        if param is not None:
+            if type(param) is dict:
+                self.FromDict(param)
+            elif type(param) is list:
+                self.FromList(param)
+            else:
+                raise Exception()
+    def __repr__(self):
+        return str(self.ToDict())
+    def __setitem__(self, key, value):
+        if hasattr(self, "__value__") and isinstance(self.__value__, list):
+            self.__value__[key] = value
+        else:
+            self.__dict__[key] = value
+    def __getitem__(self, index):
+        if hasattr(self, "__value__") and isinstance(self.__value__, list):
+            return self.__value__[index]
+        else:
+            return self.__dict__[index]
+    def __len__(self):
+        if self.IsListLike():
+            return len(self.__value__)
+        else:
+            return len(self.__dict__) - 1
+    def __str__(self):
+        return utils_torch.json.PyObj2JsonStr(self)
+    def FromList(self, List, InPlace=True):
+        ListParsed = []
+        for Index, Item in enumerate(List):
+            if type(Item) is dict:
+                ListParsed.append(PyObj(Item))
+            elif type(Item) is list:
+                ListParsed.append(PyObj(Item))
+            else:
+                ListParsed.append(Item)
+        if InPlace:
+            self.__value__ = ListParsed
+            return self
+        else:
+            return ListParsed
+    def __add__(self, PyObj2):
+        PyObj1 = self
+        if PyObj1.IsListLike() and PyObj2.IsListLike():
+            return PyObj1.__value__ + PyObj2.__value__
+        else: # To Be Implemented: suuport for DictLikePyObj
+            raise Exception()
+    def FromDict(self, Dict):
+        # Dict keys in form of "A.B.C" are supported.
+        # {"A.B": "C"} will be understood as {"A": {"B": "C"}}
+        for key, value in Dict.items():
+            if key in ["__ResolveRef__"]:
+                if not hasattr(self, "__ResolveRef__"):
+                    setattr(self.cache, key, value)
+                continue
+            
+            if "." in key: # and "|-->" not in key:
+                keys = key.split(".")
+            else:
+                keys = [key]
+            utils_torch.python.CheckIsLegalPyName(keys[0])
+            obj = self
+            parent, parentAttr = None, None
+            for index, key in enumerate(keys):
+                if index == len(keys) - 1:
+                    if hasattr(obj, key):
+                        valueOld = getattr(obj, key) 
+                        if isinstance(valueOld, PyObj) and valueOld.IsDictLike():
+                            if isinstance(value, PyObj) and value.IsDictLike():
+                                valueOld.FromPyObj(value)
+                            elif isinstance(value, dict):
+                                valueOld.FromDict(value)
+                            else:
+                                # if hasattr(value, "__value__"):
+                                #     utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
+                                #         %(key, getattr(obj, key), value))                                       
+                                setattr(valueOld, "__value__", value)
+                        else:
+                            # utils_torch.AddWarning("PyObj: Overwriting key: %s. Original Value: %s, New Value: %s"\
+                            #     %(key, valueOld, value))
+                            setattr(obj, key, self.ProcessValue(key, value))
+                    else:
+                        if isinstance(obj, PyObj):
+                            setattr(obj, key, self.ProcessValue(key, value))
+                        else:
+                            setattr(parent, parentAttr, PyObj({
+                                "__value__": obj,
+                                key: self.ProcessValue(key, value)
+                            }))
+                else:
+                    if hasattr(obj, key):
+                        parent, parentAttr = obj, key
+                        obj = getattr(obj, key)
+                    else:
+                        if isinstance(obj, PyObj):
+                            setattr(obj, key, PyObj())
+                            parent, parentAttr = obj, key
+                            obj = getattr(obj, key)
+                        else:
+                            setattr(parent, parentAttr, PyObj({
+                                "__value__": obj,
+                                key: PyObj()
+                            }))
+                            obj = getattr(parent, parentAttr)
+                            parent, parentAttr = obj, key
+                            obj = getattr(obj, key)
+        return self
+    def FromPyObj(self, Obj):
+        self.FromDict(Obj.__dict__)
+    def ProcessValue(self, key, value):
+        if isinstance(value, dict):
+            return PyObj(value)
+        elif isinstance(value, list):
+            if key in ["__value__"]:
+                return self.FromList(value, InPlace=False)
+            else:
+                return PyObj(value)
+        elif type(value) is PyObj:
+            return value
+        else:
+            return value
+    def ToList(self):
+        if not self.IsListLike():
+            raise Exception()
+        return self.__value__
+    def ToDict(self):
+        Dict = dict(self.__dict__)
+        Dict.pop("cache")
+        return Dict
+    def IsListLike(self):
+        return hasattr(self, "__value__") and isinstance(self.__value__, list)
+    def IsDictLike(self):
+        return not self.IsListLike()
+    def SetResolveBase(self, value=True):
+        if value:
+            self.__ResolveBase__ = True
+        else:
+            if hasattr(self, "__ResolveBase__"):
+                delattr(self, "__ResolveBase__")
+    def IsResolveBase(self):
+        if hasattr(self, "__ResolveBase__"):
+            if self.__ResolveBase__==True or self.__ResolveBase__ in ["here"]:
+                return True
+        return False
+    def append(self, content):
+        if not self.IsListLike():
+            raise Exception()
+        self.__value__.append(content)
+    def ToDict(self):
+        Dict = {}
+        for key, value in ListAttrsAndValues(self, Exceptions=["__ResolveRef__"]):
+            if type(value) is PyObj:
+                value = value.ToDict()
+            Dict[key] = value
+        return Dict
+    def Items(self):
+        return ListAttrsAndValues(self)

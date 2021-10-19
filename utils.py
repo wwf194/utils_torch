@@ -1182,7 +1182,7 @@ def RegisterExternalMethods(Name, Method):
     setattr(ExternalMethods, Name, Method)
 
 def Bytes2Str(Bytes, Format="utf-8"):
-    return Bytes.decode(Format)
+    return str(Bytes, encoding = "utf-8")
 
 def Str2Bytes(Str, Format="utf-8"):
     return Str.decode(Format)
