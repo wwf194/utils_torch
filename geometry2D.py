@@ -8,7 +8,7 @@ T = np.array([[0, -1], [1, 0]])
 # @Reference https://blog.csdn.net/daming98/article/details/79561777
 # @Reference https://segmentfault.com/a/1190000004457595?ref=myread
 def HasIntersection(A, B, C, D, Threshold=1.0e-9): 
-    # @param A, B, C, D np.ndarray [PointNum, (x, y)]
+    # A, B, C, D np.ndarray [PointNum, (x, y)]
     # Judge whether segment AB intersects CD.
     AC = C - A
     AD = D - A
@@ -21,7 +21,7 @@ def DirectionsLengths2XYsNp(Directions, Lengths):
 DirectionsLengths2XYs = DirectionsLengths2XYsNp
 
 def FlipAroundNorms(Directions, Norms):
-    # @param Norms: must be of length 1. with shape [PointNum, 2]
+    # Norms: must be of length 1. with shape [PointNum, 2]
     Projections = np.sum(Directions * Norms, axis=1)
     Verticals = Directions - Projections
     return Verticals - Projections
@@ -30,8 +30,8 @@ def FlipAroundNormsAngle(Directions, Norms):
     return 2 * Norms - Directions + np.pi
 
 def RectangleAContainsRectangleB(RectangleA, RectangelB, Strict=False):
-    # @param RectangleA: list. [XMin, YMin, XMax, YRange]
-    # @param RectangleB: list. [XMin, YMin, XMax, YRange]
+    # RectangleA: list. [XMin, YMin, XMax, YRange]
+    # RectangleB: list. [XMin, YMin, XMax, YRange]
     if not Strict:
         Condition1 = RectangleA[0] <= RectangelB[0]
         Condition2 = RectangleA[1] <= RectangelB[1]
@@ -138,7 +138,7 @@ def XY2Polar(x, y):
     return cmath.polar(complex(x, y))
 
 def XY2PolarNp(PointsNp):
-    # @param PointsNp: np.ndarray with shape [PointNum, (x, y)]
+    # PointsNp: np.ndarray with shape [PointNum, (x, y)]
     Radius = np.linalg.norm(PointsNp, axis=-1)
     PolarsNp = np.stack([np.cos(Radius), np.sin(Radius)], axis=1)
     return PolarsNp
@@ -291,7 +291,7 @@ def XYs2PixelIndices(XYs, BoundaryBox, ResolutionX, ResolutionY):
     return np.around(XYIndices).astype(np.int32) # np.astype(np.int) do floor, not round.
 
 def PixelIndex2XYs(xIndex, yIndex, BoundaryBox, ResolutionX, ResolutionY):
-    # @param Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
+    # Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
     XMin, XMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.YRange, BoundaryBox.YMin, BoundaryBox.YMax
     XRange = XMax - XMin
     YRange = YMax - YMin
@@ -302,7 +302,7 @@ def PixelIndex2XYs(xIndex, yIndex, BoundaryBox, ResolutionX, ResolutionY):
     return xIndex * PixelWidth + XMin + PixelHalfWidth, yIndex * PixelHeight  + YMin + PixelHalfHeight
 
 def PixelIndices2XYs(Indices, BoundaryBox, ResolutionX, ResolutionY):
-    # @param Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
+    # Indices: np.ndarray with shape [PointNum, (xIndex, yIndex)]
     XMin, XMax, YMin, YMax = BoundaryBox.XMin, BoundaryBox.XMax, BoundaryBox.YMin, BoundaryBox.YMax
     XRange = XMax - XMin
     YRange = YMax - YMin

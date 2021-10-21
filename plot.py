@@ -70,7 +70,7 @@ def PlotArrowAndMarkVerticesXY(ax, PointStart, PointEnd, Width=0.001, Color=Colo
     PlotPointAndMarkXY(ax, PointEnd)
 
 def PlotLinePlt(ax, PointStart, PointEnd, Width=1.0, Color=ColorPlt.Black, Style="-"):
-    # @param Width: Line Width in points(?pixels)
+    # Width: Line Width in points(?pixels)
     X = [PointStart[0], PointEnd[0]]
     Y = [PointStart[1], PointEnd[1]]
     line = ax.add_line(Line2D(X, Y))
@@ -291,7 +291,7 @@ def PlotArrowPlt(ax, XYStart, dXY, Width=0.001, HeadWith=0.05, HeadLength=0.1, C
     )
 
 def PlotPolyLineFromVerticesPlt(ax, Points, Color=ColorPlt.Black, Width=2.0, Closed=False):
-    # @param Points: np.ndarray with shape [PointNum, (x,y)]
+    # Points: np.ndarray with shape [PointNum, (x,y)]
     Points = ToList(Points)
     PointNum = len(Points)
     if Closed:
@@ -781,7 +781,7 @@ def cat_imgs(imgs, ColNum=10, space_Width=4): # images: [num, Width, Height, cha
     return np.concatenate(imgs_rows, axis=1)
 
 def ParseRowColNum(PlotNum, RowNum=None, ColNum=None):
-    # @param ColNum: int. Column Number.
+    # ColNum: int. Column Number.
     if RowNum in ["Auto", "auto"]:
         RowNum = None
     if ColNum in ["Auto", "auto"]:
@@ -1010,7 +1010,7 @@ def ParseColorBarOrientation(Orientation):
     return Orientation
 
 def PlotColorBarInSubAx(ax, ColorMap="jet", Method="MinMax", Orientation="Vertical", Location=None, **kw):
-    # @param Location: [Left, Bottom, Width, Height]
+    # Location: [Left, Bottom, Width, Height]
     Orientation = ParseColorBarOrientation(Orientation)
     Location = ParseColorBarLocation(Location, Orientation)
     axSub = GetSubAx(ax, *Location)

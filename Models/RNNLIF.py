@@ -37,12 +37,13 @@ class RNNLIF(nn.Module):
         else:
             utils_torch.AddLog("RNNLIF: Loading...")
         CheckAttrs(param, "Type", value="RNNLIF")
-        self.param = param
+
         Neurons = param.Neurons
         EnsureAttrs(Neurons.Recurrent, "IsExciInhi", value=True)
         if GetAttrs(Neurons.Recurrent.IsExciInhi):
             EnsureAttrs(Neurons, "Recurrent.Excitatory.Ratio", default=0.8)
 
+        cache.NeuronNum = Neurons.Recurrent.Num
         self.BuildModules()
         self.InitModules()
 
@@ -56,6 +57,12 @@ class RNNLIF(nn.Module):
             utils_torch.AddLog("RNNLIF: Initialized.")
         else:
             utils_torch.AddLog("RNNLIF: Loaded.")
+    def GenerateZeroInitState(self, RefInput):
+        data = self.data
+        cache = self.cache
+        BatchSize = RefInput.size(0)
+        InitState = torch.zeros((BatchSize, cache.NeuronNum * 2), device=self.GetTensorLocation(), requires_grad=False)
+        return InitState
     def anal_weight_change_(self):
         for name, value in self.named_parameters():
             #if name in ['encoder.0.weight','encoder.2.weight']:

@@ -47,6 +47,49 @@ def NotifyBatchNum(ObjList, BatchNum):
     for Obj in ObjList:
         Obj.NotifyBatchNum(BatchNum)
 
+class TrainerForEpochBatchTraining:
+    def __init__(self, param, **kw):
+        utils_torch.model.InitForNonModel(self, param, **kw)
+    def InitFromParam(self, IsLoad=True):
+        param = self.param
+        cache = self.cache
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        self.BuildModules()
+        self.ParseRouters()
+        self.ClearEpoch()
+        self.ClearBatch()
+    def SetBatchNum(self, BatchNum):
+        self.cache.BatchNum = BatchNum
+    def SetEpochNum(self, EpochNum):
+        self.cache.EpochNum = EpochNum
+    def ClearBatch(self):
+        self.cache.BatchIndex = 0
+    def ClearEpoch(self):
+        self.cache.EpochIndex = 0
+    def AddBatch(self):
+        self.cache.BatchIndex += 1
+    def AddEpoch(self):
+        self.cache.EpochIndex += 1
+    def NotifyEpochIndex(self):
+        cache = self.cache
+        for Obj in self.cache.NotifyEpochBatchList:
+            Obj.NotifyEpochIndex(cache.EpochIndex)
+    def NotifyBatchIndex(self):
+        cache = self.cache
+        for Obj in self.cache.NotifyEpochBatchList:
+            Obj.NotifyBatchIndex(cache.BatchIndex)
+    def NotifyEpochNum(self):
+        cache = self.cache
+        for Obj in self.cache.NotifyEpochBatchList:
+            Obj.NotifyEpochNum(cache.EpochNum)
+    def NotifyBatchNum(self):
+        cache = self.cache
+        for Obj in self.cache.NotifyEpochBatchList:
+            Obj.NotifyBatchNum(cache.BatchNum)
+    def __call__(self):
+        utils_torch.CallGraph(self.Dynamics.Main)
+
+utils_torch.model.SetMethodForNonModelClass(TrainerForEpochBatchTraining)
 
 def TrainEpochBatch(param, **kw):
     kw["ObjCurrent"] = param
@@ -95,14 +138,8 @@ def TrainEpochBatch(param, **kw):
             
             # Save and Reload.
             if CheckPointSave.AddBatchAndReturnIsCheckPoint():
-                # print(
-                #     utils_torch.GlobalParam.object.agent.Modules.model.Modules.Recurrent.cache.Modules.FiringRate2RecurrentInput.data.Weight[0,0:5]
-                # )
                 SaveAndLoad(EpochIndex, BatchIndex, **kw)
                 Routers = ParseRoutersFromTrainParam(param, **kw)
-                # print(
-                #     utils_torch.GlobalParam.object.agent.Modules.model.Modules.Recurrent.cache.Modules.FiringRate2RecurrentInput.data.Weight[0,0:5]
-                # )
             
             # Do analysis
             if CheckPointAnalyze.AddBatchAndReturnIsCheckPoint():
@@ -115,14 +152,11 @@ def TrainEpochBatch(param, **kw):
                 )
                 
 def ParseRoutersFromTrainParam(param, **kw):
-    RouterTrain = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Train, ObjRefList=[param.Batch.Train], **kw)
-    RouterTest = utils_torch.router.ParseRouterStaticAndDynamic(param.Batch.Test, ObjRefList=[param.Batch.Test], **kw)
-    RouterIn = utils_torch.parse.ParsePyObjDynamic(param.Batch.Input, **kw)
-    return utils_torch.PyObj({
-        "Train": RouterTrain,
-        "Test": RouterTest,
-        "In": RouterIn
-    })
+    Routers = utils_torch.PyObj()
+    for Name, RouterParam in ListAttrsAndValues(param.Batch.Routers):
+        Router = utils_torch.router.ParseRouterStaticAndDynamic(RouterParam, ObjRefList=[RouterParam, param], **kw)
+        setattr(Routers, Name, Router)
+    return Routers
 
 def SaveAndLoad(EpochIndex, BatchIndex, **kw):
     SaveDir = utils_torch.SetSubSaveDirEpochBatch("SavedModel", EpochIndex, BatchIndex)
@@ -276,20 +310,29 @@ def ParseEpochBatchFromStr(Str):
     BatchIndex = int(MatchResult.group(2))
     return EpochIndex, BatchIndex
 
-def ParseTrainParamEpochBatch(param):
+def ParseOptimizeParamEpochBatch(param):
     EnsureAttrs(param, "Nesterov", value=False)
     EnsureAttrs(param, "Dampening", value=0.0)
     EnsureAttrs(param, "Momentum", value=0.0)
 
-class CheckPoint:
-    def __init__(self):
+def BuildCheckPoint(param):
+    checkPoint = CheckPoint(param)
+    checkPoint.InitFromParam()
+    return checkPoint
+
+class CheckPointForEpochBatchTraining:
+    def __init__(self, param):
+        self.param = param
         return
-    def SetCheckPoint(self, EpochNum, BatchNum, IncreaseCoefficient=1.5, IntervalStart=10, IntervalMax=None):
-        if IntervalMax is None:
-            IntervalMax = 10 * BatchNum
-        self.CheckPointList = GetCheckPointListEpochBatch(
-            EpochNum, BatchNum, IncreaseCoefficient, IntervalStart, IntervalMax
-        )
+    def InitFromParam(self):
+        # Intervals are calculated in batches, not epochs.
+        param = self.param
+        assert HasAttrs(param, "Epoch.Num")
+        assert HasAttrs(param, "Batch.Num")
+        EnsureAttrs(param, "Interval.IncreaseCoefficient", value=1.5)
+        EnsureAttrs(param, "Interval.Start", value=10)
+        EnsureAttrs(param, "Interval.Max", value=10 * param.BatchNum)
+        self.CheckPointList = GetCheckPointListEpochBatch(param)
         self.BatchIndex = -1
         self.CheckPointNextIndex = 0
         self.CheckPointNext = self.CheckPointList[self.CheckPointNextIndex]
@@ -301,20 +344,19 @@ class CheckPoint:
             self.CheckPointNextIndex += 1
             self.CheckPointNext = self.CheckPointList[self.CheckPointNextIndex]
         return IsCheckPoint
-
-def GetCheckPointListEpochBatch(EpochNum, BatchNum, IncreaseCoefficient=1.5, IntervalStart=10, IntervalMax=None):
-    BatchNumTotal = EpochNum * BatchNum
+    
+def GetCheckPointListEpochBatch(param):
+    BatchNumTotal = param.EpochNum * param.BatchNum
     CheckPointBatchIndices = []
     BatchIndexTotal = 0
     CheckPointBatchIndices.append(BatchIndexTotal)
-
-    Interval = IntervalStart
+    Interval = param.Interval.Start
     while BatchIndexTotal < BatchNumTotal:
         BatchIndexTotal += round(Interval)
         CheckPointBatchIndices.append(BatchIndexTotal)
-        Interval *= IncreaseCoefficient
-        if Interval > IntervalMax:
-            Interval = IntervalMax
+        Interval *= param.Interval.IncreaseCoefficient
+        if Interval > param.Interval.Max:
+            Interval =param.Interval.Max
     return CheckPointBatchIndices
 
 def ClearGrad(weights):

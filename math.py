@@ -27,7 +27,7 @@ def IsAllNaNOrInf(data):
     return (np.isnan(data) | np.isinf(data)).all()
 
 def RemoveNaNOrInf(data):
-    # @param data: 1D np.ndarray.
+    # data: 1D np.ndarray.
     return data[np.isfinite(data)]
 
 def TorchTensorStat(tensor, verbose=False, ReturnType="PyObj"):
@@ -124,20 +124,23 @@ def Norm2GivenMeanStdNp(data, Mean, Std, StdThreshold=1.0e-9):
 
 Norm2GivenMeanStd = Norm2GivenMeanStdNp
 
-def ToMean0Std1Torch(data, axis=None, StdThreshold=1.0e-9):
+def Norm2Mean0Std1Torch(data, axis=None, StdThreshold=1.0e-9):
     std = torch.std(data, dim=axis, keepdim=True)
     mean = torch.mean(data, dim=axis, keepdim=True)
     # if std < StdThreshold:
     #     utils_torch.AddWarning("ToMean0Std1Np: StandardDeviation==0.0")
     #     return data - mean
     # else:
-
-
     # To Be Implemented: Deal with std==0.0
     return (data - mean) / std
 
+def Norm2Mean0Std1Np(data, axis=None, StdThreshold=1.0e-9):
+    std = np.std(data, axis=axis, keepdim=True)
+    mean = np.mean(data, axis=axis, keepdim=True)
+    return (data - mean) / std
+
 def Norm2Sum1(data, axis=None):
-    # @param data: np.ndarray. Non-negative.
+    # data: np.ndarray. Non-negative.
     data / np.sum(data, axis=axis, keepdims=True)
 
 def Norm2Range01(data, axis=None):
@@ -199,8 +202,8 @@ def CalculatePearsonCoefficientMatrix(dataA, dataB):
     dataAGPU = utils_torch.ToTorchTensor(dataA).to(Location)
     dataBGPU = utils_torch.ToTorchTensor(dataB).to(Location)
 
-    dataANormed = ToMean0Std1Torch(dataAGPU, axis=0)
-    dataBNormed = ToMean0Std1Torch(dataBGPU, axis=0)
+    dataANormed = Norm2Mean0Std1Torch(dataAGPU, axis=0)
+    dataBNormed = Norm2Mean0Std1Torch(dataBGPU, axis=0)
 
     CorrelationMatrix = torch.mm(dataANormed.permute(1, 0), dataBNormed) / SampleNum
     CorrelationMatrix = utils_torch.TorchTensor2NpArray(CorrelationMatrix)
@@ -261,3 +264,31 @@ def CalculateBinnedMeanAndStd(
         return utils_torch.Dict2GivenType(BinStats, ReturnType)
     else:
         raise Exception(BinMethod)
+
+import sklearn
+from sklearn.decomposition import PCA
+from mpl_toolkits.mplot3d import Axes3D
+
+class Analyzer_PCA:
+    def __init__(self, dim_num=3):
+        self.pca = PCA(n_components=dim_num)
+    def fit(self, data): #data:[sample_num, feature_size]
+        self.pca.fit(data)
+    def visualize_traj(self, trajs): #data:[traj_num][traj_length, N_num]
+        fig, ax = utils_torch.plot.CreateFigurePlt()
+        plt.title("Neural Trajectories")
+        ax = fig.gca(projection='3d')
+        mpl.rcParams['legend.fontsize'] = 10
+        for traj in trajs:
+            traj_trans = self.pca.transform(traj) #[dim_num, traj_length]
+            ax.plot(traj_trans[:,0], traj_trans[:, 1], traj_trans[:, 2], label='parametric curve')
+        plt.show()
+        plt.savefig("./trajs_PCA3d.png")
+
+def PCA(data):
+    data = utils_torch.ToNpArray(data)
+
+    return
+
+PrincipalComponentAnalysis = PCA
+

@@ -574,8 +574,10 @@ def ContainAll(List, Items, *args):
             return False
     return True
 
+import timeout_decorator
+
 def CallFunctionWithTimeLimit(TimeLimit, Function, *Args, **ArgsKw):
-    # @param TimeLimit: in seconds.
+    # TimeLimit: in seconds.
     event = threading.Event()
 
     FunctionThread = threading.Thread(target=NotifyWhenFunctionReturn, args=(event, Function, *Args), kwargs=ArgsKw)
@@ -584,8 +586,9 @@ def CallFunctionWithTimeLimit(TimeLimit, Function, *Args, **ArgsKw):
 
     TimerThread = threading.Thread(target=NotifyWhenFunctionReturn, args=(event, ReturnInGivenTime, TimeLimit))
     TimerThread.setDaemon(True)
+    # So that this thread will be forced to terminate with the thread calling this function.
+    # Which does not satisfy requirement. We need this thread to terminate when this function returns.
     TimerThread.start()
-
     event.wait()
     return 
 
@@ -594,7 +597,7 @@ def NotifyWhenFunctionReturn(event, Function, *Args, **ArgsKw):
     event.set()
 
 def ReturnInGivenTime(TimeLimit, Verbose=True):
-    # @param TimeLimit: float or int. In Seconds.
+    # TimeLimit: float or int. In Seconds.
     if Verbose:
         utils_torch.AddLog("Start counding down. TimeLimit=%d."%TimeLimit)
     time.sleep(TimeLimit)
@@ -962,89 +965,6 @@ def TargetDir_module(path):
     path =  path.replace('/','.')
     return path
 
-def select_file(name, candidate_files, default_file=None, match_prefix='', match_suffix='.py', file_type='', raise_no_match_error=True):
-    use_default_file = False
-    perfect_match = False
-    if name is None:
-        use_default_file = True
-    else:
-        matched_count = 0
-        matched_files = []
-        perfect_match_name = None
-        if match_prefix + name + match_suffix in candidate_files: # perfect match. return this file directly
-            perfect_match_name = match_prefix + name + match_suffix
-            perfect_match = True
-            matched_files.append(perfect_match_name)
-            matched_count += 1
-        for file_name in candidate_files:
-            if name in file_name:
-                if file_name!=perfect_match_name:
-                    matched_files.append(file_name)
-                    matched_count += 1
-        #print(matched_files)
-        if matched_count==1: # only one matched file
-            return matched_files[0]
-        elif matched_count>1: # multiple files matched
-            warning = 'multiple %s files matched: '%file_type
-            for file_name in matched_files:
-                warning += file_name
-                warning += ' '
-            warning += '\n'
-            if perfect_match:
-                warning += 'Using perfectly matched file: %s'%matched_files[0]
-            else:
-                warning += 'Using first matched file: %s'%matched_files[0]
-            warnings.warn(warning)
-            return matched_files[0]
-        else:
-            warnings.warn('No file matched name: %s. Trying using default %s file.'%(str(name), file_type))
-            use_default_file = True
-    if use_default_file:
-        if default_file is not None:
-            if default_file in candidate_files:
-                print('Using default %s file: %s'%(str(file_type), default_file))
-                return default_file
-            else:
-                sig = True
-                for candidate_file in candidate_files:
-                    if default_file in candidate_file:
-                        print('Using default %s file: %s'%(str(file_type), candidate_file))
-                        sig = False
-                        return candidate_file
-                if not sig:
-                    if raise_no_match_error:
-                        raise Exception('Did not find default %s file: %s'%(file_type, str(default_file)))
-                    else:
-                        return None
-        else:
-            if raise_no_match_error:
-                raise Exception('Plan to use default %s file. But default %s file is not given.'%(file_type, file_type))
-            else:
-                return None
-    else:
-        return None
-
-
-def visit_path(args=None, func=None, recur=False, path=None):
-    if func is None:
-        func = args.func   
-    if path is None:
-        path = args.path
-    else:
-        func = None
-        warnings.warn('visit_dir: func is None.')
-    filepaths=[]
-    abspath = os.path.abspath(path) # relative path also works well
-    for name in os.listdir(abspath):
-        file_path = os.path.join(abspath, name)
-        if os.path.isdir(file_path):
-            if recur:
-                visit_path(args=args, func=func, recur=True)
-        else:
-            func(args=args, file_path=file_path)
-    return filepaths
-
-visit_dir = visit_path
 
 def GetAllMethodsOfModule(ModulePath):
     from inspect import getmembers, isfunction
@@ -1186,3 +1106,29 @@ def Bytes2Str(Bytes, Format="utf-8"):
 
 def Str2Bytes(Str, Format="utf-8"):
     return Str.decode(Format)
+
+
+KB = 1024
+MB = 1048576
+GB = 1073741824
+TB = 1099511627776
+
+
+def ByteNum2Str(ByteNum):
+    if ByteNum < KB:
+        Str = "%d B"%ByteNum
+    elif ByteNum < MB:
+        Str = "%.3f KB"%(1.0 * ByteNum / KB)
+    elif ByteNum < GB:
+        Str = "%.3f MB"%(1.0 * ByteNum / MB)
+    elif ByteNum < TB:
+        Str = "%.3f GB"%(1.0 * ByteNum / GB)
+    else:
+        Str = "%.3f TB"%(1.0 * ByteNum / TB)
+    return Str
+
+def Unzip(*Lists):
+    return zip(*Lists)
+
+def Zip(*Lists):
+    return zip(*Lists)

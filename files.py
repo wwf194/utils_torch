@@ -394,3 +394,90 @@ def ListFilesAndCalculateMD5(Dir):
         MD5 = utils_torch.files.File2MD5(Dir + File)
         Dict[File] = MD5
     return Dict
+
+
+def select_file(name, candidate_files, default_file=None, match_prefix='', match_suffix='.py', file_type='', raise_no_match_error=True):
+    use_default_file = False
+    perfect_match = False
+    if name is None:
+        use_default_file = True
+    else:
+        matched_count = 0
+        matched_files = []
+        perfect_match_name = None
+        if match_prefix + name + match_suffix in candidate_files: # perfect match. return this file directly
+            perfect_match_name = match_prefix + name + match_suffix
+            perfect_match = True
+            matched_files.append(perfect_match_name)
+            matched_count += 1
+        for file_name in candidate_files:
+            if name in file_name:
+                if file_name!=perfect_match_name:
+                    matched_files.append(file_name)
+                    matched_count += 1
+        #print(matched_files)
+        if matched_count==1: # only one matched file
+            return matched_files[0]
+        elif matched_count>1: # multiple files matched
+            warning = 'multiple %s files matched: '%file_type
+            for file_name in matched_files:
+                warning += file_name
+                warning += ' '
+            warning += '\n'
+            if perfect_match:
+                warning += 'Using perfectly matched file: %s'%matched_files[0]
+            else:
+                warning += 'Using first matched file: %s'%matched_files[0]
+            warnings.warn(warning)
+            return matched_files[0]
+        else:
+            warnings.warn('No file matched name: %s. Trying using default %s file.'%(str(name), file_type))
+            use_default_file = True
+    if use_default_file:
+        if default_file is not None:
+            if default_file in candidate_files:
+                print('Using default %s file: %s'%(str(file_type), default_file))
+                return default_file
+            else:
+                sig = True
+                for candidate_file in candidate_files:
+                    if default_file in candidate_file:
+                        print('Using default %s file: %s'%(str(file_type), candidate_file))
+                        sig = False
+                        return candidate_file
+                if not sig:
+                    if raise_no_match_error:
+                        raise Exception('Did not find default %s file: %s'%(file_type, str(default_file)))
+                    else:
+                        return None
+        else:
+            if raise_no_match_error:
+                raise Exception('Plan to use default %s file. But default %s file is not given.'%(file_type, file_type))
+            else:
+                return None
+    else:
+        return None
+
+def ToAbsPath(Path):
+    return os.path.abspath(Path)
+
+def VisitDirAndApplyMethod(Dir=None, Method=None, Recur=False, ):
+    if func is None:
+        func = args.func   
+    if path is None:
+        path = args.path
+    else:
+        func = None
+        warnings.warn('visit_dir: func is None.')
+    filepaths=[]
+    abspath = os.path.abspath(path) # relative path also works well
+    for name in os.listdir(abspath):
+        file_path = os.path.join(abspath, name)
+        if os.path.isdir(file_path):
+            if recur:
+                visit_path(args=args, func=func, recur=True)
+        else:
+            Method(FilePath)
+    return filepaths
+
+visit_dir = visit_path

@@ -2,12 +2,17 @@ import re
 import sys
 import torch
 
-def GetPyTorchInfo():
+import utils_torch
+
+def ReportPyTorchInfo():
+    Report = ""
     if torch.cuda.is_available():
-        print("Cuda is available")
+        Report += "Cuda is available"
     else:
-        print("Cuda is unavailable")
-    print("Torch version:"+torch.__version__)
+        Report += "Cuda is unavailable"
+    Report += "\n"
+    Report += "Torch version:"+torch.__version__
+    return Report
 
 def GetSystemType():
     if re.match(r'win',sys.platform) is not None:
@@ -18,3 +23,9 @@ def GetSystemType():
         SystemType = 'unknown'
     return SystemType
 
+def GetBytesInMemory(Obj):
+    return sys.getsizeof(Obj)
+
+def ReportMemoryOccupancy(Obj):
+    ByteNum = GetBytesInMemory(Obj)
+    return utils_torch.ByteNum2Str(Obj)

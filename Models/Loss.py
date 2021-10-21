@@ -33,7 +33,7 @@ def GetLossMethod(param, **kw):
 
 def CrossEntropyLossForTargetProbabilities(Output, ProbabilitiesTarget, Method='Average'):
     # Output: [SampleNum, OutputNum]
-    # ProbabilitiesTarget: [SampleNum, OutputNum], must be positive and sum to 1 on axis 1.
+    # ProbabilitiesTarget: [SampleNum, OutputNum], must be positive, and sum to 1 on axis 1.
     LogProbabilities = -F.log_softmax(Output, dim=1) # [SampleNum, OutputNum]
     BatchSize = Output.shape[0]
     CrossEntropy = torch.sum(LogProbabilities * ProbabilitiesTarget, axis=1) # [SampleNum]

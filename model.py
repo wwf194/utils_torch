@@ -43,6 +43,8 @@ def BuildModule(param, **kw):
         return utils_torch.Models.Loss.GetLossMethod(param, **kw)
     elif param.Type in ["GradientDescend"]:
         return utils_torch.Models.Operators.GradientDescend(param, **kw)
+    elif param.Type in ["CheckPointForEpochBatchTraining"]:
+        return utils_torch.train.CheckPointForEpochBatchTraining(param, **kw)
     elif param.Type in ["Internal"]:
         utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
         raise Exception()
@@ -466,6 +468,10 @@ def InitFromParamForModel(self, IsLoad):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
+def InitForNonModel(self, param=None, data=None, ClassPath=None, **kw):
+    InitForModel(self, param, data, ClassPath, HasTensors=False, **kw)
+    return
+
 def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     LoadDir = kw.get("LoadDir")
     FullName = kw.setdefault("FullName", "Unnamed")
@@ -494,7 +500,10 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     
     cache.Modules = utils_torch.EmptyPyObj()
     cache.Dynamics = utils_torch.EmptyPyObj()
-    cache.Tensors = []
+
+    HasTensors = kw.setdefault("HasTensors", True)
+    if HasTensors:
+        cache.Tensors = []
 
     self.param = param
     self.data = data
@@ -736,7 +745,7 @@ def SetMethodForModelClass(Class):
     Class.LogFloat = LogFloatForModel
     Class.LogLoss = LogLossForModel
 
-def SetMethodForWorldClass(Class):
+def SetMethodForNonModelClass(Class):
     if not hasattr(Class, "SetFullName"):
         Class.SetFullName = SetFullNameForModel
     if not hasattr(Class, "Save"):

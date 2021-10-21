@@ -324,6 +324,14 @@ def SetGlobalParam(GlobalParam):
 def GetGlobalParam():
     return utils_torch.GlobalParam
 
+def GetDatasetDir(Type):
+    GlobalParam = utils_torch.GetGlobalParam()
+    Attrs = "config.Dataset.%s.Dir"%Type
+    if not HasAttrs(GlobalParam, Attrs):
+        raise Exception()
+    else:
+        return GetAttrs(GlobalParam, Attrs)
+
 def SetMainSaveDir(SaveDir=None, Name=None, GlobalParam=None):
     if GlobalParam is None:
         GlobalParam = utils_torch.GetGlobalParam()

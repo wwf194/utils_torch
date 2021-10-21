@@ -61,10 +61,12 @@ def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
     )
     for Routing in RouterParsed.Routings:
         if "RepeatTime" not in Routing.OnlineParseAttrs:
-            Routing.cache.RepeatTime = Routing.RepeatTime 
+            Routing.cache.RepeatTime = Routing.RepeatTime
+        if "Condition" not in Routing.OnlineParseAttrs:
+            Routing.cache.Condition = Routing.Condition
     return RouterParsed
 
-def ParseRoutingAttrsDynamic(Routing, States):
+def ParseRoutingAttrsOnline(Routing, States):
     #utils_torch.parse.RedirectPyObj(Routing, States)
     for attr in Routing.OnlineParseAttrs:
         value = GetAttrs(Routing, attr)    
@@ -146,6 +148,7 @@ def ParseRoutingStatic(Routing):
         setattr(param, _Attr, value)
 
     EnsureAttrs(param, "RepeatTime", value=1)
+    EnsureAttrs(param, "Condition", value=True)
 
     param.cache.RepeatTime = param.RepeatTime
     param.OnlineParseAttrs = []
