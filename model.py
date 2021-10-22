@@ -61,9 +61,9 @@ def BuildModuleFromType(param, **kw):
         #return None
     elif param.Type in ["Dataset"]:
         utils_torch.Datasets.BuildObj(param)
-    elif param.Type in ["Loss"]:
-        utils_torch.Loss.BuildObj(param)
-    elif utils_torch.Models.Operators.IsLegalType(param.Type):
+    elif utils_torch.Loss.IsLegalModuleType(param):
+        utils_torch.Loss.BuildModule(param)
+    elif utils_torch.Models.Operators.IsLegalModuleType(param.Type):
         return utils_torch.Models.Operators.BuildModule(param, **kw)
     elif hasattr(param, "ModulePath"):
         Module = utils_torch.ImportModule(param.ModulePath)
@@ -491,7 +491,7 @@ def DoTasksForModel(Tasks, **kw):
     utils_torch.DoTasks(Tasks, **kw)
 
 def InitForNonModel(self, param=None, data=None, ClassPath=None, **kw):
-    InitForModel(self, param, data, ClassPath, HasTensors=False, **kw)
+    InitForModel(self, param, data, ClassPath, HasTensor=False, **kw)
     return
 
 def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
@@ -523,8 +523,8 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     cache.Modules = utils_torch.EmptyPyObj()
     cache.Dynamics = utils_torch.EmptyPyObj()
 
-    HasTensors = kw.setdefault("HasTensors", True)
-    if HasTensors:
+    HasTensor = kw.setdefault("HasTensor", True)
+    if HasTensor:
         cache.Tensors = []
 
     self.param = param

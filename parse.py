@@ -345,9 +345,9 @@ def ParsePyObjStatic(Obj, **kw):
     kw.setdefault("WithinJson", True)
     kw.setdefault("RecurDepth", 1)
     InPlace = kw.setdefault("InPlace", True)
-    ObjRoot = kw.setdefault("ObjRoot", None)
-    ObjCurrent = kw.setdefault("ObjCurrent", None)
-    _ParseResolveBaseInPlace(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent, ParsedObj=defaultdict(lambda:None))
+    ObjCurrent = kw.setdefault("ObjCurrent", Obj)
+    ObjRoot = kw.setdefault("ObjRoot", utils_torch.GetGlobalParam())
+    _ParseResolveBaseInPlace(Obj, None, None, ParsedObj=defaultdict(lambda:None), **kw)
     if InPlace:
         _ParsePyObjStaticInPlace(
             Obj, None, None, 
@@ -356,7 +356,7 @@ def ParsePyObjStatic(Obj, **kw):
         )
         return Obj
     else:
-        return _ParsePyObjStatic(Obj, None, None, ObjRoot=ObjRoot, ObjCurrent=ObjCurrent, ParsedObj=defaultdict(lambda:None))
+        return _ParsePyObjStatic(Obj, None, None, ParsedObj=defaultdict(lambda:None), **kw)
 
 def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
     kw.setdefault("RecurDepth", 1)
@@ -391,8 +391,6 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
     kw["RecurDepth"] += 1
     WithinJson = kw["WithinJson"]
-    # if Obj in ["param.agent.Modules.model.InputInit.Num"]:
-    #     print("aaa")
     if isinstance(Obj, list):
         for Index, Item in enumerate(Obj):
             _ParsePyObjStaticInPlace(Item, Obj, Index, **kw)
@@ -414,7 +412,6 @@ def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
                     break
             Sig = False
     elif isinstance(Obj, str):
-        #RecurLimit = 20
         if type(Obj) is str and ("$" in Obj) and ("&" not in Obj):
             Obj = Obj.lstrip("#")
             while type(Obj) is str and ("$" in Obj) and ("&" not in Obj):
@@ -424,7 +421,6 @@ def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
                 Obj, success = ParseStrLocal(Obj, Dynamic=False, **kw)
                 if success:
                     continue
-                #RecurLimit -= 1
                 break
             parent[Attr] = Obj
         elif Obj.startswith("#"):

@@ -16,7 +16,7 @@ def BuildModule(param, RaiseIfFail=False, **kw):
         else:
             return False
 
-def IsLegalType(Type):
+def IsLegalModuleType(Type):
     if Type in OperatorList:
         return True
     else:
