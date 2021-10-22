@@ -28,8 +28,11 @@ def Add(*Args):
     #     Sum += Args[Index]
     # return Sum
     return sum(Args)
-# Operators.Add = Add
 OperatorList.append(["Add"])
+
+def FilterFromDict(Dict, Name):
+    return Dict[Name]
+OperatorList.append(["FilterFromDict"])
 
 def Split(Args):
     if isinstance(Args, list):
@@ -114,3 +117,4 @@ OperatorList.append("CompareDensityCurve")
 
 from utils_torch.train import ClearGrad
 OperatorList.append("ClearGrad")
+

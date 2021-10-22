@@ -87,12 +87,14 @@ def GetAllDirs(DirPath):
         raise Exception()
     if not os.path.isdir(DirPath):
         raise Exception()
-    items = os.listdir(DirPath)
+    Names = os.listdir(DirPath)
     Dirs = []
-    for item in items:
-        if os.path.isdir(os.path.join(DirPath, item)):
-            Dirs.append(item)
+    for Name in Names:
+        if os.path.isdir(DirPath + Name):
+            Dir = Name + "/"
+            Dirs.append(Dir)
     return Dirs
+ListAllDirs = GetAllDirs
 
 def ExistsFile(FilePath):
     return os.path.isfile(FilePath)
@@ -119,23 +121,22 @@ EnsureDir = EnsureDirectory
 EnsureFolder = EnsureDirectory
 
 def EnsureFileDirectory(FilePath):
-    if FilePath.endswith("/"):
-        raise Exception()
+    assert not FilePath.endswith("/"), FilePath
     FilePath = Path2AbsolutePath(FilePath)
     FileDir = os.path.dirname(FilePath)
     EnsureDir(FileDir)
 
 EnsureFileDir = EnsureFileDirectory
 
-EnsureFolder = EnsureDir
+def GetFileDir(FilePath):
+    assert utils_torch.files.IsFile(FilePath)
+    return os.path.dirname(FilePath) + "/"
 
 def EnsurePath(path, isFolder=False): # check if given path exists. if not, create it.
     if isFolder: # caller of this function makes sure that path is a directory/folder.
         if not path.endswith('/'): # folder
             utils_torch.AddWarning('%s is a folder, and should ends with /.'%path)
             path += '/'
-            #print(path)
-            #input()
         if not os.path.exists(path):
             os.makedirs(path)
     else: # path can either be a directory or a folder. If path exists, then it is what it is (file or folder). If not, depend on whether it ends with '/'.
@@ -161,7 +162,6 @@ def EnsurePath(path, isFolder=False): # check if given path exists. if not, crea
                 #filepath, filename = os.path.split(path)
     return path
 
-ListAllDirs = GetAllDirs
 
 def JoinPath(path_0, path_1):
     if not path_0.endswith('/'):
@@ -461,7 +461,7 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
 def ToAbsPath(Path):
     return os.path.abspath(Path)
 
-def VisitDirAndApplyMethod(Dir=None, Method=None, Recur=False, ):
+def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
     if func is None:
         func = args.func   
     if path is None:
@@ -471,13 +471,19 @@ def VisitDirAndApplyMethod(Dir=None, Method=None, Recur=False, ):
         warnings.warn('visit_dir: func is None.')
     filepaths=[]
     abspath = os.path.abspath(path) # relative path also works well
+
+    Files = utils_torch.files.ListAllFiles(DirPath)
+    for File in Files:
+        Method(DirPath + File, **kw)
+    
+    if Recur:
+        Dirs = utils_torch.files.ListAllDirs(DirPath)
     for name in os.listdir(abspath):
-        file_path = os.path.join(abspath, name)
-        if os.path.isdir(file_path):
-            if recur:
-                visit_path(args=args, func=func, recur=True)
+        FilePath = os.path.join(abspath, name)
+        if os.path.isdir(FilePath):
+            if Recur:
+                VisitDirAndApplyMethod(Dir, Method, Recur, **kw)
         else:
             Method(FilePath)
     return filepaths
 
-visit_dir = visit_path

@@ -1,29 +1,10 @@
 import sys
 import numpy as np
-from attrs import EnsureAttrs
 import utils_torch
+from utils_torch.attrs import *
 
-utils_torch.GetFileDir()
-
-DatasetConfig = utils_torch.PyObj({
-    "Original":{
-        "Files.MD5":{ # FileName: MD5Code
-            "data_batch_1": "c99cafc152244af753f735de768cd75f", 
-            "data_batch_2": "d4bba439e000b95fd0a9bffe97cbabec",
-            "data_batch_3": "54ebc095f3ab1f0389bbae665268c751",
-            "data_batch_4": "634d18415352ddfa80567beed471001a",
-            "data_batch_5": "482c414d41f54cd18b22e5b47cb7c3cb",
-            "test_batch":   "40351d587109b95175f43aff81a1287e",
-        },
-        "Files.Train":[
-            "data_batch_1", "data_batch_2", "data_batch_3", "data_batch_4", "data_batch_5",
-        ],
-        "Files.Test":[
-            "test_batch",
-        ],
-        "Files.Num": 5
-    }
-})
+DatasetConfigFile = utils_torch.files.GetFileDir(__file__) + "CIFAR10.jsonc"
+DatasetConfig = utils_torch.json.JsonFile2PyObj(DatasetConfigFile)
 
 def LoadOriginalFiles(Dir):
     Files = utils_torch.files.ListFiles(Dir)
@@ -67,16 +48,20 @@ def ProcessOriginalDataDict(Dict, FileNameList):
         FileNames += Data["filenames"]
     Labels = np.concatenate(Labels, axis=0)
     Images = np.concatenate(Images, axis=0)
-    return utils_torch.PyObj({
+    DataObj = utils_torch.PyObj({
         "Labels": Labels,
         "Images": Images,
         "FileNames": FileNames
     })
+    ImageNum = Images.shape[0]
+    SetAttrs(DataObj, "Images.Num", value=ImageNum)
 
 class DataLoaderForEpochBatchTraining:
-    def __init__(self):
+    def __init__(self, param):
+        utils_torch.model.InitForNonModel(self, param)
         return
-    def InitFromParam(self):
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForNonModel(self, IsLoad)
         return
     def ApplyTransformOnData(self, TransformParam="Auto"):
         param = self.param
@@ -84,26 +69,47 @@ class DataLoaderForEpochBatchTraining:
         if TransformParam in ["Auto"]:
             TransformParam = param.Data.Transform
         assert hasattr(cache, "Data")
-        Images = cache.Data.Images
+        Images = GetAttrs(cache.Data.Images)
         for Transform in TransformParam.Methods:
             if Transform.Type in ["Norm2Mean0Std1"]:
                 EnsureAttrs(Transform, "Axis", None)
                 Images = utils_torch.math.Norm2Mean0Std1(Images, Axis=Transform.Axis)
             else:
                 raise Exception(Transform.Type)
-        cache.Data.Images = Images
+        SetAttrs(cache.Data, "Images", value=Images)
         cache.Images = Images
     def NotifyEpochIndex(self, EpochIndex):
         self.EpochIndex = EpochIndex
     def LoadData(self, Dir="Auto"):
+        cache = self.cache
         if Dir in ["Auto", "auto"]:
             Dir = utils_torch.GetDatasetDir("CIFAR10")
-        self.cache.Data = utils_torch.json.DataFile2PyObj(Dir)
+        cache.Data = utils_torch.json.DataFile2PyObj(Dir)
+        #cache.IndexMax = cache.Data.Images.Num
     def PrepareBatches(self, BatchParam):
         cache = self.cache
-        cache.IndexStart = 0
+        cache.IndexCurrent = 0
         cache.BatchSize = BatchParam.Batch.Size
+        cache.BatchNum = utils_torch.dataset.CalculateBatchNum(cache.BatchSize, cache.Data.Images.Num)
+        cache.IndexMax = cache.Data.Images.Num
         return
-    def GetBatch(self, ):
-        
-        return
+    def ClearBatches(self):
+        cache = self.cache
+        RemoveAttrIfExists(cache, "BatchSize")
+        RemoveAttrIfExists(cache, "BatchNum")
+        RemoveAttrIfExists(cache, "IndexCurrent")
+        RemoveAttrIfExists(cache, "IndexMax")
+    def GetBatch(self):
+        cache = self.cache
+        assert cache.IndexCurrent <= cache.IndexMax
+        IndexStart = cache.IndexCurrent
+        IndexEnd = min(cache.IndexCurrent + cache.Index, cache.IndexMax)
+        DataBatch = {
+            "Input": utils_torch.NpArray2Tensor(cache.Images[IndexStart:IndexEnd, :, :, :]).to(self.GetTensorLocation()),
+            "Output": utils_torch.NpArray2Tensor(cache.Labels[IndexStart:IndexEnd]).to(self.GetTensorLocation()),
+        }
+        cache.IndexCurrent = IndexEnd
+        return DataBatch
+    def GetBatchNum(self):
+        return self.cache.BatchNum
+utils_torch.model.SetMethodForNonModelClass(DataLoaderForEpochBatchTraining, HasTensor=True)

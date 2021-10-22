@@ -155,6 +155,11 @@ def GetAttr(Obj, Attr):
     else:
         raise Exception()
 
+def RemoveAttrIfExists(Obj, Attr):
+    if hasattr(Obj, Attr):
+        delattr(Obj, Attr)
+    return 
+
 def HasAttrs(Obj, attrs, *args, false_if_none=True):
     attrs = _ParseAttrs(attrs, *args)
     for attr in attrs:

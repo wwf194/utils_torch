@@ -17,6 +17,16 @@ from utils_torch.attrs import *
 from utils_torch.LRSchedulers import LinearLR
 
 def BuildModule(param, **kw):
+    if hasattr(param, "ClassPath"):
+        Class = utils_torch.parse.ParseClass(param.ClassPath)
+        Module = Class(param)
+        return Module
+    elif hasattr(param, "Type"):
+        return BuildModuleFromType(param, **kw)
+    else:
+        raise Exception()
+
+def BuildModuleFromType(param, **kw):
     if param.Type in ["LinearLayer"]:
         return utils_torch.Models.LinearLayer(param, **kw)
     elif param.Type in ["NonLinearLayer"]:
@@ -49,6 +59,10 @@ def BuildModule(param, **kw):
         utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
         raise Exception()
         #return None
+    elif param.Type in ["Dataset"]:
+        utils_torch.Datasets.BuildObj(param)
+    elif param.Type in ["Loss"]:
+        utils_torch.Loss.BuildObj(param)
     elif utils_torch.Models.Operators.IsLegalType(param.Type):
         return utils_torch.Models.Operators.BuildModule(param, **kw)
     elif hasattr(param, "ModulePath"):
@@ -459,14 +473,22 @@ def GetLoggerForModel(self):
 
 def InitFromParamForModel(self, IsLoad):
     cache = self.cache
-    
     cache.IsLoad = IsLoad
     cache.IsInit = not IsLoad
-    
     cache.__object__ = self
 
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
+
+def InitFromParamForNonModel(self, IsLoad):
+    cache = self.cache
+    cache.IsLoad = IsLoad
+    cache.IsInit = not IsLoad
+    cache.__object__ = self
+
+def DoTasksForModel(Tasks, **kw):
+    kw["DoNotChangeObjCurrent"] = True
+    utils_torch.DoTasks(Tasks, **kw)
 
 def InitForNonModel(self, param=None, data=None, ClassPath=None, **kw):
     InitForModel(self, param, data, ClassPath, HasTensors=False, **kw)
@@ -609,8 +631,6 @@ def BuildModulesForModel(self):
     param = self.param
     cache = self.cache
     for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveBase__"]):
-        # if Name in ["CellStateDecay"]:
-        #     print("aaa")
         ModuleParam.Name = Name
         ModuleParam.FullName = param.FullName + "." + Name
 
@@ -644,6 +664,8 @@ def InitModulesForModel(self):
                     "Module %s of class %s has not implemented InitFromParam method."
                     %(name, Class)
                 )
+            if module is None:
+                raise Exception(name)
 
 def LoadFromParamForModel(self):
     self.InitFromParam(IsLoad=True)
@@ -745,9 +767,13 @@ def SetMethodForModelClass(Class):
     Class.LogFloat = LogFloatForModel
     Class.LogLoss = LogLossForModel
 
-def SetMethodForNonModelClass(Class):
+def SetMethodForNonModelClass(Class, **kw):
     if not hasattr(Class, "SetFullName"):
         Class.SetFullName = SetFullNameForModel
     if not hasattr(Class, "Save"):
         Class.Save = SaveForModel
     Class.LoadFromParam = LoadFromParamForModel
+    HasTensor = kw.setdefault("HasTensor", False)
+    if HasTensor:
+        Class.SetTensorLocation = SetTensorLocationForModel
+        Class.GetTensorLocation = GetTensorLocationForModel

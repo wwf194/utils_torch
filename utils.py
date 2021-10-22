@@ -96,9 +96,6 @@ def ParseTaskObj(TaskObj, Save=True, **kw):
         utils_torch.json.PyObj2JsonFile(TaskList, utils_torch.GetMainSaveDir() + "task_parsed.jsonc")
     return TaskObj
 
-def DoTasksForModel(Tasks, **kw):
-    kw["DoNotChangeObjCurrent"] = True
-    DoTasks(Tasks, **kw)
 
 def DoTasks(Tasks, **kw):
     if not kw.get("DoNotChangeObjCurrent"):
@@ -232,7 +229,7 @@ def BuildObj(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
         Args = GetAttrs(Args)
 
-    if isinstance(Args, list):
+    if isinstance(Args, list) or utils_torch.IsListLikePyObj(Args):
         for Arg in Args:
             _BuildObj(Arg, **kw)
     elif isinstance(Args, utils_torch.PyObj):
@@ -666,8 +663,8 @@ def read_data(read_dir): #read data from file.
     f.close()
     return data
 
-def ImportModule(module_path):
-    return importlib.import_module(module_path)
+def ImportModule(ModulePath):
+    return importlib.import_module(ModulePath)
 
 def import_file(file_from_sys_path):
     if not os.path.isfile(file_from_sys_path):
@@ -1127,7 +1124,7 @@ def ByteNum2Str(ByteNum):
         Str = "%.3f TB"%(1.0 * ByteNum / TB)
     return Str
 
-def Unzip(*Lists):
+def Unzip(Lists):
     return zip(*Lists)
 
 def Zip(*Lists):

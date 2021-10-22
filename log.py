@@ -387,7 +387,7 @@ def GetAllSubSaveDirsEpochBatch(Name, GlobalParam=None):
     if SaveDirNum == 0:
         raise Exception(SaveDirNum)
     for Index, SaveDir in enumerate(SaveDirs):
-        SaveDirs[Index] = utils_torch.GetMainSaveDir(GlobalParam) + Name + "/" + SaveDir + "/"
+        SaveDirs[Index] = utils_torch.GetMainSaveDir(GlobalParam) + Name + "/" + SaveDir # SaveDir already ends with "/"
     return SaveDirs
 
 def GetDataLogger():

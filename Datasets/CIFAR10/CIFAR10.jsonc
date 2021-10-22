@@ -21,4 +21,10 @@
     "Input.Shape": [32, 32, 3],
     "Output.Shape": [10],
     "Output.Num": 10,
+    "Statistics":{
+        "OnColorChannel":{
+            "Mean": [0.4914, 0.4822, 0.4465], 
+            "Std": [0.2023, 0.1994, 0.2010],
+        }
+    }
 }
