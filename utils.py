@@ -130,9 +130,13 @@ def DoTask(Task, **kw):
             Router = TaskArgs.Router
         else:
             Router = TaskArgs
-        RouterParsed = utils_torch.router.ParseRouterStaticAndDynamic(Router, ObjRefList=[Router], **kw)
-        InParsed = utils_torch.parse.ParsePyObjDynamic(Router, RaiseFailedParse=True, InPlace=False, **kw)
-        utils_torch.CallGraph(RouterParsed, InParsed)
+        if isinstance(Router, str):
+            Router = utils_torch.parse.ResolveStr(Router)
+        # Require that router is already parsed.
+        #RouterParsed = utils_torch.router.ParseRouterStaticAndDynamic(Router, ObjRefList=[Router], **kw)
+        InParsed = utils_torch.parse.ParsePyObjDynamic(TaskArgs.In, RaiseFailedParse=True, InPlace=False, **kw)
+        #InParsed = utils_torch.parse.ParsePyObjDynamic(Router, RaiseFailedParse=True, InPlace=False, **kw)
+        utils_torch.CallGraph(Router, InParsed)
     elif TaskType in ["RemoveObj"]:
         RemoveObj(TaskArgs, **kw)
     elif TaskType in ["LoadObjFromFile"]:

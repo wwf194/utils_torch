@@ -66,6 +66,7 @@ def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
             Routing.cache.Condition = Routing.Condition
     return RouterParsed
 
+
 def ParseRoutingAttrsOnline(Routing, States):
     #utils_torch.parse.RedirectPyObj(Routing, States)
     for attr in Routing.OnlineParseAttrs:
@@ -78,12 +79,13 @@ def ParseRoutingAttrsOnline(Routing, States):
 def ParseRoutingStatic(Routing):
     if not isinstance(Routing, str):
         return Routing
-    # if Routing in ["NotifyEpochBatchList |--> &BeforeTrain"]:
-    #     print("aaa")
+
     _Routing = Routing
     param = utils_torch.EmptyPyObj()
     # notice that there might be . in _Routing string.
     SetAttrs(param, "Str", value=_Routing.replace("&", "(At)"))
+    # if param.Str in ['NotifyEpochBatchList |--> (At)Register2NotifyEpochBatchList']:
+    #     print("aaa")
     Routing = re.sub(" ", "", Routing) # remove all spaces
     Routing = Routing.split("||")
     MainRouting = Routing[0] 

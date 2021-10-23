@@ -108,61 +108,6 @@ def AnalyzeLossEpochBatch(Logs, SaveDir=None, **kw):
     utils_torch.files.Table2TextFileDict(LossDict, SavePath=SaveDir + "Loss~Epoch.txt")
     return
 
-def AnalyzeTrajectory(agent, world, XYsPredicted, XYsTruth, PlotNum="Auto", SaveDir=None, SaveName=None):
-    XYsTruth = utils_torch.ToNpArray(XYsTruth)
-    XYsPredicted = utils_torch.ToNpArray(XYsPredicted)
-    
-    fig, ax = utils_torch.plot.CreateFigurePlt()
-    world.PlotCurrentArena(ax, Save=False)
-    
-    TrajectoryNum = XYsTruth.shape[0]
-    StepNum = XYsTruth.shape[1]
-
-    if PlotNum in ["Auto", "auto"]:
-        if StepNum < 50:
-            PlotNum = 5
-        elif StepNum < 100:
-            PlotNum = 2
-        else:
-            PlotNum = 1
-
-    PlotIndices = utils_torch.RandomSelect(TrajectoryNum, PlotNum)
-
-    #BoundaryBox = utils_torch.plot.GetDefaultBoundaryBox()
-    BoundaryBox = world.GetCurrentArena().GetBoundaryBox()
-    BoundaryBox = utils_torch.plot.UpdateBoundaryBox(utils_torch.plot.GetDefaultBoundaryBox(), BoundaryBox)
-    Colors = ["Black", "Blue"]
-    
-    TxtTable = {}
-
-    ColorsMarker = utils_torch.plot.GenerateColors(PlotNum)
-    XYsTypes = ["XYsTruth", "XYsPredicted"]
-    for XYsIndex, XYs in enumerate([XYsTruth, XYsPredicted]):
-        Color = Colors[XYsIndex]
-        XYsType = XYsTypes[XYsIndex]
-        for Index in range(PlotNum):
-            PlotIndex = PlotIndices[Index]
-            #XYsPlot = agent.GetTrajectoryByIndex(Trajectory, PlotIndex)
-            XYsPlot = XYs[PlotIndex]
-            utils_torch.plot.PlotTrajectory(
-                ax,
-                XYsPlot,
-                Color=Color
-            )
-            utils_torch.plot.UpdateBoundaryBox(BoundaryBox, utils_torch.plot.XYs2BoundaryBox(XYsPlot))
-            utils_torch.plot.PlotPoint(
-                ax, XYsPlot[0], 
-                Color=ColorsMarker[Index], 
-                #Type="Triangle"
-                Type=(3, 0, utils_torch.geometry2D.Vector2Degree(XYsPlot[1] - XYsPlot[0]) - 90.0)
-            )
-            utils_torch.plot.PlotPoint(ax, XYsPlot[-1], Color=ColorsMarker[Index], Type="Circle")
-            TxtTable[XYsType + ".%d.Xs"%Index] = XYsPlot[:, 0]
-            TxtTable[XYsType + ".%d.Ys"%Index] = XYsPlot[:, 1]
-    utils_torch.plot.SetAxRangeFromBoundaryBox(ax, BoundaryBox)
-    plt.tight_layout()
-    utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + ".svg")
-    utils_torch.Table2TextFileDict(TxtTable, SaveDir + SaveName + ".txt")
 
 def AnalyazeSpatialFiringPattern(agent, world, Activity):
 

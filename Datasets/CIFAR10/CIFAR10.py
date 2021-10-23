@@ -100,6 +100,8 @@ class DataLoaderForEpochBatchTraining:
         cache.BatchNum = utils_torch.dataset.CalculateBatchNum(cache.BatchSize, Data.Images.Num)
         cache.IndexMax = Data.Images.Num
         cache.DataForBatches = Data
+        cache.ImagesForBatches = GetAttrs(cache.DataForBatches.Images)
+        cache.LabelsForBatches = GetAttrs(cache.DataForBatches.Labels)
         return
     def ClearBatches(self):
         cache = self.cache
@@ -112,10 +114,10 @@ class DataLoaderForEpochBatchTraining:
         DataForBatches = cache.DataForBatches
         assert cache.IndexCurrent <= cache.IndexMax
         IndexStart = cache.IndexCurrent
-        IndexEnd = min(cache.IndexCurrent + cache.Index, cache.IndexMax)
+        IndexEnd = min(cache.IndexCurrent + cache.BatchSize, cache.IndexMax)
         DataBatch = {
-            "Input": utils_torch.NpArray2Tensor(DataForBatches.Images[IndexStart:IndexEnd, :, :, :]).to(self.GetTensorLocation()),
-            "Output": utils_torch.NpArray2Tensor(DataForBatches.Labels[IndexStart:IndexEnd]).to(self.GetTensorLocation()),
+            "Input": utils_torch.NpArray2Tensor(cache.ImagesForBatches[IndexStart:IndexEnd, :, :, :]).to(self.GetTensorLocation()),
+            "Output": utils_torch.NpArray2Tensor(cache.LabelsForBatches[IndexStart:IndexEnd]).to(self.GetTensorLocation()),
         }
         cache.IndexCurrent = IndexEnd
         return DataBatch

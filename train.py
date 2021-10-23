@@ -90,8 +90,9 @@ class TrainerForEpochBatchTraining:
             Obj.NotifyBatchNum(cache.BatchNum)
     def Register2NotifyEpochBatchList(self, List):
         self.cache.NotifyEpochBatchList = List
-    def GenerateConteextInfo(self):
+    def GenerateContextInfo(self):
         return {
+            "Trainer": self,
             "EpochNum": self.EpochNum,
             "BatchNum": self.BatchNum,
             "EpochIndex": self.EpochIndex,
@@ -169,111 +170,15 @@ def ParseRoutersFromTrainParam(param, **kw):
         setattr(Routers, Name, Router)
     return Routers
 
-
 def SetSaveDirForSavedModel(EpochIndex, BatchIndex):
     SaveDirForSavedModel = utils_torch.GetMainSaveDir() + "SavedModel/" + "Epoch%d-Batch%d/"%(EpochIndex, BatchIndex)
     utils_torch.SetSubSaveDir(SaveDirForSavedModel, Type="Obj")
 
-def AnalyzeAfterBatch(ContextInfo):
-    logger = ContextInfo["Logger"]
-    EpochIndex = ContextInfo["EpochIndex"]
-    BatchIndex = ContextInfo["BatchIndex"]
-    Routers = ContextInfo.get("Routers")
-    param = ContextInfo.ContextInfo("param")
-
-    _kw = dict(ContextInfo)
-    _kw["param"] = param.TestForSpatialActivityAnalysis
-    AnalyzeSptialActivity(
-        **_kw
-    )
-    utils_torch.analysis.AnalyzeTrajectory(
-        utils_torch.GetGlobalParam().object.agent,
-        utils_torch.GetGlobalParam().object.world,
-        logger.GetLog("agent.model.Outputs")["Value"],
-        logger.GetLog("agent.model.OutputTargets")["Value"],
-        SaveDir = utils_torch.GetMainSaveDir() + "Trajectory/",
-        SaveName = "Trajectory-Truth-Predicted-Epoch%d-Batch%d"%(EpochIndex, BatchIndex)
-    )
-
-    utils_torch.analysis.AnalyzeLossEpochBatch(
-        Logs=logger.GetLogOfType("Loss"), **kw
-    )
-    utils_torch.analysis.AnalyzeTimeVaryingActivitiesEpochBatch(
-        Logs=logger.GetLogOfType("TimeVaryingActivity"),
-    )
-    utils_torch.analysis.AnalyzeWeightsEpochBatch(
-        Logs=logger.GetLogOfType("Weight"),
-    )
-    utils_torch.analysis.AnalyzeWeightStatAlongTrainingEpochBatch(
-        Logs=logger.GetLogOfType("Weight-Stat"), **kw
-    )
-
-    if logger.GetLogByName("MinusGrad") is not None:
-        utils_torch.analysis.AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
-            ResponseA=logger.GetLogByName("agent.model.FiringRates")["Value"],
-            ResponseB=logger.GetLogByName("agent.model.FiringRates")["Value"],
-            WeightUpdate=logger.GetLogByName("MinusGrad")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
-            Weight = logger.GetLogByName("Weight")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
-            SaveDir = utils_torch.GetMainSaveDir() + "Hebb-Analysis/",
-            SaveName = "Epoch%d-Batch%d-Recurrent.FiringRate2RecurrentInput.Weight"%(EpochIndex, BatchIndex),
-        )
-
-    return
-
-def CallGraphEpochBatch(router, In, logger, EpochIndex, BatchIndex):
-    logger.SetLocal("EpochIndex", EpochIndex)
-    logger.SetLocal("BatchIndex", BatchIndex)
-    utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
-    utils_torch.CallGraph(router, In=In) 
-
-def AddAnalysis():
-    # Do supplementary analysis for all saved models under main save directory.
-    kw = {
-        "ObjRoot": utils_torch.GetGlobalParam()
-    }
-    SaveDirs = utils_torch.GetAllSubSaveDirsEpochBatch("SavedModel")
-    for SaveDir in SaveDirs:
-        EpochIndex, BatchIndex = ParseEpochBatchFromStr(SaveDir)
-        logger = utils_torch.GetLogger("DataTest")
-        logger.NotifyEpochIndex(EpochIndex)
-        logger.NotifyBatchIndex(BatchIndex)
-
-        utils_torch.DoTasks(
-            "&^param.task.Load",
-            In={"SaveDir": SaveDir}, 
-            **kw
-        )
-
-        param = utils_torch.parse.ResolveStr("&^param.task.Train", **kw)
-
-        kw["ObjCurrent"] = param
-        param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
-        Routers = ParseRoutersFromTrainParam(param, **kw)
-        # AnalyzeSptialActivity(
-        #     param=param.TestForSpatialActivityAnalysis,
-        #     Routers=Routers,
-        #     EpochIndex=EpochIndex, BatchIndex=BatchIndex,
-        #     ObjCurrent=param, ObjRoot=utils_torch.GetGlobalParam()
-        # )
-        CallGraphEpochBatch(Routers.Test, Routers.In, logger, EpochIndex, BatchIndex)
-
-        # utils_torch.analysis.AnalyzeTrajectory(
-        #     utils_torch.GetGlobalParam().object.agent,
-        #     utils_torch.GetGlobalParam().object.world,
-        #     logger.GetLog("agent.model.Outputs")["Value"],
-        #     logger.GetLog("agent.model.OutputTargets")["Value"],
-        #     SaveDir = utils_torch.GetMainSaveDir() + "Trajectory/",
-        #     SaveName = "Trajectory-Truth-Predicted-Epoch%d-Batch%d"%(EpochIndex, BatchIndex),
-        #     PlotNum = 1
-        # )
-        utils_torch.analysis.AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
-            ResponseA=logger.GetLogByName("agent.model.FiringRates")["Value"],
-            ResponseB=logger.GetLogByName("agent.model.FiringRates")["Value"],
-            WeightUpdate=logger.GetLogByName("MinusGrad")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
-            Weight = logger.GetLogByName("Weight")["Value"]["Recurrent.FiringRate2RecurrentInput.Weight"],
-            SaveDir = utils_torch.GetMainSaveDir() + "Hebb-Analysis/",
-            SaveName = "Epoch%d-Batch%d-Recurrent.FiringRate2RecurrentInput.Weight"%(EpochIndex, BatchIndex),
-        )
+# def CallGraphEpochBatch(router, In, logger, EpochIndex, BatchIndex):
+#     logger.SetLocal("EpochIndex", EpochIndex)
+#     logger.SetLocal("BatchIndex", BatchIndex)
+#     utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
+#     utils_torch.CallGraph(router, In=In) 
 
 def ParseEpochBatchFromStr(Str):
     MatchResult = re.match(r"^.*Epoch(-?\d*)-Batch(\d*).*$", Str)
