@@ -601,6 +601,12 @@ def InitModulesForModel(self):
 def LoadFromParamForModel(self):
     self.InitFromParam(IsLoad=True)
 
+def DoInitTasksForModel(self):
+    param = self.param
+    EnsureAttrs(param, "InitTasks", default=[])
+    for Task in self.param.InitTasks:
+        utils_torch.DoTask(Task, ObjCurrent=self.cache, ObjRoot=utils_torch.GetGlobalParam())
+
 def Add2ObjRefListForParseRouters(ObjRef):
     GlobalParam = utils_torch.GetGlobalParam()
     if not hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
@@ -675,6 +681,7 @@ def SetMethodForModelClass(Class, **kw):
     Class.PlotWeight = PlotWeightForModel
     Class.SetFullName = SetFullNameForModel
     Class.RegisterExternalMethod = RegisterExternalMethodForModel
+    Class.DoInitTasks = DoInitTasksForModel
     if HasTensor:
         Class.SetTensorLocation = SetTensorLocationForModel
         Class.GetTensorLocation = GetTensorLocationForModel

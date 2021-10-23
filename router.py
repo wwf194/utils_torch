@@ -84,7 +84,7 @@ def ParseRoutingStatic(Routing):
     param = utils_torch.EmptyPyObj()
     # notice that there might be . in _Routing string.
     SetAttrs(param, "Str", value=_Routing.replace("&", "(At)"))
-    # if param.Str in ['NotifyEpochBatchList |--> (At)Register2NotifyEpochBatchList']:
+    # if param.Str in ['DataBatch, Name=Input |--> (At)FilterFromDict |--> ModelInput']:
     #     print("aaa")
     Routing = re.sub(" ", "", Routing) # remove all spaces
     Routing = Routing.split("||")
@@ -118,19 +118,20 @@ def ParseRoutingStatic(Routing):
 
     InList = []
     InDict = {}
-    for Index, Input in enumerate(param.In):
-        Input = Input.split("=")
-        if len(Input)==2:
-            Key = utils_torch.RemoveHeadTailWhiteChars(Input[0])
-            Value = utils_torch.RemoveHeadTailWhiteChars(Input[1])
+    for Index, _Input in enumerate(param.In):
+        _Input = _Input.split("=")
+        if len(_Input)==2:
+            Key = utils_torch.RemoveHeadTailWhiteChars(_Input[0])
+            Value = utils_torch.RemoveHeadTailWhiteChars(_Input[1])
             try:
                 ValueEval = eval(Value)
+                # Bug to be fixed: Cases where value is synonymous with local variables here.
                 Value = ValueEval
             except Exception:
                 pass
             InDict[Key] = Value
         else:
-            InList.append(Input[0])
+            InList.append(_Input[0])
     param.In = InList
     param.InNamed = InDict
 

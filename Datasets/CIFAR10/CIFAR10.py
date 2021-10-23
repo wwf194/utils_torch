@@ -38,9 +38,9 @@ def ProcessOriginalDataDict(Dict, FileNameList):
     for File in FileNameList:
         Data = Dict[File]
         # Keys: batch_label, labels, data, filenames
-        # Pixel values are integers with range [0, 255], so using datatype np.int8.
+        # Pixel values are integers with range [0, 255], so using datatype np.uint8.
         # Saving as np.float32 will take ~ x10 disk memory as original files.
-        _Images = utils_torch.ToNpArray(Data["data"], DataType=np.int8)
+        _Images = utils_torch.ToNpArray(Data["data"], DataType=np.uint8)
         _Images = _Images.reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1)
         Images.append(_Images)
         _Labels = utils_torch.ToNpArray(Data["labels"], DataType=np.int8)
@@ -65,6 +65,7 @@ class DataLoaderForEpochBatchTraining:
         utils_torch.model.InitFromParamForNonModel(self, IsLoad)
         return
     def ApplyTransformOnData(self, TransformParam="Auto", Type=["Train", "Test"]):
+        utils_torch.AddLog("Applying transformation on dataset images...")
         param = self.param
         cache = self.cache
         if TransformParam in ["Auto"]:
@@ -76,12 +77,26 @@ class DataLoaderForEpochBatchTraining:
             for Transform in TransformParam.Methods:
                 if Transform.Type in ["ToGivenDataType"]:
                     Images = utils_torch.ToGivenDataTypeNp(Images, DataType=Transform.DataType)
+                elif Transform.Type in ["Color2Gray", "ColorImage2GrayImage"]:
+                    Images = utils_torch.plot.ColorImage2GrayImage(Images, ColorAxis=3)
                 elif Transform.Type in ["Norm2Mean0Std1"]:
                     EnsureAttrs(Transform, "axis", None)
                     Images = utils_torch.math.Norm2Mean0Std1Np(Images, axis=tuple(GetAttrs(Transform.axis)))
+                elif Transform.Type in ["Flatten"]:
+                    # Plot example images before Flatten, which is usually the last step.
+                    utils_torch.plot.PlotExampleImage(Images, SaveDir=utils_torch.GetMainSaveDir() + "Dataset/", SaveName="CIFAR10-%s"%_Type)
+                    Shape = Images.shape
+                    Images = Images.reshape(Shape[0], -1)
                 else:
                     raise Exception(Transform.Type)
-            SetAttrs(Data, "Images", value=Images)
+            SetAttrs(Data, "Images", value=Images)        
+        utils_torch.AddLog("Applied transformation on dataset images.")
+    def Labels2ClassNames(self, Labels):
+        ClassNames = []
+        for Label in Labels:
+            ClassNames.append()
+    def Label2ClassName(self, Label):
+        return
     def NotifyEpochIndex(self, EpochIndex):
         self.EpochIndex = EpochIndex
     def LoadData(self, Dir="Auto"):
@@ -116,7 +131,7 @@ class DataLoaderForEpochBatchTraining:
         IndexStart = cache.IndexCurrent
         IndexEnd = min(cache.IndexCurrent + cache.BatchSize, cache.IndexMax)
         DataBatch = {
-            "Input": utils_torch.NpArray2Tensor(cache.ImagesForBatches[IndexStart:IndexEnd, :, :, :]).to(self.GetTensorLocation()),
+            "Input": utils_torch.NpArray2Tensor(cache.ImagesForBatches[IndexStart:IndexEnd]).to(self.GetTensorLocation()),
             "Output": utils_torch.NpArray2Tensor(cache.LabelsForBatches[IndexStart:IndexEnd]).to(self.GetTensorLocation()),
         }
         cache.IndexCurrent = IndexEnd

@@ -1484,14 +1484,50 @@ def SetXAxisLocationForAx(ax, XAXisLocation):
     else:
         raise Exception()
 
-def PlotTrajectory(ax, XYs, Color="Black"):
-    # XYs: [StepNum, (x, y)]
-    StepNum = XYs.shape[0] - 1
-    Color=ParseColorPlt(Color)
-    for StepIndex in range(StepNum):
-        utils_torch.plot.PlotArrowFromVertexPairsPlt(
-            ax, XYs[StepIndex, :], XYs[StepIndex+1, :],
-            Color=Color,
-            SizeScale=0.1,
-        )
-    return ax
+# def PlotTrajectory(ax, XYs, Color="Black"):
+#     # XYs: [StepNum, (x, y)]
+#     StepNum = XYs.shape[0] - 1
+#     Color=ParseColorPlt(Color)
+#     for StepIndex in range(StepNum):
+#         utils_torch.plot.PlotArrowFromVertexPairsPlt(
+#             ax, XYs[StepIndex, :], XYs[StepIndex+1, :],
+#             Color=Color,
+#             SizeScale=0.1,
+#         )
+#     return ax
+
+def ColorImage2GrayImage(images, ColorAxis=-1):
+    R = np.take(images, 0, ColorAxis)
+    G = np.take(images, 1, ColorAxis)
+    B = np.take(images, 2, ColorAxis)
+    return 0.30 * R + 0.59 * G + 0.11 * B   
+
+def Norm2Image(data):
+    assert len(data.shape)==2 or len(data.shape)==3 # Gray or Color Image
+
+    Min, Max = np.min(data), np.max(data)
+    if Min==Max:
+        data = np.full_like(data, 128.0)
+    else:
+        data = (data - Min) / (Max - Min) * 255.0
+    data = np.around(data)
+    data = data.astype(np.uint8)
+    if len(data.shape)==2: # collapsed gray image
+        data = np.stack([data, data, data], axis=2)
+    return data
+
+from PIL import Image as Im
+def NpArray2ImageFile(image, SavePath=None):
+    # image : np.ndarray, with dtype np.uint8
+    imagePIL = Im.fromarray(image)
+    utils_torch.EnsureFileDir(SavePath)
+    imagePIL.save(SavePath)
+
+def PlotExampleImage(Images, PlotNum=10, SaveDir=None, SaveName=None):
+    PlotIndices = utils_torch.RandomSelect(range(Images.shape[0]), PlotNum)
+    PlotNum = len(PlotIndices)
+    for Index in range(PlotNum):
+        ImageIndex = PlotIndices[Index]
+        Image = Images[ImageIndex]
+        Image = Norm2Image(Image)
+        NpArray2ImageFile(Image, SaveDir + SaveName + "-No.%d.png"%ImageIndex)

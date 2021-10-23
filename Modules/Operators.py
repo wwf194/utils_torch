@@ -1,7 +1,6 @@
 import torch
 import matplotlib as mpl
 from matplotlib import pyplot as plt
-#from typing import DefaultDict
 from collections import defaultdict
 import utils_torch
 #Operators = utils_torch.PyObj()
@@ -20,10 +19,6 @@ def IsLegalModuleType(Type):
         return False
 
 def Add(*Args):
-    # Sum = Args[0]
-    # for Index in range(1, len(Args)):
-    #     Sum += Args[Index]
-    # return Sum
     return sum(Args)
 OperatorList.append(["Add"])
 

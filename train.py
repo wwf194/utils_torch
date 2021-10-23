@@ -100,6 +100,9 @@ class TrainerForEpochBatchTraining:
         }
     def __call__(self):
         utils_torch.CallGraph(self.Dynamics.Main)
+    def ReportEpochBatch(self):
+        cache = self.cache
+        utils_torch.AddLog("Epoch%d-Batch%d"%(cache.EpochIndex, cache.BatchIndex))
 
 utils_torch.model.SetMethodForNonModelClass(TrainerForEpochBatchTraining)
 
