@@ -18,7 +18,7 @@ DefaultRoutings = [
 class RecurrentLIFLayer(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(RecurrentLIFLayer, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.RecurrentLIFLayer", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.RecurrentLIFLayer", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param

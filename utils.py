@@ -149,13 +149,12 @@ def DoTask(Task, **kw):
         utils_torch.parse.ParseParamStatic(TaskArgs)
     elif TaskType in ["ParseParamDynamic"]:
         utils_torch.parse.ParseParamDynamic(TaskArgs)
-    # elif TaskType in ["ParseSelf"]:
-    #     utils_torch.parse.ParsePyObjStatic(TaskArgs, ObjRoot=utils_torch.GetGlobalParam(), InPlace=True)
-    # Already parsed statically in ParseTaskObj.
-    elif TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
-        utils_torch.BuildObjFromParam(TaskArgs, ObjRoot=utils_torch.GetGlobalParam())
     elif TaskType in ["BuildObj"]:
         utils_torch.BuildObj(TaskArgs, **kw)
+    elif TaskType in ["BuildObjFromFile", "BuildObjectFromFile"]:
+        utils_torch.BuildObjFromFile(TaskArgs, ObjRoot=utils_torch.GetGlobalParam())
+    elif TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
+        utils_torch.BuildObjFromParam(TaskArgs, ObjRoot=utils_torch.GetGlobalParam())
     elif TaskType in ["SetTensorLocation"]:
         SetTensorLocation(TaskArgs)
     elif TaskType in ["Train"]:
@@ -213,6 +212,38 @@ def _BuildObjFromParam(Args, **kw):
         #Obj = Class(param)
         Module = utils_torch.ImportModule(ModulePath)
         Obj = Module.__MainClass__(param)
+
+        ObjRoot = kw.get("ObjRoot")
+        ObjCurrent = kw.get("ObjCurrent")
+        
+        MountPath = MountPath.replace("/&", "&")
+        MountPath = MountPath.replace("&^", "ObjRoot.")
+        MountPath = MountPath.replace("&*", "ObjCurrent.cache.__object__.")
+        MountPath = MountPath.replace("&", "ObjCurrent.")
+
+        MountPathList = MountPath.split(".")
+        SetAttrs(eval(MountPathList[0]), MountPathList[1:], Obj)
+
+def BuildObjFromFile(Args, **kw):
+    if isinstance(Args, utils_torch.PyObj):
+        Args = GetAttrs(Args)
+    if isinstance(Args, list):
+        for Arg in Args:
+            _BuildObjFromFile(Arg, **kw)
+    elif isinstance(Args, utils_torch.PyObj):
+        _BuildObjFromFile(Args, **kw)
+    else:
+        raise Exception()
+
+def _BuildObjFromFile(Args, **kw):
+    ParamFilePathList = utils_torch.ToList(Args.ParamFilePath)
+    ModulePathList = utils_torch.ToList(Args.ModulePath)
+    MountPathList = utils_torch.ToList(Args.MountPath)
+
+    for ModulePath, ParamFilePath, MountPath, in zip(ModulePathList, ParamFilePathList, MountPathList):        
+        param = utils_torch.json.JsonFile2PyObj(ParamFilePath)
+        Class = utils_torch.parse.ParseClass(ModulePath)
+        Obj = Class(param)
 
         ObjRoot = kw.get("ObjRoot")
         ObjCurrent = kw.get("ObjCurrent")
@@ -501,11 +532,29 @@ def ToStandardizeTorchDataType(DataType):
     elif DataType in ["Double", "double"]:
         return torch.float64
 
-def Tensor2GivenDataType(data, DataType=torch.float32):
+def ToGivenDataTypeTorch(data, DataType=torch.float32):
     if data.dtype==DataType:
         return data
     else:
         return data.to(DataType)
+Tensor2GivenDataType = ToGivenDataTypeTorch
+
+def ParseDataTypeNp(DataType):
+    if isinstance(DataType, str):
+        # if DataType in ["np.float32"]:
+        #     return np.float32
+        # elif DataType in ["np.int8"]:
+        #     return np.int8
+        # else:
+        #     raise Exception(DataType)
+        #     # To Be Implemented
+        return eval(DataType)
+    else:
+        return DataType
+
+def ToGivenDataTypeNp(data, DataType):
+    DataType = utils_torch.ParseDataTypeNp(DataType)
+    return data.astype(DataType)
 
 def TorchTensor2NpArray(data):
     data = data.detach().cpu().numpy()
@@ -645,26 +694,13 @@ def split_batch(data, batch_size): #data:(batch_size, image_size)
 def cat_batch(dataloader): #data:(batch_num, batch_size, image_size)
     if not isinstance(dataloader, list):
         dataloader = list(dataloader)
-    '''
-    print(len(dataloader))
-    print(len(dataloader[0]))
-    print(dataloader[0].size())
-    print(dataloader[0].__class__.__name__)
-    print(dataloader[0][0].size())
-    print(dataloader[0][0].__class__.__name__)
-    '''
     return torch.cat(dataloader, dim=0)
 
-def read_data(read_dir): #read data from file.
-    if not os.path.exists(read_dir):
-        return None
-    f = open(read_dir, 'rb')
-    data = torch.load(f)
-    f.close()
-    return data
-
 def ImportModule(ModulePath):
-    return importlib.import_module(ModulePath)
+    try:
+        return importlib.import_module(ModulePath)
+    except Exception:
+        return eval(ModulePath)
 
 def import_file(file_from_sys_path):
     if not os.path.isfile(file_from_sys_path):

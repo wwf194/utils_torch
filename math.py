@@ -124,6 +124,7 @@ def Norm2GivenMeanStdNp(data, Mean, Std, StdThreshold=1.0e-9):
 
 Norm2GivenMeanStd = Norm2GivenMeanStdNp
 
+
 def Norm2Mean0Std1Torch(data, axis=None, StdThreshold=1.0e-9):
     std = torch.std(data, dim=axis, keepdim=True)
     mean = torch.mean(data, dim=axis, keepdim=True)
@@ -135,8 +136,8 @@ def Norm2Mean0Std1Torch(data, axis=None, StdThreshold=1.0e-9):
     return (data - mean) / std
 
 def Norm2Mean0Std1Np(data, axis=None, StdThreshold=1.0e-9):
-    std = np.std(data, axis=axis, keepdim=True)
-    mean = np.mean(data, axis=axis, keepdim=True)
+    std = np.std(data, axis=axis, keepdims=True)
+    mean = np.mean(data, axis=axis, keepdims=True)
     return (data - mean) / std
 
 def Norm2Sum1(data, axis=None):

@@ -1,3 +1,4 @@
+
 #from utils_torch.PyObj import *
 from utils_torch.json import IsJsonObj, PyObj, EmptyPyObj, IsPyObj, IsDictLikePyObj, IsListLikePyObj, CheckIsLegalPyName
 import utils_torch.attrs as attrs
@@ -14,7 +15,7 @@ import utils_torch.functions as functions
 import utils_torch.log as log
 import utils_torch.analysis as analysis
 import utils_torch.optimize as optimize # model -> optimize
-import utils_torch.Models as Models
+import utils_torch.Modules as Models
 import utils_torch.Datasets as Datasets
 import utils_torch.Loss as Loss
 

@@ -1,17 +1,14 @@
 
-from typing import Set
-from cv2 import Tonemap
+import re
 import torch
-from torch._C import ThroughputBenchmark
 import torch.optim as optim
 import torch.nn as nn
 import torch.nn.functional as F
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import re
+
 import utils_torch
-#from utils_torch.utils import EnsurePath, Getargs, Getname, Getname_args, GetFromDict, search_dict, contain, contain_all, Getrow_col, prep_title
 from utils_torch.json import *
 from utils_torch.attrs import *
 from utils_torch.LRSchedulers import LinearLR
@@ -27,48 +24,32 @@ def BuildModule(param, **kw):
         raise Exception()
 
 def BuildModuleFromType(param, **kw):
-    if param.Type in ["LinearLayer"]:
-        return utils_torch.Models.LinearLayer(param, **kw)
-    elif param.Type in ["NonLinearLayer"]:
-        return utils_torch.Models.NonLinearLayer(param, **kw)
-    elif param.Type in ["MLP", "MultiLayerPerceptron", "mlp"]:
-        return utils_torch.Models.MLP(param, **kw)
-    elif param.Type in ["SerialReceiver"]:
-        return utils_torch.Models.SerialReceiver(param, **kw)
-    elif param.Type in ["SerialSender"]:
-        return utils_torch.Models.SerialSender(param, **kw)
-    elif param.Type in ["Lambda", "LambdaLayer"]:
-        return utils_torch.Models.LambdaLayer(param, **kw)
-    elif param.Type in ["RecurrentLIFLayer"]:
-        return utils_torch.Models.RecurrentLIFLayer(param, **kw)
-    elif param.Type in ["NoiseGenerator"]:
-        return utils_torch.Models.NoiseGenerator(param, **kw)
-    elif param.Type in ["Bias"]:
-        return utils_torch.Models.Bias(param, **kw)
-    elif param.Type in ["NonLinear"]:
-        return GetNonLinearMethod(param, **kw)
-    elif param.Type in ["L2Loss"]:
-        return utils_torch.Models.L2Loss(param, **kw)
+    # if param.Type in ["GradientDescend"]:
+    #     print("aaa")
+    if utils_torch.Modules.IsLegalModuleType(param.Type):
+        return utils_torch.Modules.BuildModule(param, **kw)
+    elif utils_torch.Loss.IsLegalModuleType(param.Type):
+        return utils_torch.Loss.BuildModule(param)
+    elif utils_torch.Datasets.IsLegalModuleType(param.Type):
+        utils_torch.Datasets.BuildObj(param)
+    elif utils_torch.Modules.Operators.IsLegalModuleType(param.Type):
+        return utils_torch.Modules.Operators.BuildModule(param, **kw)
     elif param.Type in ["MSE", "MeanSquareError"]:
-        return utils_torch.Models.Loss.GetLossMethod(param, **kw)
+        return utils_torch.Modules.Loss.GetLossMethod(param, **kw)
     elif param.Type in ["GradientDescend"]:
-        return utils_torch.Models.Operators.GradientDescend(param, **kw)
+        return utils_torch.optimize.GradientDescend(param, **kw)
     elif param.Type in ["CheckPointForEpochBatchTraining"]:
         return utils_torch.train.CheckPointForEpochBatchTraining(param, **kw)
-    elif param.Type in ["Internal"]:
-        utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
-        raise Exception()
-        #return None
-    elif param.Type in ["Dataset"]:
-        utils_torch.Datasets.BuildObj(param)
-    elif utils_torch.Loss.IsLegalModuleType(param):
-        utils_torch.Loss.BuildModule(param)
-    elif utils_torch.Models.Operators.IsLegalModuleType(param.Type):
-        return utils_torch.Models.Operators.BuildModule(param, **kw)
     elif hasattr(param, "ModulePath"):
         Module = utils_torch.ImportModule(param.ModulePath)
         Obj = Module.__MainClass__(param, **kw)
         return Obj
+    elif param.Type in ["Internal"]:
+        utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
+        raise Exception()
+    elif param.Type in ["External"]:
+        utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type External.")
+        raise Exception()
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
 
@@ -132,55 +113,6 @@ def GetConstraintFunction(Method):
     else:
         raise Exception("GetConstraintFunction: Invalid consraint Method: %s"%Method)
 
-def GetNonLinearMethod(param, **kw):
-    param = ParseNonLinearMethod(param)
-    if param.Type in ["NonLinear"]:
-        if hasattr(param, "Subtype"):
-            Type = param.Subtype
-    else:
-        Type = param.Type
-
-    if Type in ["relu", "ReLU"]:
-        if param.Coefficient==1.0:
-            return F.relu
-        else:
-            return lambda x:param.Coefficient * F.relu(x)
-    elif Type in ["tanh"]:
-        if param.Coefficient==1.0:
-            return F.tanh
-        else:
-            return lambda x:param.Coefficient * F.tanh(x)       
-    elif Type in ["sigmoid"]:
-        if param.Coefficient==1.0:
-            return F.tanh
-        else:
-            return lambda x:param.Coefficient * F.tanh(x)         
-    else:
-        raise Exception("GetNonLinearMethod: Invalid nonlinear function Type: %s"%param.Type)
-
-Getactivation_function = GetNonLinearMethod
-
-def ParseNonLinearMethod(param):
-    if isinstance(param, str):
-        param = utils_torch.PyObj({
-            "Type": param,
-            "Coefficient": 1.0
-        })
-    elif isinstance(param, list):
-        if len(param)==2:
-            param = utils_torch.PyObj({
-                "Type": param[0],
-                "Coefficient": param[1]
-            })
-        else:
-            # to be implemented
-            pass
-    elif isinstance(param, utils_torch.PyObj):
-        if not hasattr(param, "Coefficient"):
-            param.Coefficient = 1.0
-    else:
-        raise Exception("ParseNonLinearMethod: invalid param Type: %s"%type(param))
-    return param
 
 def CreateWeight2D(param, DataType=torch.float32):
     Init = param.Init
@@ -639,7 +571,7 @@ def BuildModulesForModel(self):
                 SetAttrs(ModuleParam, "Type", GetAttrs(ModuleParam.Name))
             else:
                 raise Exception()
-        if ModuleParam.Type in ["Internal"]:
+        if ModuleParam.Type in ["Internal", "External"]:
             continue
         if cache.IsInit:
             Module = BuildModule(ModuleParam)
@@ -661,8 +593,7 @@ def InitModulesForModel(self):
                 Class = type(module)
             if not utils_torch.IsFunction(module):
                 utils_torch.AddWarning(
-                    "Module %s of class %s has not implemented InitFromParam method."
-                    %(name, Class)
+                    "Module %s of class %s has not implemented InitFromParam method."%(name, Class)
                 )
             if module is None:
                 raise Exception(name)
@@ -688,7 +619,7 @@ def ParseRoutersForModel(self):
     
     ObjRefList = [
         cache.Modules, cache.Dynamics, cache,
-        param, self, utils_torch.Models.Operators,
+        param, self, utils_torch.Modules.Operators,
     ]
     if hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
         ObjRefList += GlobalParam.cache.AdditionalObjRefListForParseRouters
@@ -696,11 +627,16 @@ def ParseRoutersForModel(self):
         getattr(cache.Dynamics, Name).FromPyObj(
             utils_torch.router.ParseRouterDynamic(
                 RouterParam, 
-                ObjRefList = ObjRefList,
+                ObjRefList = ObjRefList, ObjRoot = utils_torch.GetGlobalParam(),
                 InPlace=False
             )
         )
     return
+
+def RegisterExternalMethodForModel(self, Name, Method):
+    if not callable(Method):
+        Method = utils_torch.parse.ResolveStr(Method)
+    setattr(self, Name, Method)
 
 def SaveForModel(self, SaveDir, Name=None, IsRoot=True):
     param = self.param
@@ -733,28 +669,31 @@ def ToNpArrayIfIsTensor(data):
 def Interest():
     return
 
-def SetMethodForModelClass(Class):
+def SetMethodForModelClass(Class, **kw):
+    HasTensor = kw.setdefault("HasTensor", True)
     Class.Log = LogForModel
     Class.PlotWeight = PlotWeightForModel
     Class.SetFullName = SetFullNameForModel
-    Class.BuildModules = BuildModulesForModel
-    Class.InitModules = InitModulesForModel
-    Class.SetTensorLocation = SetTensorLocationForModel
-    Class.GetTensorLocation = GetTensorLocationForModel
-    if not hasattr(Class, "SetTrainWeight"):
-        Class.SetTrainWeight = SetTrainWeightForModel
-    if not hasattr(Class, "GetTrainWeight"):
-        Class.GetTrainWeight = GetTrainWeightForModel
-    if not hasattr(Class, "ClearTrainWeight"):
-        Class.ClearTrainWeight = ClearTrainWeightForModel
-    if not hasattr(Class, "SetPlotWeight"):
-        Class.SetPlotWeight = SetPlotWeightForModel
-    if not hasattr(Class, "GetPlotWeight"):
-        Class.GetPlotWeight = GetPlotWeightForModel
-    if not hasattr(Class, "ClearPlotWeight"):
-        Class.ClearPlotWeight = ClearPlotWeightForModel
+    Class.RegisterExternalMethod = RegisterExternalMethodForModel
+    if HasTensor:
+        Class.SetTensorLocation = SetTensorLocationForModel
+        Class.GetTensorLocation = GetTensorLocationForModel
+        if not hasattr(Class, "SetTrainWeight"):
+            Class.SetTrainWeight = SetTrainWeightForModel
+        if not hasattr(Class, "GetTrainWeight"):
+            Class.GetTrainWeight = GetTrainWeightForModel
+        if not hasattr(Class, "ClearTrainWeight"):
+            Class.ClearTrainWeight = ClearTrainWeightForModel
+        if not hasattr(Class, "SetPlotWeight"):
+            Class.SetPlotWeight = SetPlotWeightForModel
+        if not hasattr(Class, "GetPlotWeight"):
+            Class.GetPlotWeight = GetPlotWeightForModel
+        if not hasattr(Class, "ClearPlotWeight"):
+            Class.ClearPlotWeight = ClearPlotWeightForModel
     if not hasattr(Class, "Save"):
         Class.Save = SaveForModel
+    Class.InitModules = InitModulesForModel
+    Class.BuildModules = BuildModulesForModel
     if not hasattr(Class, "ParseRouters"):
         Class.ParseRouters = ParseRoutersForModel
     Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModel
@@ -768,12 +707,39 @@ def SetMethodForModelClass(Class):
     Class.LogLoss = LogLossForModel
 
 def SetMethodForNonModelClass(Class, **kw):
+    HasTensor = kw.setdefault("HasTensor", False)
     if not hasattr(Class, "SetFullName"):
         Class.SetFullName = SetFullNameForModel
     if not hasattr(Class, "Save"):
         Class.Save = SaveForModel
     Class.LoadFromParam = LoadFromParamForModel
-    HasTensor = kw.setdefault("HasTensor", False)
+    Class.RegisterExternalMethod = RegisterExternalMethodForModel
     if HasTensor:
         Class.SetTensorLocation = SetTensorLocationForModel
         Class.GetTensorLocation = GetTensorLocationForModel
+    Class.InitModules = InitModulesForModel
+    Class.BuildModules = BuildModulesForModel
+    if not hasattr(Class, "ParseRouters"):
+        Class.ParseRouters = ParseRoutersForModel
+
+def NotifyEpochIndexForModel(self, EpochIndex):
+    self.cache.EpochIndex = EpochIndex
+
+def NotifyBatchIndexForModel(self, BatchIndex):
+    self.cache.BatchIndex = BatchIndex
+
+def NotifyEpochNumForModel(self, EpochNum):
+    self.cache.EpochNum = EpochNum
+
+def NotifyBatchNumForModel(self, BatchNum):
+    self.cache.BatchNum = BatchNum
+
+def SetNofifyEpochBatchMethodForModel(Class):
+    if not hasattr(Class, "NofityEpochIndex"):
+        Class.NofityEpochIndex = NotifyEpochIndexForModel
+    if not hasattr(Class, "NotifyBatchIndex"):
+        Class.NotifyBatchIndex = NotifyBatchIndexForModel
+    if not hasattr(Class, "NotifyEpochNum"):
+        Class.NotifyEpochNum = NotifyEpochNumForModel
+    if not hasattr(Class, "NotifyBatchNum"):
+        Class.NotifyBatchNum = NotifyBatchNumForModel

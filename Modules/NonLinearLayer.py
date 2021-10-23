@@ -10,12 +10,12 @@ def InitFromParam(param):
     model.InitFromParam(param)
     return model
 
-from utils_torch.Models.SingleLayer import SingleLayer
+from utils_torch.Modules.SingleLayer import SingleLayer
 
 class NonLinearLayer(SingleLayer):
     def __init__(self, param=None, data=None, **kw):
         super().__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.NonLinearLayer", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.NonLinearLayer", **kw)
     def InitFromParam(self, IsLoad=False):
         super().InitFromParam(IsLoad)
         param = self.param        
@@ -31,7 +31,7 @@ class NonLinearLayer(SingleLayer):
                 SetAttrs(param, "Bias.Size", param.Output.Num)
             self.SetWeight()
             self.SetBias()
-            self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
+            self.NonLinear = utils_torch.Modules.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + self.GetBias())
         elif param.Subtype in ["f(Wx)+b"]:
             if cache.IsInit:
@@ -39,13 +39,13 @@ class NonLinearLayer(SingleLayer):
                 SetAttrs(param, "Bias.Size", param.Output.Num)
             self.SetWeight()
             self.SetBias()
-            self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
+            self.NonLinear = utils_torch.Modules.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight())) + data.Bias
         elif param.Subtype in ["f(Wx)"]:
             if cache.IsInit:
                 SetAttrs(param, "Bias", False)
             self.SetWeight()
-            self.NonLinear = utils_torch.model.GetNonLinearMethod(param.NonLinear)
+            self.NonLinear = utils_torch.Modules.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()))
         elif param.Subtype in ["f(W(x+b))"]:
             if cache.IsInit:

@@ -4,7 +4,7 @@ from utils_torch.attrs import *
 class SignalHolder():
     def __init__(self, param=None, data=None, **kw):
         kw.setdefault("HasTensor", False)
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.SignalHolder", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.SignalHolder", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
     def Receive(self, Obj):
@@ -18,7 +18,7 @@ utils_torch.model.SetMethodForModelClass(SignalHolder, HasTensor=False)
 class SerialSender():
     def __init__(self, param=None, data=None, **kw):
         #super(SerialSender, self).__init__()
-        utils_torch.model.InitForModel(self, param, data,  ClassPath="utils_torch.Models.SerialSender", **kw)
+        utils_torch.model.InitForModel(self, param, data,  ClassPath="utils_torch.Modules.SerialSender", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param
@@ -65,7 +65,7 @@ utils_torch.model.SetMethodForModelClass(SerialSender, HasTensor=False)
 
 class SerialReceiver():
     def __init__(self, param=None, data=None, **kw):
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.SerialReceiver", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.SerialReceiver", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
         cache = self.cache

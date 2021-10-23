@@ -78,6 +78,8 @@ def ParseRoutingAttrsOnline(Routing, States):
 def ParseRoutingStatic(Routing):
     if not isinstance(Routing, str):
         return Routing
+    # if Routing in ["NotifyEpochBatchList |--> &BeforeTrain"]:
+    #     print("aaa")
     _Routing = Routing
     param = utils_torch.EmptyPyObj()
     # notice that there might be . in _Routing string.
@@ -143,7 +145,7 @@ def ParseRoutingStatic(Routing):
             raise Exception()
         _Attr, value = Attr[0], Attr[1]
 
-        if _Attr in ["repeat"]:
+        if _Attr in ["repeat", "Repeat", "RepeatTime"]:
             _Attr = "RepeatTime"
         setattr(param, _Attr, value)
 

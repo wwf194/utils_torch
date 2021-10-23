@@ -7,14 +7,11 @@ import utils_torch
 #Operators = utils_torch.PyObj()
 OperatorList = []
 
-def BuildModule(param, RaiseIfFail=False, **kw):
+def BuildModule(param, **kw):
     if param.Type in ["FunctionsOutputs"]:
         return FunctionsOutputs(param)
     else:
-        if RaiseIfFail:
-            raise Exception(param.Type)
-        else:
-            return False
+        raise Exception(param.Type)
 
 def IsLegalModuleType(Type):
     if Type in OperatorList:
@@ -59,7 +56,7 @@ def FunctionsOutputs2List(Functions):
 class FunctionsOutputs:
     def __init__(self, param=None, data=None, **kw):
         utils_torch.model.InitForModel(self, param, data, 
-            ClassPath="utils_torch.Models.Operators.FunctionsOutputs", **kw)
+            ClassPath="utils_torch.Modules.Operators.FunctionsOutputs", **kw)
     def InitFromParam(self, IsLoad=False):
         param = self.param
         cache = self.cache
@@ -85,8 +82,7 @@ def CalculateGradient(loss):
 # Operators.CalculateGradient = CalculateGradient
 OperatorList.append(["CalculateGradient"])
 
-from utils_torch.optimize import GradientDescend
-OperatorList.append("GradientDescend")
+
 
 def CreateDataLogger():
     return utils_torch.log.DataLogger()

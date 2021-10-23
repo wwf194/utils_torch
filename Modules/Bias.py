@@ -8,7 +8,7 @@ from utils_torch.attrs import *
 class Bias(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(Bias, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.Bias", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.Bias", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param

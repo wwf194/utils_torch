@@ -218,14 +218,10 @@ def DataFile2JsonObj(FilePath):
 
 def DataFile2PyObj(FilePath):
     DataObj = DataFile2JsonObj(FilePath)
-    # if "VerticesNp" in DataObj:
-    #     print("aaa")
     return JsonObj2PyObj(DataObj)
 
 def PyObj2DataFile(Obj, FilePath):
     DataObj = PyObj2DataObj(Obj)
-    # if "VerticesNp" in DataObj:
-    #     print("aaa")
     JsonObj2DataFile(DataObj, FilePath)
 
 def EmptyPyObj():

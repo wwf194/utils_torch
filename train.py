@@ -47,14 +47,16 @@ def NotifyBatchNum(ObjList, BatchNum):
     for Obj in ObjList:
         Obj.NotifyBatchNum(BatchNum)
 
+
 class TrainerForEpochBatchTraining:
     def __init__(self, param, **kw):
         utils_torch.model.InitForNonModel(self, param, **kw)
-    def InitFromParam(self, IsLoad=True):
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param
         cache = self.cache
-        utils_torch.model.InitFromParamForModel(self, IsLoad)
         self.BuildModules()
+        self.InitModules()
         self.ParseRouters()
         self.ClearEpoch()
         self.ClearBatch()
@@ -86,70 +88,79 @@ class TrainerForEpochBatchTraining:
         cache = self.cache
         for Obj in self.cache.NotifyEpochBatchList:
             Obj.NotifyBatchNum(cache.BatchNum)
+    def Register2NotifyEpochBatchList(self, List):
+        self.cache.NotifyEpochBatchList = List
+    def GenerateConteextInfo(self):
+        return {
+            "EpochNum": self.EpochNum,
+            "BatchNum": self.BatchNum,
+            "EpochIndex": self.EpochIndex,
+            "BatchIndex": self.BatchIndex,
+        }
     def __call__(self):
         utils_torch.CallGraph(self.Dynamics.Main)
 
 utils_torch.model.SetMethodForNonModelClass(TrainerForEpochBatchTraining)
 
-def TrainEpochBatch(param, **kw):
-    kw["ObjCurrent"] = param
-    logger = kw["Logger"]
+# def TrainEpochBatch(param, **kw):
+#     kw["ObjCurrent"] = param
+#     logger = kw["Logger"]
     
-    param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
-    Routers = ParseRoutersFromTrainParam(param, **kw)
-    NofityEpochBatchList = utils_torch.parse.ParsePyObjDynamic(
-        param.NotifyEpochBatchList, InPlace=False, **kw
-    )
+#     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
+#     Routers = ParseRoutersFromTrainParam(param, **kw)
+#     NofityEpochBatchList = utils_torch.parse.ParsePyObjDynamic(
+#         param.NotifyEpochBatchList, InPlace=False, **kw
+#     )
 
-    EpochNum, BatchNum = param.Epoch.Num, param.Batch.Num
-    NotifyEpochNum(NofityEpochBatchList, EpochNum)
-    NotifyBatchNum(NofityEpochBatchList, BatchNum)
+#     EpochNum, BatchNum = param.Epoch.Num, param.Batch.Num
+#     NotifyEpochNum(NofityEpochBatchList, EpochNum)
+#     NotifyBatchNum(NofityEpochBatchList, BatchNum)
     
-    EpochIndex, BatchIndex = -1, BatchNum - 1
-    NotifyEpochIndex(NofityEpochBatchList, EpochIndex)
-    NotifyBatchIndex(NofityEpochBatchList, BatchIndex)
+#     EpochIndex, BatchIndex = -1, BatchNum - 1
+#     NotifyEpochIndex(NofityEpochBatchList, EpochIndex)
+#     NotifyBatchIndex(NofityEpochBatchList, BatchIndex)
 
-    utils_torch.CallGraph(Routers.Test, In=Routers.In)
+#     utils_torch.CallGraph(Routers.Test, In=Routers.In)
 
-    SaveAndLoad(EpochIndex, BatchIndex, **kw)
-    Routers = ParseRoutersFromTrainParam(param, **kw)
+#     SaveAndLoad(EpochIndex, BatchIndex, **kw)
+#     Routers = ParseRoutersFromTrainParam(param, **kw)
 
-    AnalyzeAfterBatch(
-        utils_torch.GetLogger("DataTest"),
-        Routers=Routers, param=param,
-        EpochNum=EpochNum, EpochIndex=EpochIndex,
-        BatchNum=BatchNum, BatchIndex=BatchIndex,
-        **kw
-    )
+#     AnalyzeAfterBatch(
+#         utils_torch.GetLogger("DataTest"),
+#         Routers=Routers, param=param,
+#         EpochNum=EpochNum, EpochIndex=EpochIndex,
+#         BatchNum=BatchNum, BatchIndex=BatchIndex,
+#         **kw
+#     )
 
-    CheckPointSave = CheckPoint()
-    CheckPointAnalyze = CheckPoint()
-    CheckPointSave.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
-    CheckPointAnalyze.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
+#     CheckPointSave = CheckPoint()
+#     CheckPointAnalyze = CheckPoint()
+#     CheckPointSave.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
+#     CheckPointAnalyze.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
 
 
-    for EpochIndex in range(EpochNum):
-        NotifyEpochIndex(NofityEpochBatchList, EpochIndex)
-        #utils_torch.AddLog("Epoch: %d"%EpochIndex)
-        for BatchIndex in range(BatchNum):
-            NotifyBatchIndex(NofityEpochBatchList, BatchIndex)
-            utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
-            utils_torch.CallGraph(Routers.Train, In=Routers.In) 
+#     for EpochIndex in range(EpochNum):
+#         NotifyEpochIndex(NofityEpochBatchList, EpochIndex)
+#         #utils_torch.AddLog("Epoch: %d"%EpochIndex)
+#         for BatchIndex in range(BatchNum):
+#             NotifyBatchIndex(NofityEpochBatchList, BatchIndex)
+#             utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
+#             utils_torch.CallGraph(Routers.Train, In=Routers.In) 
             
-            # Save and Reload.
-            if CheckPointSave.AddBatchAndReturnIsCheckPoint():
-                SaveAndLoad(EpochIndex, BatchIndex, **kw)
-                Routers = ParseRoutersFromTrainParam(param, **kw)
+#             # Save and Reload.
+#             if CheckPointSave.AddBatchAndReturnIsCheckPoint():
+#                 SaveAndLoad(EpochIndex, BatchIndex, **kw)
+#                 Routers = ParseRoutersFromTrainParam(param, **kw)
             
-            # Do analysis
-            if CheckPointAnalyze.AddBatchAndReturnIsCheckPoint():
-                AnalyzeAfterBatch(
-                    utils_torch.GetLogger("Data"),
-                    Routers=Routers, param=param,
-                    EpochNum=EpochNum, EpochIndex=EpochIndex,
-                    BatchNum=BatchNum, BatchIndex=BatchIndex,
-                    **kw
-                )
+#             # Do analysis
+#             if CheckPointAnalyze.AddBatchAndReturnIsCheckPoint():
+#                 AnalyzeAfterBatch(
+#                     utils_torch.GetLogger("Data"),
+#                     Routers=Routers, param=param,
+#                     EpochNum=EpochNum, EpochIndex=EpochIndex,
+#                     BatchNum=BatchNum, BatchIndex=BatchIndex,
+#                     **kw
+#                 )
                 
 def ParseRoutersFromTrainParam(param, **kw):
     Routers = utils_torch.PyObj()
@@ -158,57 +169,19 @@ def ParseRoutersFromTrainParam(param, **kw):
         setattr(Routers, Name, Router)
     return Routers
 
-def SaveAndLoad(EpochIndex, BatchIndex, **kw):
-    SaveDir = utils_torch.SetSubSaveDirEpochBatch("SavedModel", EpochIndex, BatchIndex)
-    utils_torch.DoTasks(
-            "&^param.task.Save", 
-            In={"SaveDir": SaveDir},
-            **kw
-        )
-    utils_torch.DoTasks(
-        "&^param.task.Load",
-        In={"SaveDir": SaveDir}, 
-        **kw
-    )
 
 def SetSaveDirForSavedModel(EpochIndex, BatchIndex):
     SaveDirForSavedModel = utils_torch.GetMainSaveDir() + "SavedModel/" + "Epoch%d-Batch%d/"%(EpochIndex, BatchIndex)
     utils_torch.SetSubSaveDir(SaveDirForSavedModel, Type="Obj")
 
-def AnalyzeSptialActivity(param, **kw):
-    Routers = kw.get("Routers")
-    EpochIndex, BatchIndex = kw.get("EpochIndex"), kw.get("BatchIndex")
-    logger = utils_torch.GetLogger("DataTest")
-    NeuronNum = utils_torch.parse.ResolveStr(param.SpatialActivityMap.NeuronNum, **kw)
-    BoundaryBox = utils_torch.parse.ResolveStr(param.SpatialActivityMap.BoundaryBox, **kw)
-    Arena = utils_torch.parse.ResolveStr(param.Arena, **kw)
-    SpatialActivity = utils_torch.ExternalMethods.InitSpatialActivity(
-        BoundaryBox = BoundaryBox,
-        Resolution = param.SpatialActivityMap.Resolution,
-        NeuronNum = NeuronNum
-    )
-    for _BatchIndex in range(param.Batch.Num):
-        utils_torch.AddLog("Analyzing Spatial Activity. Batch%d"%_BatchIndex)
-        utils_torch.CallGraph(Routers.Test, In=Routers.In)
-        activity = logger.GetLogByName("agent.model.FiringRates")["Value"]
-        XYsTruth = logger.GetLogByName("agent.model.Outputs")["Value"]
-        XYsPredicted = logger.GetLogByName("agent.model.OutputTargets")["Value"]
-        # Use either XYsTruth or XYsPredicted for spatial activity map plotting.
-        utils_torch.ExternalMethods.LogSpatialActivity(SpatialActivity, activity, XYsPredicted)
-    utils_torch.ExternalMethods.CalculateSpatialActivity(SpatialActivity)
-    utils_torch.ExternalMethods.PlotSpatialActivity(
-        SpatialActivity, Arena, NeuronName="Hidden Neuron",
-        SaveDir = utils_torch.GetMainSaveDir() + "SpatialActivityMap/" + "Epoch%d-Batch%d/"%(EpochIndex, BatchIndex),
-        SaveName = "agent.model.FiringRates"
-    )
+def AnalyzeAfterBatch(ContextInfo):
+    logger = ContextInfo["Logger"]
+    EpochIndex = ContextInfo["EpochIndex"]
+    BatchIndex = ContextInfo["BatchIndex"]
+    Routers = ContextInfo.get("Routers")
+    param = ContextInfo.ContextInfo("param")
 
-def AnalyzeAfterBatch(logger, **kw):
-    EpochIndex = kw["EpochIndex"]
-    BatchIndex = kw["BatchIndex"]
-    Routers = kw.get("Routers")
-    param = kw.get("param")
-
-    _kw = dict(kw)
+    _kw = dict(ContextInfo)
     _kw["param"] = param.TestForSpatialActivityAnalysis
     AnalyzeSptialActivity(
         **_kw
@@ -315,49 +288,74 @@ def ParseOptimizeParamEpochBatch(param):
     EnsureAttrs(param, "Dampening", value=0.0)
     EnsureAttrs(param, "Momentum", value=0.0)
 
-def BuildCheckPoint(param):
-    checkPoint = CheckPoint(param)
-    checkPoint.InitFromParam()
-    return checkPoint
-
 class CheckPointForEpochBatchTraining:
-    def __init__(self, param):
-        self.param = param
-        return
-    def InitFromParam(self):
+    def __init__(self, param, **kw):
+        utils_torch.model.InitForNonModel(self, param, ClassPath="utils_torch.Train.CheckPointForEpochBatchTraining", **kw)
+    def InitFromParam(self, IsLoad):
+        utils_torch.model.InitFromParamForNonModel(self, IsLoad)
         # Intervals are calculated in batches, not epochs.
         param = self.param
-        assert HasAttrs(param, "Epoch.Num")
-        assert HasAttrs(param, "Batch.Num")
-        EnsureAttrs(param, "Interval.IncreaseCoefficient", value=1.5)
-        EnsureAttrs(param, "Interval.Start", value=10)
-        EnsureAttrs(param, "Interval.Max", value=10 * param.BatchNum)
-        self.CheckPointList = GetCheckPointListEpochBatch(param)
-        self.BatchIndex = -1
-        self.CheckPointNextIndex = 0
-        self.CheckPointNext = self.CheckPointList[self.CheckPointNextIndex]
-    def AddBatchAndReturnIsCheckPoint(self):
-        self.BatchIndex += 1
-        IsCheckPoint = False
-        if self.BatchIndex >= self.CheckPointNext:
-            IsCheckPoint = True
-            self.CheckPointNextIndex += 1
-            self.CheckPointNext = self.CheckPointList[self.CheckPointNextIndex]
-        return IsCheckPoint
-    
-def GetCheckPointListEpochBatch(param):
-    BatchNumTotal = param.EpochNum * param.BatchNum
-    CheckPointBatchIndices = []
-    BatchIndexTotal = 0
-    CheckPointBatchIndices.append(BatchIndexTotal)
-    Interval = param.Interval.Start
-    while BatchIndexTotal < BatchNumTotal:
-        BatchIndexTotal += round(Interval)
+        cache = self.cache
+        EnsureAttrs(param, "CalculateCheckPointMode", default="Online")
+        if param.CalculateCheckPointMode in ["Static"]: # For cases where EpochNum and BatchNum is known before training.
+            assert HasAttrs(param, "Epoch.Num")
+            assert HasAttrs(param, "Batch.Num")
+            EnsureAttrs(param, "Interval.IncreaseCoefficient", value=1.5)
+            EnsureAttrs(param, "Interval.Start", value=10)
+            EnsureAttrs(param, "Interval.Max", value=10 * param.Batch.Num)
+            cache.CheckPointList = self.CalculateCheckPointList(param)
+            cache.BatchIndex = -1
+            cache.CheckPointNextIndex = 0
+            cache.CheckPointNext = self.CheckPointList[self.CheckPointNextIndex]
+            self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointStatic
+        elif param.CalculateCheckPointMode in ["Online"]:
+            EnsureAttrs(param, "Interval.IncreaseCoefficient", value=1.5)
+            EnsureAttrs(param, "Interval.Start", value=10)
+            EnsureAttrs(param, "Interval.Max", value=10000)
+            cache.BatchIndex = -1
+            cache.IntervalCurrent = param.Interval.Start
+            cache.IntervalIndex = 0
+            cache.IntervalMax = param.Interval.Max
+            cache.IntervalIncreaseCoefficient = param.Interval.IncreaseCoefficient
+            self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointOnline
+        else:
+            raise Exception(param.CalculateCheckPointMode)
+    def CalculateCheckPointList(param):
+        BatchNumTotal = param.Epoch.Num * param.Batch.Num
+        CheckPointBatchIndices = []
+        BatchIndexTotal = 0
         CheckPointBatchIndices.append(BatchIndexTotal)
-        Interval *= param.Interval.IncreaseCoefficient
-        if Interval > param.Interval.Max:
-            Interval =param.Interval.Max
-    return CheckPointBatchIndices
+        Interval = param.Interval.Start
+        while BatchIndexTotal < BatchNumTotal:
+            BatchIndexTotal += round(Interval)
+            CheckPointBatchIndices.append(BatchIndexTotal)
+            Interval *= param.Interval.IncreaseCoefficient
+            if Interval > param.Interval.Max:
+                Interval =param.Interval.Max
+        return CheckPointBatchIndices
+    def AddBatchAndReturnIsCheckPointStatic(self, **kw):
+        cache = self.cache
+        cache.BatchIndex += 1
+        IsCheckPoint = False
+        if cache.BatchIndex >= self.CheckPointNext:
+            IsCheckPoint = True
+            cache.CheckPointNextIndex += 1
+            cache.CheckPointNext = cache.CheckPointList[self.CheckPointNextIndex]
+        return IsCheckPoint
+    def AddBatchAndReturnIsCheckPointOnline(self, **kw):
+        cache = self.cache
+        cache.BatchIndex += 1
+        cache.IntervalIndex += 1
+        if cache.IntervalIndex >= cache.IntervalCurrent:
+            IsCheckPoint = True
+            cache.IntervalCurrent = round(cache.IntervalCurrent * cache.IntervalIncreaseCoefficient)
+            if cache.IntervalCurrent > cache.IntervalMax:
+                cache.IntervalCurrent = cache.IntervalMax
+            cache.IntervalIndex = 0
+        else:
+            IsCheckPoint = False
+        return IsCheckPoint
+utils_torch.model.SetNofifyEpochBatchMethodForModel(CheckPointForEpochBatchTraining)
 
 def ClearGrad(weights):
     for name, weight in weights.items():

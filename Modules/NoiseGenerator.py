@@ -7,7 +7,7 @@ from utils_torch.attrs import *
 class NoiseGenerator(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(NoiseGenerator, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.NoiseGenerator", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.NoiseGenerator", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param

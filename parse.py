@@ -36,11 +36,15 @@ def ParseFunctionArg(Arg, ContextInfo):
             #ArgParsed = ResolveArg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
             return ResolveStrDict(Arg, ContextInfo)
         else:
-            return Arg
+            try:
+                return eval(Arg)
+            except Exception:
+                return Arg
     else:
         return Arg
 
 def ResolveStr(param, **kw):
+    kw.setdefault("ObjRoot", utils_torch.GetGlobalParam())
     return ResolveStrDict(param, kw)
 
 def ResolveStrDict(param, ContextInfo):
@@ -440,7 +444,7 @@ def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
         pass
 
 def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
-    # if Str in ["&^param.task"]:
+    # if Str in ["&^object.agent.Dynamics.InitBeforeEpochTrain"]:
     #     print("aaa")
 
     Str = utils_torch.RemoveHeadTailWhiteChars(Str)

@@ -4,14 +4,12 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils_torch.attrs import *
-from utils_torch.model import GetNonLinearMethod, GetConstraintFunction, CreateSelfConnectionMask, CreateExcitatoryInhibitoryMask, CreateWeight2D
-
-from utils_torch.Models.SingleLayer import SingleLayer
+from utils_torch.Modules.SingleLayer import SingleLayer
 
 class LinearLayer(SingleLayer):
     def __init__(self, param=None, data=None, **kw):
         super().__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Models.LinearLayer", **kw)
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.LinearLayer", **kw)
     def InitFromParam(self, param=None, IsLoad=False):
         super().InitFromParam(IsLoad)
         param = self.param
