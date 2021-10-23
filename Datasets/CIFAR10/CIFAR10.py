@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import torch
 import utils_torch
 from utils_torch.attrs import *
 
@@ -43,7 +44,7 @@ def ProcessOriginalDataDict(Dict, FileNameList):
         _Images = utils_torch.ToNpArray(Data["data"], DataType=np.uint8)
         _Images = _Images.reshape(10000, 3, 32, 32).transpose(0, 2, 3, 1)
         Images.append(_Images)
-        _Labels = utils_torch.ToNpArray(Data["labels"], DataType=np.int8)
+        _Labels = utils_torch.ToNpArray(Data["labels"], DataType=np.uint8)
         Labels.append(_Labels)
         FileNames += Data["filenames"]
     Labels = np.concatenate(Labels, axis=0)
@@ -131,8 +132,13 @@ class DataLoaderForEpochBatchTraining:
         IndexStart = cache.IndexCurrent
         IndexEnd = min(cache.IndexCurrent + cache.BatchSize, cache.IndexMax)
         DataBatch = {
-            "Input": utils_torch.NpArray2Tensor(cache.ImagesForBatches[IndexStart:IndexEnd]).to(self.GetTensorLocation()),
-            "Output": utils_torch.NpArray2Tensor(cache.LabelsForBatches[IndexStart:IndexEnd]).to(self.GetTensorLocation()),
+            "Input": utils_torch.NpArray2Tensor(
+                    cache.ImagesForBatches[IndexStart:IndexEnd]
+                ).to(self.GetTensorLocation()),
+            "Output": utils_torch.NpArray2Tensor(
+                    cache.LabelsForBatches[IndexStart:IndexEnd],
+                    DataType=torch.long # CrossEntropyLoss requires label to be LongTensor.
+                ).to(self.GetTensorLocation()),
         }
         cache.IndexCurrent = IndexEnd
         return DataBatch

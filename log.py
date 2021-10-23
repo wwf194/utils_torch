@@ -1,4 +1,3 @@
-import enum
 import utils_torch
 
 import numpy as np
@@ -107,75 +106,86 @@ def PlotLogList(Name, Log, SaveDir=None, **kw):
     )
 
 class LoggerForEpochBatchTrain:
-    def __init__(self):
-        self.log = defaultdict(lambda:[])
-        self.IsPlotable = defaultdict(lambda:True)
-        self.logType = defaultdict(lambda:"Unknown")
+    def __init__(self, param=None, **kw):
+        utils_torch.model.InitForNonModel(self, param, ClassPath="utils_torch.train.LoggerForEpochBatchTrain", **kw)
+        self.InitFromParam(IsLoad=False)
+    def InitFromParam(self, IsLoad=False):
+        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        param = self.param
+        data = self.data
+        cache = self.cache
+        data.log = defaultdict(lambda:[])
+        #self.IsPlotable = defaultdict(lambda:True)
+        data.logType = defaultdict(lambda:"Unknown")
         self.GetLog = self.GetLogByName
         self.AddLog = self.AddLogList
         self.Get = self.GetLog
     def UpdateEpoch(self, EpochIndex):
-        self.EpochIndex = EpochIndex
+        cache = self.cache
+        cache.EpochIndex = EpochIndex
     def UpdateBatch(self, BatchIndex):
-        self.BatchIndex = BatchIndex
+        cache = self.cache
+        cache.BatchIndex = BatchIndex
     def AddLogList(self, Name, Value, Type=None):
-        if not Name in self.log:
-            self.log[Name] = {
+        data = self.data
+        cache =self.cache
+        if not Name in data.log:
+            data.log[Name] = {
                 "Epoch":[],
                 "Batch":[],
                 "Value":[]
             }
             if Type is not None:
-                self.logType[Name] = Type
-        #self.log[Name].append([self.EpochIndex, self.BatchIndex, Value])
-        log = self.log[Name]
-        log["Epoch"].append(self.EpochIndex)
-        log["Batch"].append(self.BatchIndex),
+                data.logType[Name] = Type
+        #data.log[Name].append([cache.EpochIndex, cache.BatchIndex, Value])
+        log = data.log[Name]
+        log["Epoch"].append(cache.EpochIndex)
+        log["Batch"].append(cache.BatchIndex),
         log["Value"].append(Value)
     def AddLogDict(self, Name, Dict, Type=None):
-        if not Name in self.log:
-            self.log[Name] = defaultdict(lambda:[])
+        data = self.data
+        cache = self.cache
+        if not Name in data.log:
+            data.log[Name] = defaultdict(lambda:[])
             if Type is not None:
-                self.logType[Name] = Type
-        Log = self.log[Name]
+                data.logType[Name] = Type
+        Log = data.log[Name]
         for key, value in Dict.items():
             Log[key].append(value)
-        Log["Epoch"].append(self.EpochIndex)
-        Log["Batch"].append(self.BatchIndex)
+        Log["Epoch"].append(cache.EpochIndex)
+        Log["Batch"].append(cache.BatchIndex)
     def AddLogCache(self, Name, data, Type="Cache"):
-        self.logType[Name] = Type
-        self.log[Name] = {
-            "Epoch":self.EpochIndex,
-            "Batch":self.BatchIndex,
+        cache = self.cache
+        data = self.data
+        data.logType[Name] = Type
+        data.log[Name] = {
+            "Epoch":cache.EpochIndex,
+            "Batch":cache.BatchIndex,
             "Value":data
         }
     def RegisterLog(self, Name, Type="List"):
+        data = self.data
         if Type in ["List"]:
-            self.log[Name] = []
+            data.log[Name] = []
         elif Type in ["Dict"]:
-            self.log[Name] = {}
+            data.log[Name] = {}
         else:
             raise Exception(Type)
     def SetPlotType(self, Name, Type):
         self.PlotType[Name] = Type
-    def NotifyEpochNum(self, EpochNum):
-        self.EpochNum = EpochNum
-    def NotifyBatchNum(self, BatchNum):
-        self.BatchNum = BatchNum
-    def NotifyEpochIndex(self, EpochIndex):
-        self.EpochIndex = EpochIndex
-    def NotifyBatchIndex(self, BatchIndex):
-        self.BatchIndex = BatchIndex
+
     def SetLocal(self, Name, Value):
         setattr(self, Name, Value)
     def SetLogType(self, Name, Value):
-        if not Name in self.log:
+        data = self.data
+        if not Name in data.log:
             raise Exception()
-        self.logType[Name] = Value
+        data.logType[Name] = Value
     def PlotLogOfGivenType(self, Type, PlotType="LineChart", SaveDir=None):
         utils_torch.EnsureDir(SaveDir)
-        for Name, Log in self.log.items():
-            if not self.logType[Name] in [Type]:
+        data = self.data
+        for Name, Log in data.log.items():
+            if not data.logType[Name] in [Type]:
                 continue
             if PlotType in ["LineChart"]:
                 self.PlotLogList(Name, Log, SaveDir)
@@ -200,27 +210,31 @@ class LoggerForEpochBatchTrain:
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png"%Name)
         utils_torch.files.Table2TextFileDict(Log, SavePath=SaveDir + "%s-Epoch"%Name)
     def GetLogByName(self, Name):
-        if not Name in self.log:
+        data = self.data
+        if not Name in data.log:
             #raise Exception(Name)
             utils_torch.AddWarning("No such log: %s"%Name)
             return None
-        return self.log[Name]
+        return data.log[Name]
     def GetLogOfType(self, Type):
+        data = self.data
         Logs = {}
-        for Name, Log in self.log.items():
-            if self.logType[Name] in [Type]:
+        for Name, Log in data.log.items():
+            if data.logType[Name] in [Type]:
                 Logs[Name] = Log
         return Logs
     def PlotAllLogs(self, SaveDir=None):
         utils_torch.EnsureDir(SaveDir)
-        for Name, Log in self.log.items():
+        data = self.data
+        for Name, Log in data.log.items():
             if isinstance(Log, dict):
                 self.PlotLogDict(self, Name, Log, SaveDir)
             elif isinstance(Log, list):
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-    
+utils_torch.model.SetEpochBatchMethodForModel(LoggerForEpochBatchTrain)
+
 class Logger:
     def __init__(self, Name, **kw):
         self.logger = _CreateLogger(Name, **kw)

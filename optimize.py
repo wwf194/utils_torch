@@ -38,7 +38,7 @@ class GradientDescend:
                 else:
                     WeightChangeMomentum = LastUpdateInfo['dW']
                     #WeightChangeMomentum.mul_(param.Momentum).add_(1 - param.Dampening, WeightChange)
-                    WeightChangeMomentum.mul_(param.Momentum).add_(WeightChange, alpha=1 - param.Dampening, )
+                    WeightChangeMomentum.mul_(param.Momentum).add_(WeightChange, alpha=1.0 - param.Dampening, )
                 if param.Nesterov:
                     WeightChange = WeightChange.add(param.Momentum, alpha=WeightChangeMomentum)
                 else:
@@ -59,7 +59,7 @@ class GradientDescend:
                 Weight.grad.detach_()
                 Weight.grad.zero_()
         if LogGrad:
-            utils_torch.GetLogger("DataTest").AddLogCache("MinusGrad", GradLog, Type="Grad")
-        return
+            return GradLog
+
 
 utils_torch.model.SetMethodForModelClass(GradientDescend)

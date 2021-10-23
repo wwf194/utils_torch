@@ -313,3 +313,24 @@ def PixelIndices2XYs(Indices, BoundaryBox, ResolutionX, ResolutionY):
     Xs = Indices[:, 0] * PixelWidth + XMin + PixelHalfWidth
     Ys = Indices[:, 1] * PixelHeight  + YMin + PixelHalfHeight
     return np.stack([Xs, Ys], axis=1)
+
+def PointInTriangle(P, A, B, C):
+    AB = B - A
+    BC = C - B
+    CA = A - C
+    AP = P - A
+    BP = P - B
+    CP = P - C
+    ABCrossAP = Cross(AB, AP)
+    BCCrossBP = Cross(BC, BP)
+    CACrossCP = Cross(CA, CP)
+    return ABCrossAP > 0.0 and BCCrossBP > 0.0 and CACrossCP > 0.0 \
+        or ABCrossAP < 0.0 and BCCrossBP < 0.0 and CACrossCP < 0.0
+
+def Triangles2BoundaryBox(ABC):
+    # ABC: [TriangleNum, (A, B, C), (x, y)]
+    XMin = np.min(ABC[:, :, 0], axis=1) # [TriangleNum]
+    XMax = np.max(ABC[:, :, 0], axis=1)
+    YMin = np.min(ABC[:, :, 1], axis=1)
+    YMax = np.max(ABC[:, :, 1], axis=1)
+    BoundaryBox = np.stack([XMin, YMin, XMax, YMax], axis=1) # [TriangleNum, 4]

@@ -145,5 +145,5 @@ def CallGraph(Router, In, **kw):
                         pass
                     # utils_torch.parse.Register2PyObj(OutputList, States, Routing.Out)
             else:
-                raise Exception()
+                continue
     return utils_torch.parse.FilterFromPyObj(States, Router.Out)

@@ -729,24 +729,24 @@ def SetMethodForNonModelClass(Class, **kw):
     if not hasattr(Class, "ParseRouters"):
         Class.ParseRouters = ParseRoutersForModel
 
-def NotifyEpochIndexForModel(self, EpochIndex):
+def SetEpochIndexForModel(self, EpochIndex):
     self.cache.EpochIndex = EpochIndex
 
-def NotifyBatchIndexForModel(self, BatchIndex):
+def SetBatchIndexForModel(self, BatchIndex):
     self.cache.BatchIndex = BatchIndex
 
-def NotifyEpochNumForModel(self, EpochNum):
+def SetEpochNumForModel(self, EpochNum):
     self.cache.EpochNum = EpochNum
 
-def NotifyBatchNumForModel(self, BatchNum):
+def SetBatchNumForModel(self, BatchNum):
     self.cache.BatchNum = BatchNum
 
-def SetNofifyEpochBatchMethodForModel(Class):
-    if not hasattr(Class, "NofityEpochIndex"):
-        Class.NofityEpochIndex = NotifyEpochIndexForModel
-    if not hasattr(Class, "NotifyBatchIndex"):
-        Class.NotifyBatchIndex = NotifyBatchIndexForModel
-    if not hasattr(Class, "NotifyEpochNum"):
-        Class.NotifyEpochNum = NotifyEpochNumForModel
-    if not hasattr(Class, "NotifyBatchNum"):
-        Class.NotifyBatchNum = NotifyBatchNumForModel
+def SetEpochBatchMethodForModel(Class):
+    if not hasattr(Class, "SetEpochIndex"):
+        Class.SetEpochIndex = SetEpochIndexForModel
+    if not hasattr(Class, "SetBatchIndex"):
+        Class.SetBatchIndex = SetBatchIndexForModel
+    if not hasattr(Class, "SetEpochNum"):
+        Class.SetEpochNum = SetEpochNumForModel
+    if not hasattr(Class, "SetBatchNum"):
+        Class.SetBatchNum = SetBatchNumForModel

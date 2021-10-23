@@ -47,7 +47,6 @@ def NotifyBatchNum(ObjList, BatchNum):
     for Obj in ObjList:
         Obj.NotifyBatchNum(BatchNum)
 
-
 class TrainerForEpochBatchTraining:
     def __init__(self, param, **kw):
         utils_torch.model.InitForNonModel(self, param, **kw)
@@ -60,10 +59,6 @@ class TrainerForEpochBatchTraining:
         self.ParseRouters()
         self.ClearEpoch()
         self.ClearBatch()
-    def SetBatchNum(self, BatchNum):
-        self.cache.BatchNum = BatchNum
-    def SetEpochNum(self, EpochNum):
-        self.cache.EpochNum = EpochNum
     def ClearBatch(self):
         self.cache.BatchIndex = 0
     def ClearEpoch(self):
@@ -75,28 +70,29 @@ class TrainerForEpochBatchTraining:
     def NotifyEpochIndex(self):
         cache = self.cache
         for Obj in self.cache.NotifyEpochBatchList:
-            Obj.NotifyEpochIndex(cache.EpochIndex)
+            Obj.SetEpochIndex(cache.EpochIndex)
     def NotifyBatchIndex(self):
         cache = self.cache
         for Obj in self.cache.NotifyEpochBatchList:
-            Obj.NotifyBatchIndex(cache.BatchIndex)
+            Obj.SetBatchIndex(cache.BatchIndex)
     def NotifyEpochNum(self):
         cache = self.cache
         for Obj in self.cache.NotifyEpochBatchList:
-            Obj.NotifyEpochNum(cache.EpochNum)
+            Obj.SetEpochNum(cache.EpochNum)
     def NotifyBatchNum(self):
         cache = self.cache
         for Obj in self.cache.NotifyEpochBatchList:
-            Obj.NotifyBatchNum(cache.BatchNum)
+            Obj.SetBatchNum(cache.BatchNum)
     def Register2NotifyEpochBatchList(self, List):
         self.cache.NotifyEpochBatchList = List
     def GenerateContextInfo(self):
+        cache = self.cache
         return {
             "Trainer": self,
-            "EpochNum": self.EpochNum,
-            "BatchNum": self.BatchNum,
-            "EpochIndex": self.EpochIndex,
-            "BatchIndex": self.BatchIndex,
+            "EpochNum": cache.EpochNum,
+            "BatchNum": cache.BatchNum,
+            "EpochIndex": cache.EpochIndex,
+            "BatchIndex": cache.BatchIndex,
         }
     def __call__(self):
         utils_torch.CallGraph(self.Dynamics.Main)
@@ -105,7 +101,7 @@ class TrainerForEpochBatchTraining:
         utils_torch.AddLog("Epoch%d-Batch%d"%(cache.EpochIndex, cache.BatchIndex))
 
 utils_torch.model.SetMethodForNonModelClass(TrainerForEpochBatchTraining)
-
+utils_torch.model.SetEpochBatchMethodForModel(TrainerForEpochBatchTraining)
 # def TrainEpochBatch(param, **kw):
 #     kw["ObjCurrent"] = param
 #     logger = kw["Logger"]
@@ -263,7 +259,7 @@ class CheckPointForEpochBatchTraining:
         else:
             IsCheckPoint = False
         return IsCheckPoint
-utils_torch.model.SetNofifyEpochBatchMethodForModel(CheckPointForEpochBatchTraining)
+utils_torch.model.SetEpochBatchMethodForModel(CheckPointForEpochBatchTraining)
 
 def ClearGrad(weights):
     for name, weight in weights.items():
