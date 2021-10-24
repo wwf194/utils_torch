@@ -184,7 +184,7 @@ def ListAttrsAndValues(Obj, Exceptions=[], ExcludeCache=True):
     for Exception in Exceptions:
         if Exception in Dict:
             Dict.pop(Exception)
-    return Dict.items()
+    return list(Dict.items())
 
 def ListAttrs(Obj, ExcludeCache=True):
     Dict = dict(Obj.__dict__)

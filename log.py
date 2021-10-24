@@ -137,7 +137,6 @@ class LoggerForEpochBatchTrain:
             }
             if Type is not None:
                 data.logType[Name] = Type
-        #data.log[Name].append([cache.EpochIndex, cache.BatchIndex, Value])
         log = data.log[Name]
         log["Epoch"].append(cache.EpochIndex)
         log["Batch"].append(cache.BatchIndex),
@@ -154,14 +153,14 @@ class LoggerForEpochBatchTrain:
             Log[key].append(value)
         Log["Epoch"].append(cache.EpochIndex)
         Log["Batch"].append(cache.BatchIndex)
-    def AddLogCache(self, Name, data, Type="Cache"):
+    def AddLogCache(self, Name, Data, Type="Cache"):
         cache = self.cache
         data = self.data
         data.logType[Name] = Type
         data.log[Name] = {
             "Epoch":cache.EpochIndex,
             "Batch":cache.BatchIndex,
-            "Value":data
+            "Value":Data
         }
     def RegisterLog(self, Name, Type="List"):
         data = self.data

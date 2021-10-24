@@ -59,8 +59,8 @@ def ProcessOriginalDataDict(Dict, FileNameList):
     return DataObj
 
 class DataLoaderForEpochBatchTraining:
-    def __init__(self, param):
-        utils_torch.model.InitForNonModel(self, param)
+    def __init__(self, param, **kw):
+        utils_torch.model.InitForNonModel(self, param, **kw)
         return
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForNonModel(self, IsLoad)

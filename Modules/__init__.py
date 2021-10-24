@@ -31,25 +31,25 @@ def IsLegalModuleType(Type):
 
 def BuildModule(param, **kw):
     if param.Type in ["LinearLayer"]:
-        return utils_torch.Modules.LinearLayer(param, **kw)
+        return LinearLayer(param, **kw)
     elif param.Type in ["NonLinearLayer"]:
-        return utils_torch.Modules.NonLinearLayer(param, **kw)
+        return NonLinearLayer(param, **kw)
     elif param.Type in ["MLP", "MultiLayerPerceptron", "mlp"]:
-        return utils_torch.Modules.MLP(param, **kw)
+        return MLP(param, **kw)
     elif param.Type in ["SerialReceiver"]:
-        return utils_torch.Modules.SerialReceiver(param, **kw)
+        return SerialReceiver(param, **kw)
     elif param.Type in ["SerialSender"]:
-        return utils_torch.Modules.SerialSender(param, **kw)
+        return SerialSender(param, **kw)
     elif param.Type in ["SignalHolder"]:
-        return utils_torch.Modules.SignalHolder(param, **kw)
+        return SignalHolder(param, **kw)
     elif param.Type in ["Lambda", "LambdaLayer"]:
-        return utils_torch.Modules.LambdaLayer(param, **kw)
+        return LambdaLayer(param, **kw)
     elif param.Type in ["RecurrentLIFLayer"]:
-        return utils_torch.Modules.RecurrentLIFLayer(param, **kw)
+        return RecurrentLIFLayer(param, **kw)
     elif param.Type in ["NoiseGenerator"]:
-        return utils_torch.Modules.NoiseGenerator(param, **kw)
+        return NoiseGenerator(param, **kw)
     elif param.Type in ["Bias"]:
-        return utils_torch.Modules.Bias(param, **kw)
+        return Bias(param, **kw)
     elif param.Type in ["NonLinear"]:
         return GetNonLinearMethod(param, **kw)
     else:

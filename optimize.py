@@ -5,7 +5,7 @@ from collections import defaultdict
 
 class GradientDescend:
     def __init__(self, param=None, data=None, **kw):
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.train.GradientDescend")
+        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.optimize.GradientDescend")
     def InitFromParam(self, IsLoad=False):
         cache = self.cache
         cache.IsLoad = IsLoad

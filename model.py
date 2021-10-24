@@ -16,7 +16,7 @@ from utils_torch.LRSchedulers import LinearLR
 def BuildModule(param, **kw):
     if hasattr(param, "ClassPath"):
         Class = utils_torch.parse.ParseClass(param.ClassPath)
-        Module = Class(param)
+        Module = Class(param, **kw)
         return Module
     elif hasattr(param, "Type"):
         return BuildModuleFromType(param, **kw)
@@ -438,11 +438,12 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     param.cache.__object__ = self
 
     if data is None:
-        data = utils_torch.EmptyPyObj()
         if LoadDir is not None:
             DataPath = LoadDir + param.FullName + ".data"
             if utils_torch.FileExists(DataPath):
                 data = utils_torch.json.DataFile2PyObj(DataPath)
+        else:
+            data = utils_torch.EmptyPyObj()
 
     cache = utils_torch.EmptyPyObj()
     if LoadDir is not None:

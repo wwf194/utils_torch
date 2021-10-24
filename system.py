@@ -29,3 +29,6 @@ def GetBytesInMemory(Obj):
 def ReportMemoryOccupancy(Obj):
     ByteNum = GetBytesInMemory(Obj)
     return utils_torch.ByteNum2Str(Obj)
+
+def ReportTorchInfo(): # print info about training environment, global variables, etc.
+    return torch.pytorch_info()

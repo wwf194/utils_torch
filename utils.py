@@ -73,11 +73,15 @@ def ParseTaskList(TaskList, InPlace=True, **kw):
 def ParseTaskObj(TaskObj, Save=True, **kw):
     if isinstance(TaskObj, str):
         TaskObj = utils_torch.parse.ResolveStr(TaskObj, **kw)
-    if utils_torch.IsDictLikePyObj(TaskObj) and hasattr(TaskObj, "__Tasks__"):
-        TaskObj.__Tasks__ = ParseTaskList(TaskObj.__Tasks__, **kw)
-        TaskList = TaskObj.__Tasks__
-    # if utils_torch.IsDictLikePyObj(TaskObj):
-    #     TaskObj = ListAttrsAndValues(TaskObj)
+    if utils_torch.IsDictLikePyObj(TaskObj):
+        if hasattr(TaskObj, "__Tasks__"):
+            TaskObj.__Tasks__ = ParseTaskList(TaskObj.__Tasks__, **kw)
+            TaskList = TaskObj.__Tasks__
+        else:
+            TaskObj.__Tasks__ = ParseTaskList(ListAttrsAndValues(TaskObj), InPlace=False, **kw)
+            for Attr, Value in ListAttrsAndValues(TaskObj, Exceptions=["__Tasks__"]):
+                delattr(TaskObj, Attr)
+            TaskList = TaskObj.__Tasks__
     elif utils_torch.IsListLikePyObj(TaskObj):
         TaskObj.__Tasks__ = ParseTaskList(TaskObj, InPlace=False, **kw)
         delattr(TaskObj, "__value__")
@@ -214,8 +218,10 @@ def _BuildObjFromParam(Args, **kw):
         param = utils_torch.parse.ResolveStr(ParamPath, **kw)
         #Class = eval(ModulePath)
         #Obj = Class(param)
-        Module = utils_torch.ImportModule(ModulePath)
-        Obj = Module.__MainClass__(param)
+        Class = utils_torch.parse.ParseClass(ModulePath)
+        Obj = Class(param)
+        # Module = utils_torch.ImportModule(ModulePath)
+        # Obj = Module.__MainClass__(param)
 
         ObjRoot = kw.get("ObjRoot")
         ObjCurrent = kw.get("ObjCurrent")
@@ -679,7 +685,7 @@ def _GetGPUWithLargestUseableMemory(Verbose=True): # return torch.device with la
         GPUUseableMemory = np.array(GPUUseableMemory, dtype=np.int64)
         GPUWithLargestUseableMemoryIndex = np.argmax(GPUUseableMemory)    
         if Verbose:
-            utils_torch.AddLog("Available GPU Num: %d"%GPUNum)
+            utils_torch.AddLog("Useable GPU Num: %d"%GPUNum)
             report = "Useable GPU Memory: "
             for GPUIndex in range(GPUNum):
                 report += "GPU%d: %.2fGB "%(GPUIndex, GPUUseableMemory[GPUIndex] * 1.0 / 1024 ** 3)
@@ -716,6 +722,9 @@ def import_file(file_from_sys_path):
     module_path = module_path.replace("/", ".")
     return importlib.ImportModule(module_path)
 
+def CopyDict(Dict):
+    return dict(Dict)
+
 def GetItemsFromDict(dict_, keys):
     items = []
     for name in keys:
@@ -735,20 +744,17 @@ def write_dict_info(dict_, save_path='./', save_name='dict info.txt'): # write r
             else:
                 values_remained.append([key, value])
 
-def print_torch_info(): # print info about training environment, global variables, etc.
-    torch.pytorch_info()
-    #print('device='+str(device))
-
-def Getact_func_module(act_func_info):
-    name = Getname(act_func_info)
-    if name in ['relu']:
+def GetNonLinearMethodModule(Name):
+    if Name in ['relu']:
         return nn.ReLU()
-    elif name in ['tanh']:
+    elif Name in ['tanh']:
         return nn.Tanh()
-    elif name in ['softplus']:
+    elif Name in ['softplus']:
         return nn.Softplus()
-    elif name in ['sigmoid']:
+    elif Name in ['sigmoid']:
         return nn.Sigmoid()
+    else:
+        raise Exception(Name)
 
 def trunc_prefix(string, prefix):
     if(string[0:len(prefix)]==prefix):
@@ -812,8 +818,7 @@ def set_default_attr(self, key, value):
 
 set_dict_and_instance_variable = set_class_variable_and_dict = set_instance_variable_and_dict
 
-class Param:
-    pass
+
 def load_param(dict_, exception=[], default_exception=['kw', 'param', 'key', 'item'], use_default_exception=True):
     param = Param()
     for key, item in dict_.items():
@@ -826,8 +831,10 @@ def load_param(dict_, exception=[], default_exception=['kw', 'param', 'key', 'it
     return param
 
 def print_dict(dict_):
+    Str = ""
+    
     for key, items in dict_.items():
-        print('%s=%s'%(str(key), str(items)), end=' ')
+        Str('%s=%s'%(str(key), str(items)), end=' ')
     print('\n')
 
 def GetLastestModel(model_prefix, base_dir='./', is_dir=True):
