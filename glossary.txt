@@ -1,7 +1,9 @@
 Attr - Attribute
 Attrs - Attributes
+Dest - Destination
 Dir - Directory / Folder
 ExciInhi - Excitatory-Inhibitory
 Multi - Multiple
 Path - Literally, a path to reach somewhere in the file system. Can be either a directory or a file.
+Ref - Reference
 Stat - Statistics

@@ -32,3 +32,8 @@ def ReportMemoryOccupancy(Obj):
 
 def ReportTorchInfo(): # print info about training environment, global variables, etc.
     return torch.pytorch_info()
+
+import subprocess
+def RunPythonScript(FilePath, *CommandLineArgs):
+    subprocess.call(FilePath, *CommandLineArgs)
+RunPythonFile = RunPythonScript

@@ -393,6 +393,8 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
         pass
 
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
+    # if Obj in ["$Batch.Size"]:
+    #     print("aaa")
     kw["RecurDepth"] += 1
     WithinJson = kw["WithinJson"]
     if isinstance(Obj, list):

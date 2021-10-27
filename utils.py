@@ -25,6 +25,38 @@ from inspect import getframeinfo, stack
 from utils_torch.attrs import *
 from utils_torch.files import *
 
+import traceback
+
+def Main(CommandArgs):
+    TaskFilePath = CommandArgs.TaskFile # All sciprt loads a task file, and keep doing tasks in it.
+    if CommandArgs.task in ["CleanLog", "CleanLog", "cleanlog"]:
+        CleanLog()
+    elif CommandArgs.task in ["CleanFigure"]:
+        CleanFigures()
+    elif CommandArgs.task in ["DoTasksFromFile"]:
+        TaskObj = utils_torch.LoadTaskFile(TaskFilePath)
+        Tasks = getattr(TaskObj, CommandArgs.TaskName)
+        if not CommandArgs.IsDebug:
+            try: # catch all unhandled exceptions
+                utils_torch.DoTasks(Tasks, ObjRoot=utils_torch.GetGlobalParam())
+            except Exception:
+                utils_torch.AddError(traceback.format_exc())
+                raise Exception()
+        else:
+            utils_torch.DoTasks(Tasks, ObjRoot=utils_torch.GetGlobalParam())
+    elif CommandArgs.task in ["TotalLines"]:
+        utils_torch.CalculateGitProjectTotalLines()
+    elif CommandArgs.task in ["QuickScript"]:
+        CommandArgs.QuickScript(CommandArgs)
+    else:
+        raise Exception("Inavlid Task: %s"%CommandArgs.task)
+
+def CleanLog():
+    utils_torch.files.RemoveAllFilesAndDirs("./log/")
+
+def CleanFigures():
+    utils_torch.files.RemoveMatchedFiles("./", r".*\.png")
+
 def ParseTaskList(TaskList, InPlace=True, **kw):
     TaskListParsed = []
     for Index, Task in enumerate(TaskList):
@@ -71,6 +103,7 @@ def ParseTaskList(TaskList, InPlace=True, **kw):
         return utils_torch.PyObj(TaskListParsed)
 
 def ParseTaskObj(TaskObj, Save=True, **kw):
+    kw.setdefault("ObjRoot", utils_torch.GetGlobalParam())
     if isinstance(TaskObj, str):
         TaskObj = utils_torch.parse.ResolveStr(TaskObj, **kw)
     if utils_torch.IsDictLikePyObj(TaskObj):

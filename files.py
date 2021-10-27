@@ -1,9 +1,10 @@
 import os
 import re
 import pandas as pd
-
+import shutil # sh_utils
 import utils_torch
 from utils_torch.attrs import *
+import warnings
 
 def RemoveAllFiles(path, verbose=True):
     if not os.path.exists(path):
@@ -250,7 +251,7 @@ def ParseNameSuffix(FilePath):
     else:
         return MatchResult.group(1), MatchResult.group(2)
 
-def RenameIfPathExists(FilePath):
+def RenameFileIfPathExists(FilePath):
     if FilePath.endswith("/"):
         raise Exception()
 
@@ -279,6 +280,9 @@ def RenameIfPathExists(FilePath):
             Index += 1
     else:
         return FilePath
+RenameIfPathExists = RenameFileIfPathExists
+
+
 
 def Table2TextFileDict(Dict, SavePath):
     utils_torch.Str2File(pd.DataFrame(Dict).to_string(), SavePath)   
@@ -482,8 +486,27 @@ def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
         FilePath = os.path.join(abspath, name)
         if os.path.isdir(FilePath):
             if Recur:
-                VisitDirAndApplyMethod(Dir, Method, Recur, **kw)
+                VisitDirAndApplyMethodOnFiles(Dir, Method, Recur, **kw)
         else:
             Method(FilePath)
     return filepaths
+
+def CopyFilesByFilePaths(FilePaths, SourceDir, TargetDir):
+    return
+
+def CopyFiles(FileNameList, SourceDir, TargetDir):
+    for FileName in FileNameList:
+        CopyFileByFileName(FileName, SourceDir, TargetDir)
+
+def CopyFileByFileName(FileName, SourceDir, TargetDir):
+    shutil.copy(SourceDir + FileName, TargetDir)
+
+from distutils.dir_util import copy_tree
+
+def CopyFolder2DestDir(SourceDir, DestDir):
+    assert IsDir(SourceDir)
+    assert IsDir(DestDir)
+    copy_tree(SourceDir, DestDir)
+CopyDir2DestDir = CopyFolder2DestDir
+
 

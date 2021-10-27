@@ -344,13 +344,17 @@ def GetDatasetDir(Type):
         raise Exception()
     else:
         return GetAttrs(GlobalParam, Attrs)
-
-def SetMainSaveDir(SaveDir=None, Name=None, GlobalParam=None):
+    
+def SetMainSaveDir(SaveDir=None, Name=None, GlobalParam=None, Method="FromIndex"):
     if GlobalParam is None:
         GlobalParam = utils_torch.GetGlobalParam()
     if SaveDir is None:
-        SaveDir = "./log/%s-%s/"%(Name, utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
-
+        if Method in ["FromTime", "FromTimeStamp"]:
+            SaveDir = "./log/%s-%s/"%(Name, utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
+        elif Method in ["FromIndex"]:
+            SaveDir = utils_torch.RenameIfPathExists("./log/%s/"%Name)
+        else:
+            raise Exception(Method)
     utils_torch.EnsureDir(SaveDir)
     SetAttrs(utils_torch.GetGlobalParam(), "SaveDir.Main", value=SaveDir)
 
