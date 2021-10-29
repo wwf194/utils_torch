@@ -694,7 +694,7 @@ def ParseParamStatic(Args, Save=False, SavePath=None):
     utils_torch.json.PyObj2JsonFile(param, SavePath)
     utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param, ObjRoot=utils_torch.GetGlobalParam(), InPlace=True)
     if Save:
-        SavePath = utils_torch.RenameIfPathExists(SavePath)
+        SavePath = utils_torch.RenameIfFileExists(SavePath)
         utils_torch.json.PyObj2JsonFile(param, SavePath)
     return
 
@@ -705,7 +705,7 @@ def ParseParamDynamic(Args, Save=False, SavePath=None):
     for attr, param in utils_torch.ListAttrsAndValues(GlobalParam.param):
         utils_torch.parse.ParsePyObjDynamic(param, ObjCurrent=param, ObjRoot=utils_torch.GetGlobalParam(), InPlace=True)
     if Save:
-        utils_torch.json.PyObj2JsonFile(GlobalParam.param, utils_torch.RenameIfPathExists(SavePath))
+        utils_torch.json.PyObj2JsonFile(GlobalParam.param, utils_torch.RenameIfFileExists(SavePath))
     return
 
 def ParseClass(ClassPath):

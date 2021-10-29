@@ -1,7 +1,7 @@
 import re
 import sys
 import torch
-
+import time
 import utils_torch
 
 def ReportPyTorchInfo():
@@ -34,6 +34,16 @@ def ReportTorchInfo(): # print info about training environment, global variables
     return torch.pytorch_info()
 
 import subprocess
-def RunPythonScript(FilePath, *CommandLineArgs):
-    subprocess.call(FilePath, *CommandLineArgs)
+def RunPythonScript(FilePath, Args):
+    ArgsList = ["python", FilePath, *Args]
+    ArgsListStr = []
+    for Arg in ArgsList:
+        ArgsListStr.append(str(Arg))
+    subprocess.call(ArgsListStr)
 RunPythonFile = RunPythonScript
+
+def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
+    TimeStr = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
+    if verbose:
+        print(TimeStr)
+    return TimeStr

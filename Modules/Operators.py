@@ -96,7 +96,7 @@ def Tensor2Statistics2File(data, Name, FilePath=None):
     #Name, FilePath = utils_torch.ParseTextFilePathFromName(Name, FilePath)
     if FilePath is None:
         FilePath = utils_torch.GetMainSaveDir() + Name + "-statistics" + ".txt"
-        FilePath = utils_torch.RenameIfPathExists(FilePath)
+        FilePath = utils_torch.RenameIfFileExists(FilePath)
     statistics = utils_torch.math.TorchTensorStat(data)
     utils_torch.Data2TextFile(statistics, FilePath=FilePath)
 

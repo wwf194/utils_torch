@@ -240,7 +240,7 @@ class Logger:
     def AddLog(self, log, TimeStamp=True, File=True, LineNum=True, StackIndex=1, **kw):
         Caller = getframeinfo(stack()[StackIndex][0])
         if TimeStamp:
-            log = "[%s]%s"%(utils_torch.GetTime(), log)
+            log = "[%s]%s"%(utils_torch.system.GetTime(), log)
         if File:
             log = "%s File \"%s\""%(log, Caller.filename)
         if LineNum:
@@ -250,7 +250,7 @@ class Logger:
     def AddWarning(self, log, TimeStamp=True, File=True, LineNum=True, StackIndex=1, **kw):
         Caller = getframeinfo(stack()[StackIndex][0])
         if TimeStamp:
-            log = "[%s][WARNING]%s"%(utils_torch.GetTime(), log)
+            log = "[%s][WARNING]%s"%(utils_torch.system.GetTime(), log)
         if File:
             log = "%s File \"%s\""%(log, Caller.filename)
         if LineNum:
@@ -259,7 +259,7 @@ class Logger:
 
     def AddError(self, log, TimeStamp=True, **kw):
         if TimeStamp:
-            self.logger.error("[%s][ERROR]%s"%(utils_torch.GetTime(), log))
+            self.logger.error("[%s][ERROR]%s"%(utils_torch.system.GetTime(), log))
         else:
             self.logger.error("%s"%log)
     def Save(self):
@@ -350,13 +350,16 @@ def SetMainSaveDir(SaveDir=None, Name=None, GlobalParam=None, Method="FromIndex"
         GlobalParam = utils_torch.GetGlobalParam()
     if SaveDir is None:
         if Method in ["FromTime", "FromTimeStamp"]:
-            SaveDir = "./log/%s-%s/"%(Name, utils_torch.GetTime("%Y-%m-%d-%H:%M:%S"))
+            SaveDir = "./log/%s-%s/"%(Name, utils_torch.system.GetTime("%Y-%m-%d-%H:%M:%S"))
         elif Method in ["FromIndex"]:
-            SaveDir = utils_torch.RenameIfPathExists("./log/%s/"%Name)
+            SaveDir = utils_torch.RenameDirIfExists("./log/%s/"%Name)
         else:
             raise Exception(Method)
     utils_torch.EnsureDir(SaveDir)
+    print("[%s]Using Main Save Dir: %s"%(utils_torch.system.GetTime(),SaveDir))
+    #utils_torch,AddLog("[%s]Using Main Save Dir: %s"%(utils_torch.system.GetTime(),SaveDir))
     SetAttrs(utils_torch.GetGlobalParam(), "SaveDir.Main", value=SaveDir)
+    return SaveDir
 
 def SetSubSaveDir(SaveDir=None, Name="Experiment", GlobalParam=None):
     if GlobalParam is None:
@@ -417,9 +420,3 @@ def GetLogger(Name, CreateIfNone=True, **kw):
         else:
             raise Exception()
     return getattr(utils_torch.GlobalParam.log, Name)
-
-def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
-    TimeStr = time.strftime(format, time.localtime()) # Time display style: 2016-03-20 11:45:39
-    if verbose:
-        print(TimeStr)
-    return TimeStr

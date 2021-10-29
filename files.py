@@ -55,19 +55,20 @@ def RemoveMatchedFiles(DirPath, Patterns):
                 os.remove(FilePath)
                 utils_torch.AddLog("utils_torch: removed file: %s"%FilePath)
 
-def GetAllFilesAndDirs(DirPath):
+def ListAllFilesAndDirs(DirPath):
     if not os.path.exists(DirPath):
         raise Exception()
     if not os.path.isdir(DirPath):
         raise Exception()
-    items = os.listdir(DirPath)
+    Items = os.listdir(DirPath)
     Files, Dirs = [], []
-    for item in items:
-        if os.path.isfile(os.path.join(DirPath, item)):
-            Files.append(item)
-        elif os.path.isdir(os.path.join(DirPath, item)):
-            Dirs.append(item)
+    for Item in Items:
+        if os.path.isfile(os.path.join(DirPath, Item)):
+            Files.append(Item)
+        elif os.path.isdir(os.path.join(DirPath, Item)):
+            Dirs.append(Item + "/")
     return Files, Dirs
+GetAllFilesAndDirs = ListAllFilesAndDirs
 
 def ListFiles(DirPath):
     if not os.path.exists(DirPath):
@@ -173,7 +174,7 @@ def JoinPath(path_0, path_1):
         raise Exception('join_path: path_1 is a absolute path: %s'%path_1)
     return path_0 + path_1
 
-def CopyFolder(SourceDir, TargetDir, exceptions=[], verbose=True):
+def CopyFolder(SourceDir, DestDir, exceptions=[], verbose=True):
     '''
     if args.path is not None:
         path = args.path
@@ -181,7 +182,7 @@ def CopyFolder(SourceDir, TargetDir, exceptions=[], verbose=True):
         path = '/data4/wangweifan/backup/'
     '''
     #EnsurePath(SourceDir)
-    EnsurePath(TargetDir)
+    EnsurePath(DestDir)
     
     for i in range(len(exceptions)):
         exceptions[i] = os.path.abspath(exceptions[i])
@@ -189,53 +190,53 @@ def CopyFolder(SourceDir, TargetDir, exceptions=[], verbose=True):
             exceptions[i] += '/'
 
     SourceDir = os.path.abspath(SourceDir)
-    TargetDir = os.path.abspath(TargetDir)
+    DestDir = os.path.abspath(DestDir)
 
     if not SourceDir.endswith('/'):
         SourceDir += '/'
-    if not TargetDir.endswith('/'):
-        TargetDir += '/'
+    if not DestDir.endswith('/'):
+        DestDir += '/'
 
     if verbose:
-        print('Copying folder from %s to %s. Exceptions: %s'%(SourceDir, TargetDir, exceptions))
+        print('Copying folder from %s to %s. Exceptions: %s'%(SourceDir, DestDir, exceptions))
 
     if SourceDir + '/' in exceptions:
         utils_torch.AddWarning('CopyFolder: neglected the entire root path. nothing will be copied')
         if verbose:
             print('neglected')
     else:
-        _CopyFolder(SourceDir, TargetDir, subpath='', exceptions=exceptions)
+        _CopyFolder(SourceDir, DestDir, subpath='', exceptions=exceptions)
 
-def _CopyFolder(SourceDir, TargetDir, subpath='', exceptions=[], verbose=True):
+def _CopyFolder(SourceDir, DestDir, subpath='', exceptions=[], verbose=True):
     #EnsurePath(SourceDir + subpath)
-    EnsurePath(TargetDir + subpath)
+    EnsurePath(DestDir + subpath)
     items = os.listdir(SourceDir + subpath)
     for item in items:
-        #print(TargetDir + subpath + item)
+        #print(DestDir + subpath + item)
         path = SourceDir + subpath + item
         if os.path.isfile(path): # is a file
             if path + '/' in exceptions:
                 if verbose:
                     print('neglected file: %s'%path)
             else:
-                if os.path.exists(TargetDir + subpath + item):
+                if os.path.exists(DestDir + subpath + item):
                     md5_source = Getmd5(SourceDir + subpath + item)
-                    md5_target = Getmd5(TargetDir + subpath + item)
+                    md5_target = Getmd5(DestDir + subpath + item)
                     if md5_target==md5_source: # same file
                         #print('same file')
                         continue
                     else:
                         #print('different file')
-                        os.system('rm -r "%s"'%(TargetDir + subpath + item))
-                        os.system('cp -r "%s" "%s"'%(SourceDir + subpath + item, TargetDir + subpath + item))     
+                        os.system('rm -r "%s"'%(DestDir + subpath + item))
+                        os.system('cp -r "%s" "%s"'%(SourceDir + subpath + item, DestDir + subpath + item))     
                 else:
-                    os.system('cp -r "%s" "%s"'%(SourceDir + subpath + item, TargetDir + subpath + item))
+                    os.system('cp -r "%s" "%s"'%(SourceDir + subpath + item, DestDir + subpath + item))
         elif os.path.isdir(path): # is a folder.
             if path + '/' in exceptions:
                 if verbose:
                     print('neglected folder: %s'%(path + '/'))
             else:
-                _CopyFolder(SourceDir, TargetDir, subpath + item + '/', verbose=verbose)
+                _CopyFolder(SourceDir, DestDir, subpath + item + '/', verbose=verbose)
         else:
             utils_torch.AddWarning('%s is neither a file nor a path.')
 
@@ -251,7 +252,7 @@ def ParseNameSuffix(FilePath):
     else:
         return MatchResult.group(1), MatchResult.group(2)
 
-def RenameFileIfPathExists(FilePath):
+def RenameFileIfExists(FilePath):
     if FilePath.endswith("/"):
         raise Exception()
 
@@ -271,7 +272,7 @@ def RenameFileIfPathExists(FilePath):
             Sig = False
     else:
         FileNameOrigin = MatchResult.group(1)
-        Index = int(MatchResult.group(2))
+        Index = int(MatchResult.group(2)) + 1
     if Sig:
         while True:
             FilePath = FileNameOrigin + "-%d"%Index + "." + Suffix
@@ -280,8 +281,34 @@ def RenameFileIfPathExists(FilePath):
             Index += 1
     else:
         return FilePath
-RenameIfPathExists = RenameFileIfPathExists
+RenameIfFileExists = RenameFileIfExists
 
+def RenameDirIfExists(DirPath):
+    DirPath = DirPath.rstrip("/")
+    MatchResult = re.match(r"^(.*)-(\d+)$", DirPath)
+    Sig = True
+    if MatchResult is None:
+        if ExistsPath(DirPath):
+            os.rename(DirPath, DirPath + "-0") # os.rename can apply to both folders and files.
+            DirPathOrigin = DirPath
+            Index = 1
+        elif ExistsPath(DirPath + "-0"):
+            DirPathOrigin = DirPath
+            Index = 1
+        else:
+            Sig = False
+    else:
+        DirPathOrigin = MatchResult.group(1)
+        Index = int(MatchResult.group(2)) + 1
+    if Sig:
+        while True:
+            DirPath = DirPathOrigin + "-%d"%Index
+            if not ExistsPath(DirPath):
+                break
+            Index += 1
+
+    DirPath += "/"
+    return DirPath
 
 
 def Table2TextFileDict(Dict, SavePath):
@@ -363,7 +390,7 @@ def cal_path_from_main(path_rel=None, path_start=None, path_main=None):
     print('file_path: %s'%file_path)
     #print('file_path_from_path_start: %s'%file_path_from_path_start)
     print('file_path_from_main_path: %s'%file_path_from_main_path)
-    print(TargetDir_module(file_path_from_main_path))
+    print(DestDir_module(file_path_from_main_path))
     '''
     #print('path_rel: %s path_start: %s path_main: %s'%(path_rel, path_start, path_main))
     return path_from_main
@@ -486,27 +513,65 @@ def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
         FilePath = os.path.join(abspath, name)
         if os.path.isdir(FilePath):
             if Recur:
-                VisitDirAndApplyMethodOnFiles(Dir, Method, Recur, **kw)
+                VisitDirAndApplyMethodOnFiles(FilePath, Method, Recur, **kw)
         else:
             Method(FilePath)
     return filepaths
 
-def CopyFilesByFilePaths(FilePaths, SourceDir, TargetDir):
-    return
-
-def CopyFiles(FileNameList, SourceDir, TargetDir):
+def CopyFiles2DestDir(FileNameList, SourceDir, DestDir):
     for FileName in FileNameList:
-        CopyFileByFileName(FileName, SourceDir, TargetDir)
+        CopyFile2DestDir(FileName, SourceDir, DestDir)
 
-def CopyFileByFileName(FileName, SourceDir, TargetDir):
-    shutil.copy(SourceDir + FileName, TargetDir)
+def CopyFile2DestDir(FileName, SourceDir, DestDir):
+    EnsureFileDir(DestDir + FileName)
+    shutil.copy(SourceDir + FileName, DestDir + FileName)
 
-from distutils.dir_util import copy_tree
+def EnsureDirFormat(Dir):
+    if not Dir.endswith("/"):
+        Dir += "/"
+    return Dir
 
+def CopyFilesAndDirs2DestDir(Names, SourceDir, DestDir):
+    SourceDir = EnsureDirFormat(SourceDir)
+    DestDir = EnsureDirFormat(DestDir)
+    for Name in Names:
+        ItemPath = SourceDir + Name
+        if utils_torch.IsDir(ItemPath):
+            _SourceDir = EnsureDirFormat(ItemPath)
+            _DestDir = EnsureDirFormat(DestDir + Name)
+            EnsureDir(_DestDir)
+            CopyDir2DestDir(_SourceDir, _DestDir)
+        elif utils_torch.IsFile(ItemPath):
+            CopyFile2DestDir(Name, SourceDir, DestDir)
+        else:
+            raise Exception()
+#from distutils.dir_util import copy_tree
 def CopyFolder2DestDir(SourceDir, DestDir):
     assert IsDir(SourceDir)
-    assert IsDir(DestDir)
-    copy_tree(SourceDir, DestDir)
+    if not DestDir.endswith("/"):
+        DestDir += "/"
+    _CopyTree(SourceDir, DestDir)
+    #shutil.copytree(SourceDir, DestDir) # Requires that DestDir not exists.
 CopyDir2DestDir = CopyFolder2DestDir
 
+def SplitPaths(Paths):
+    PathsSplit = []
+    for Path in Paths:
+        PathsSplit.append(SplitPath(Path))
+    return PathsSplit
+def SplitPath(Path):
+    return Path
 
+def _CopyTree(SourceDir, DestDir, **kw):
+    kw.setdefault("SubPath", "")
+    Exceptions = kw.setdefault("Exceptions", []) # to be implemented: allowing excetionpaths                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        
+    Files, Dirs = ListAllFilesAndDirs(SourceDir)
+    for File in Files:
+        # if File in Exceptions[0]:
+        #     continue
+        CopyFile2DestDir(File, SourceDir, DestDir)
+    for Dir in Dirs:
+        EnsureDir(DestDir + Dir)
+        _CopyTree(SourceDir + Dir, DestDir + Dir, **kw)
+
+    

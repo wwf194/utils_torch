@@ -25,18 +25,65 @@ from inspect import getframeinfo, stack
 from utils_torch.attrs import *
 from utils_torch.files import *
 
+import argparse
 import traceback
 
-def Main(CommandArgs):
-    TaskFilePath = CommandArgs.TaskFile # All sciprt loads a task file, and keep doing tasks in it.
-    if CommandArgs.task in ["CleanLog", "CleanLog", "cleanlog"]:
+def ParseCmdArgs():
+    parser = argparse.ArgumentParser()
+    # parser.add_argument("task", nargs="?", default="DoTasksFromFile")
+    parser.add_argument("-t", "--task", dest="task", nargs="?", default="CopyProject2DirAndRun")
+    parser.add_argument("-t2", "--task2", dest="task2", default="DoTasksFromFile")
+    parser.add_argument("-id", "--IsDebug", dest="IsDebug", default=True)
+
+    # If Args.task in ['CopyProject2DirAndRun'], this argument will be used to designate file to be run.
+    parser.add_argument("-sd", "--SaveDir", dest="SaveDir", default=None)
+    # parser.add_argument("-sd", "--SaveDir", dest="SaveDir", default="./log/DoTasksFromFile-2021-10-16-16:04:16/")
+    parser.add_argument("-tf", "--TaskFile", dest="TaskFile", default="./task.jsonc")
+    parser.add_argument("-tn", "--TaskName", dest="TaskName", default="Main")
+    # parser.add_argument("-tn", "--TaskName", dest="TaskName", default="AddAnalysis")
+
+    # If Args.task in ['CopyProject2DirAndRun'], this argument will be used to designate file to be run.
+    parser.add_argument("-ms", "--MainScript", dest="MainScript", default="main.py")
+    CmdArgs = parser.parse_args()
+    return Namespace2PyObj(CmdArgs) # CmdArgs is of type namespace
+
+def Namespace2PyObj(Namespace):
+    return utils_torch.json.JsonObj2PyObj(Namespace2Dict(Namespace))
+
+def Namespace2Dict(Namespace):
+    return vars(Namespace)
+
+def Dict2Namespace(Dict):
+    return argparse.Namespace(Dict)
+
+def ParseTaskName(task):
+    if task in ["CleanLog", "CleanLog", "cleanlog"]:
+        task = "CleanLog"
+    elif task in ["DoTasksFromFile"]:
+        task = "DoTasksFromFile"
+    elif task in ["CopyProject2DirAndRun", "CopyProject2FolderAndRun", "CPFR"]:
+        task = "CopyProject2FolderAndRun"
+    else:
+        pass
+    return task
+
+def Main(**kw):
+    CmdArgs = kw.get("CmdArgs")
+    if CmdArgs is None:
+        CmdArgs = ParseCmdArgs()
+    else:
+        CmdArgs = Namespace2PyObj(CmdArgs)
+    TaskFilePath = CmdArgs.TaskFile # All sciprt loads a task file, and keep doing tasks in it.
+    CmdArgs.task = ParseTaskName(CmdArgs.task)
+    task = CmdArgs.task
+    if task in ["CleanLog"]:
         CleanLog()
-    elif CommandArgs.task in ["CleanFigure"]:
-        CleanFigures()
-    elif CommandArgs.task in ["DoTasksFromFile"]:
+    elif task in ["CleanFigure"]:
+        CleanFigure()
+    elif task in ["DoTasksFromFile"]:
         TaskObj = utils_torch.LoadTaskFile(TaskFilePath)
-        Tasks = getattr(TaskObj, CommandArgs.TaskName)
-        if not CommandArgs.IsDebug:
+        Tasks = getattr(TaskObj, CmdArgs.TaskName)
+        if not CmdArgs.IsDebug:
             try: # catch all unhandled exceptions
                 utils_torch.DoTasks(Tasks, ObjRoot=utils_torch.GetGlobalParam())
             except Exception:
@@ -44,17 +91,48 @@ def Main(CommandArgs):
                 raise Exception()
         else:
             utils_torch.DoTasks(Tasks, ObjRoot=utils_torch.GetGlobalParam())
-    elif CommandArgs.task in ["TotalLines"]:
+    elif task in ["TotalLines"]:
         utils_torch.CalculateGitProjectTotalLines()
-    elif CommandArgs.task in ["QuickScript"]:
-        CommandArgs.QuickScript(CommandArgs)
+    elif task in ["QuickScript"]:
+        QuickScript = kw.get("QuickScript")
+        QuickScript(CmdArgs)
+    elif task in ["CopyProject2FolderAndRun"]:
+        GlobalParam = utils_torch.GetGlobalParam()
+        CopyFilesAndDirs2DestDir(
+            GlobalParam.config.Project.Files, 
+            "./", 
+            utils_torch.GetMainSaveDir() + "src/"
+        )
+        CmdArgs.task = CmdArgs.task2
+        delattr(CmdArgs, "task2")
+        utils_torch.system.RunPythonScript(
+            utils_torch.GetMainSaveDir() + "src/" + CmdArgs.MainScript,
+            ParsedArgs2CmdArgs(CmdArgs)
+        )
+    elif task in ["TotalLines"]:
+        utils_torch.CalculateGitProjectTotalLines()
     else:
-        raise Exception("Inavlid Task: %s"%CommandArgs.task)
+        raise Exception("Inavlid Task: %s"%CmdArgs.task)
+
+def ParsedArgs2CmdArgs(ParsedArgs, Exceptions=[]):
+    CmdArgsList = []
+    for Name, Value in ListAttrsAndValues(ParsedArgs, Exceptions=Exceptions):
+        CmdArgsList.append("--%s"%Name)
+        CmdArgsList.append(Value)
+    return CmdArgsList
+
+def CopyProjectFolder2Dir(DestDir):
+    EnsureDir(DestDir)
+    utils_torch.files.CopyFolder2DestDir("./", DestDir)
+    return
+
+def CopyProjectFolderAndRunSameCommand(Dir):
+    CopyProjectFolder2Dir(Dir)
 
 def CleanLog():
     utils_torch.files.RemoveAllFilesAndDirs("./log/")
 
-def CleanFigures():
+def CleanFigure():
     utils_torch.files.RemoveMatchedFiles("./", r".*\.png")
 
 def ParseTaskList(TaskList, InPlace=True, **kw):
@@ -427,30 +505,30 @@ def AddLibraryPath(Args):
     else:
         raise Exception()
 
-def _AddLibraryPath(Args):
-    # requires Args to be a dict.
-    lib_name = Args['name']
-    lib_path = Args['path']
-    if lib_path=="!Getfrom_config":
-        success = False
-        for config_name, config_dict in utils_torch.GetGlobalParam().ConfigDicts.__dict__.items():
-            if config_dict.get("libs") is not None:
-                libs = config_dict["libs"]
-                if libs.get(lib_name) is not None:
-                    lib_path = libs[lib_name]["path"]
-                    success = True
-                    break
-        if not success:
-            utils_torch.AddWarning('add_lib failed: cannot find path to lib %s'%lib_name)
-            return
-    if os.path.exists(lib_path):
-        if os.path.isdir(lib_path):
-            sys.path.append(lib_path)
-            utils_torch.AddLog("Added library <%s> from path %s"%(lib_name, lib_path))
-        else:
-            utils_torch.AddWarning('add_lib failed: path %s exists but is not a directory.'%lib_path)
-    else:
-        utils_torch.AddWarning('add_lib: invalid lib_path: ', lib_path)
+# def _AddLibraryPath(Args):
+#     # requires Args to be a dict.
+#     lib_name = Args['name']
+#     lib_path = Args['path']
+#     if lib_path=="!Getfrom_config":
+#         success = False
+#         for config_name, config_dict in utils_torch.GetGlobalParam().ConfigDicts.__dict__.items():
+#             if config_dict.get("libs") is not None:
+#                 libs = config_dict["libs"]
+#                 if libs.get(lib_name) is not None:
+#                     lib_path = libs[lib_name]["path"]
+#                     success = True
+#                     break
+#         if not success:
+#             utils_torch.AddWarning('add_lib failed: cannot find path to lib %s'%lib_name)
+#             return
+#     if os.path.exists(lib_path):
+#         if os.path.isdir(lib_path):
+#             sys.path.append(lib_path)
+#             utils_torch.AddLog("Added library <%s> from path %s"%(lib_name, lib_path))
+#         else:
+#             utils_torch.AddWarning('add_lib failed: path %s exists but is not a directory.'%lib_path)
+#     else:
+#         utils_torch.AddWarning('add_lib: invalid lib_path: ', lib_path)
 
 def SaveObj(Args):
     Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetGlobalParam()),
@@ -1112,7 +1190,7 @@ def GetSavePathFromName(Name, Suffix=""):
     if not Suffix.startswith("."):
         Suffix = "." + Suffix
     FilePath = utils_torch.GetMainSaveDir() + Name + Suffix
-    FilePath = utils_torch.RenameIfPathExists(FilePath)
+    FilePath = utils_torch.files.RenameIfFileExists(FilePath)
     return FilePath
 
 def Data2TextFile(data, Name=None, FilePath=None):
