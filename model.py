@@ -34,8 +34,7 @@ def BuildModuleFromType(param, **kw):
         utils_torch.Datasets.BuildObj(param)
     elif utils_torch.Modules.Operators.IsLegalModuleType(param.Type):
         return utils_torch.Modules.Operators.BuildModule(param, **kw)
-    elif param.Type in ["MSE", "MeanSquareError"]:
-        return utils_torch.Modules.Loss.GetLossMethod(param, **kw)
+
     elif param.Type in ["GradientDescend"]:
         return utils_torch.optimize.GradientDescend(param, **kw)
     elif param.Type in ["CheckPointForEpochBatchTraining"]:
@@ -128,20 +127,20 @@ def CreateWeight2D(param, DataType=torch.float32):
         if Init.Mode in ["In"]:
             if Init.Distribution in ["Uniform"]:
                 Init.Range = [
-                    - Init.Coefficient * (6 / param.Size[0]) ** 0.5,
-                    Init.Coefficient * (6 / param.Size[0]) ** 0.5
+                    - Init.Coefficient * (6.0 / param.Size[0]) ** 0.5,
+                    Init.Coefficient * (6.0 / param.Size[0]) ** 0.5
                 ]
                 weight = np.random.uniform(*Init.Range, tuple(param.Size))
             elif Init.Distribution in ["Uniform+"]:
                 Init.Range = [
                     0.0,
-                    2.0 * Init.Coefficient * 6 ** 0.5 / param.Size[0] ** 0.5
+                    2.0 * Init.Coefficient * 6.0 ** 0.5 / param.Size[0] ** 0.5
                 ]
                 weight = np.random.uniform(*Init.Range, tuple(param.Size))
             elif Init.Distribution in ["Normal"]:
                 # std = sqrt(2 / (1 + a^2) * FanIn)
                 Mean = 0.0
-                Std = Init.Coefficient * (2 / param.Size[0]) ** 0.5
+                Std = Init.Coefficient * (2.0 / param.Size[0]) ** 0.5
                 weight = np.random.normal(Mean, Std, tuple(param.Size))
             else:
                 # to be implemented

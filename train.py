@@ -22,14 +22,14 @@ from torch.utils.data import DataLoader
 from torch.autograd import Variable
 from torch.optim.lr_scheduler import MultiStepLR, ReduceLROnPlateau
 
-def Train(Args, **kw):
-    if Args.Type in ["SupervisedLearning"]:
-        if Args.SubType in ["EpochBatch"]:
-            TrainEpochBatch(Args, **kw)
-        else:
-            raise Exception()
-    else:
-        raise Exception()
+# def Train(Args, **kw):
+#     if Args.Type in ["SupervisedLearning"]:
+#         if Args.SubType in ["EpochBatch"]:
+#             TrainEpochBatch(Args, **kw)
+#         else:
+#             raise Exception()
+#     else:
+#         raise Exception()
 
 def NotifyEpochIndex(ObjList, EpochIndex):
     for Obj in ObjList:

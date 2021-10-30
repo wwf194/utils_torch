@@ -356,7 +356,7 @@ def SetMainSaveDir(SaveDir=None, Name=None, GlobalParam=None, Method="FromIndex"
         else:
             raise Exception(Method)
     utils_torch.EnsureDir(SaveDir)
-    print("[%s]Using Main Save Dir: %s"%(utils_torch.system.GetTime(),SaveDir))
+    #print("[%s]Using Main Save Dir: %s"%(utils_torch.system.GetTime(),SaveDir))
     #utils_torch,AddLog("[%s]Using Main Save Dir: %s"%(utils_torch.system.GetTime(),SaveDir))
     SetAttrs(utils_torch.GetGlobalParam(), "SaveDir.Main", value=SaveDir)
     return SaveDir

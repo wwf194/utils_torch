@@ -9,6 +9,7 @@ from utils_torch.Loss.L2Loss import L2Loss
 ModuleList = [
     "L2Loss",
     "CrossEntropyLossForSingleClassPrediction",
+    "MeanSquareError", "MSE",
 ]
 
 def IsLegalModuleType(Type):
