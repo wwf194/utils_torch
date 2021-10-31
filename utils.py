@@ -1144,6 +1144,9 @@ def RandomSelect(List, SelectNum):
     else:
         return List
 
+def RandomOrder(List):
+    return random.shuffle(List)
+
 def GetLength(Obj):
     if utils_torch.IsIterable(Obj):
         return len(Obj)
@@ -1287,3 +1290,11 @@ def Unzip(Lists):
 
 def Zip(*Lists):
     return zip(*Lists)
+
+def EnsurePyObj(Obj):
+    if isinstance(Obj, argparse.Namespace):
+        return Namespace2PyObj(Obj)
+    elif isinstance(Obj, dict) or isinstance(Obj, list):
+        return utils_torch.PyObj(Obj)
+    else:
+        raise Exception(type(Obj))

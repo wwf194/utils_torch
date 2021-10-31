@@ -107,6 +107,10 @@ class DataLoaderForEpochBatchTraining:
         DataFile = Dir + "CIFAR10-Data"
         cache.Data = utils_torch.json.DataFile2PyObj(DataFile)
         return
+    def EstimateBatchNum(self, BatchSize, Type="Train"):
+        cache = self.cache
+        Data = getattr(cache.Data, Type)
+        return utils_torch.dataset.CalculateBatchNum(BatchSize, Data.Images.Num)
     def PrepareBatches(self, BatchParam, Type="Train"):
         cache = self.cache
         self.ClearBatches()
@@ -118,6 +122,8 @@ class DataLoaderForEpochBatchTraining:
         cache.DataForBatches = Data
         cache.ImagesForBatches = GetAttrs(cache.DataForBatches.Images)
         cache.LabelsForBatches = GetAttrs(cache.DataForBatches.Labels)
+        utils_torch.RemoveAttrIfExists(cache, "RandomBatchOrder")
+        utils_torch.RemoveAttrIfExists(cache, "RandomBatchIndex")
         return
     def ClearBatches(self):
         cache = self.cache
@@ -130,7 +136,7 @@ class DataLoaderForEpochBatchTraining:
         DataForBatches = cache.DataForBatches
         assert cache.IndexCurrent <= cache.IndexMax
         IndexStart = cache.IndexCurrent
-        IndexEnd = min(cache.IndexCurrent + cache.BatchSize, cache.IndexMax)
+        IndexEnd = min(IndexStart + cache.BatchSize, cache.IndexMax)
         DataBatch = {
             "Input": utils_torch.NpArray2Tensor(
                     cache.ImagesForBatches[IndexStart:IndexEnd]
@@ -141,6 +147,27 @@ class DataLoaderForEpochBatchTraining:
                 ).to(self.GetTensorLocation()),
         }
         cache.IndexCurrent = IndexEnd
+        return DataBatch
+    def GetRandomBatch(self):
+        cache = self.cache
+        if not hasattr(cache, "RandomBatchOrder"):
+            cache.RandomBatchOrder = utils_torch.RandomOrder(range(cache.IndexMax))
+            cache.RandomBatchIndex = 0
+        DataForBatches = cache.DataForBatches
+        IndexStart = cache.RandomBatchOrder[cache.RandomBatchIndex] * cache.BatchSize
+        IndexEnd = min(IndexStart + cache.BatchSize, cache.IndexMax)
+        DataBatch = {
+            "Input": utils_torch.NpArray2Tensor(
+                    cache.ImagesForBatches[IndexStart:IndexEnd]
+                ).to(self.GetTensorLocation()),
+            "Output": utils_torch.NpArray2Tensor(
+                    cache.LabelsForBatches[IndexStart:IndexEnd],
+                    DataType=torch.long # CrossEntropyLoss requires label to be LongTensor.
+                ).to(self.GetTensorLocation()),
+        }
+        cache.RandomBatchIndex += 1
+        if cache.RandomBatchIndex > cache.IndexMax:
+            cache.RandomBatchIndex = 0
         return DataBatch
     def GetBatchNum(self):
         return self.cache.BatchNum

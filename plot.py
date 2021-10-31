@@ -13,9 +13,7 @@ sns.set_style("white")
 default_res=60
 
 import utils_torch
-from utils_torch.utils import ToNpArray, ToList
 from utils_torch.attrs import *
-from enum import Enum
 
 ColorPlt = utils_torch.EmptyPyObj().FromDict({
     "White": (1.0, 1.0, 1.0),
@@ -91,6 +89,19 @@ def PlotPointAndAddText(ax, XY, PointColor=ColorPlt.Blue, Text="TextOnPoint", Te
 
 def PlotText(ax, XY, Text, Color=ColorPlt.Blue):
     ax.text(XY[0], XY[1], Text, color=Color)
+
+def print_notes(notes, y_line, y_interv):
+    if(notes!=""):
+        if(isinstance(notes, str)):
+            plt.annotate(notes, xy=(0.02, y_line), xycoords='axes fraction')
+            y_line-=y_interv
+        elif(isinstance(notes, list)):
+            for note in notes:
+                plt.annotate(notes, xy=(0.02, y_line), xycoords='axes fraction')
+                y_line-=y_interv
+        else:
+            print("invalid notes type")
+
 
 def ParsePointTypePlt(Type):
     if isinstance(Type, str):
@@ -1289,13 +1300,34 @@ def SetYTicksInt(ax, Min, Max, Method="Auto"):
     ax.set_yticklabels(TicksStr)
     return Ticks, TicksStr
 
-def ImagesFile2GIFFile():
+import imageio
+def ImageFiles2GIFFile(ImageFiles, TimePerFrame=0.5, SavePath=None):
+    Frames = []
+    for ImageFile in ImageFiles:
+        Frames.append(imageio.imread(ImageFile))
+    imageio.mimsave(SavePath, Frames, 'GIF', duration=TimePerFrame)
     return
-ImagesFile2GIF = ImagesFile2GIFFile
+
+ImageFiles2GIF = ImageFiles2GIFFile
 
 def ImagesNp2GIFFile():
     return
 ImagesNp2GIF = ImagesNp2GIFFile
+
+import imageio
+def create_gif(image_list, gif_name, duration = 1.0):
+    '''
+    :param image_list: 这个列表用于存放生成动图的图片
+    :param gif_name: 字符串，所生成gif文件名，带.gif后缀
+    :param duration: 图像间隔时间, 单位s
+    :return:
+    '''
+    frames = []
+    for image_name in image_list:
+        frames.append(imageio.imread(image_name))
+
+    imageio.mimsave(gif_name, frames, 'GIF', duration=duration)
+    return
 
 '''
 from PIL import Image 

@@ -522,6 +522,13 @@ def CopyFiles2DestDir(FileNameList, SourceDir, DestDir):
     for FileName in FileNameList:
         CopyFile2DestDir(FileName, SourceDir, DestDir)
 
+def CopyFile2AllSubDirsUnderDestDir(FileName, SourceDir, DestDir):
+    for SubDir in ListAllDirs(DestDir):
+        try:
+            CopyFile2DestDir(FileName, SourceDir, DestDir + SubDir)
+        except Exception:
+            continue
+
 def CopyFile2DestDir(FileName, SourceDir, DestDir):
     EnsureFileDir(DestDir + FileName)
     shutil.copy(SourceDir + FileName, DestDir + FileName)
