@@ -158,7 +158,7 @@ class LoggerForEpochBatchTrain:
         data = self.data
         data.logType[Name] = Type
         data.log[Name] = {
-            "Epoch":cache.EpochIndex,
+            "Epoch": cache.EpochIndex,
             "Batch":cache.BatchIndex,
             "Value":Data
         }
@@ -215,6 +215,13 @@ class LoggerForEpochBatchTrain:
             utils_torch.AddWarning("No such log: %s"%Name)
             return None
         return data.log[Name]
+    def GetCacheByName(self, Name):
+        data = self.data
+        if not Name in data.log:
+            #raise Exception(Name)
+            utils_torch.AddWarning("No such log: %s"%Name)
+            return None
+        return data.log[Name]["Value"]
     def GetLogOfType(self, Type):
         data = self.data
         Logs = {}

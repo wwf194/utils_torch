@@ -142,7 +142,7 @@ def PlotPointsPltNp(
         ax, Points, Color="Blue", Type="Circle", Size=None,
         XLabel=None, YLabel=None, Title=None, XRange=None, YRange=None
     ):
-    Points = ToNpArray(Points)
+    Points = utils_torch.ToNpArray(Points)
     Xs = Points[:, 0]
     Ys = Points[:, 1]
     Color=ParseColorPlt(Color)
@@ -175,9 +175,24 @@ def SetYTicksAndRange(ax, Ys, Range=None):
     SetYRangeMinMax(ax, YMin, YMax)
     SetYTicksFloat(ax, YMin, YMax)
 
+def PlotPointsPltNp(
+        ax, Points, Color="Blue", Type="Circle", Size=None,
+        XLabel=None, YLabel=None, Title=None, XRange=None, YRange=None
+    ):
+    Points = utils_torch.ToNpArray(Points)
+    Xs = Points[:, 0]
+    Ys = Points[:, 1]
+    Color=ParseColorPlt(Color)
+    Size = ParseMarkerSize(Size)
+    Type = ParsePointTypePlt(Type)
+    ax.scatter(Xs, Ys, color=Color, s=Size, marker=Type, facecolors="none")
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+    SetTicksAndRangeForAx(ax, Xs, Ys, XRange, YRange)
+    return
+
 def PlotDirectionsOnEdges(ax, Edges, Directions, **kw):
-    Edges = ToNpArray(Edges)
-    Directions = ToNpArray(Directions)
+    Edges = utils_torch.ToNpArray(Edges)
+    Directions = utils_torch.ToNpArray(Directions)
     EdgesLength = utils_torch.geometry2D.Vectors2Lengths(utils_torch.geometry2D.VertexPairs2Vectors(Edges))
     ArrowsLength = 0.2 * np.median(EdgesLength, keepdims=True)
     Directions = utils_torch.geometry2D.Vectors2GivenLengths(Directions, ArrowsLength)
@@ -191,7 +206,7 @@ def Map2Color(
         data, ColorMap="jet", Method="MinMax", Alpha=False,
         dataForMap=None, **kw
     ):
-    data = ToNpArray(data)
+    data = utils_torch.ToNpArray(data)
 
     if Method in ["MinMax", "GivenRange", "GivenMinMax"]:
         if Method in ["MinMax"]:
@@ -273,29 +288,35 @@ def ParseColorMapPlt(ColorMap):
 
 ParseColorMap = ParseColorMapPlt
 
-def PlotArrows(ax, XYsStart, dXYs, Color=ColorPlt.Red):
+def PlotArrows(
+        ax, XYsStart, dXYs, Color=ColorPlt.Red,
+        HeadWidth=0.05, HeadLength=0.1, SizeScale=1.0, 
+        XLabel=None, YLabel=None, Title=None, XRange=None, YRange=None
+    ):
     PlotNum = len(XYsStart)
     for Index in range(PlotNum):
-        PlotArrowPlt(ax, XYsStart[Index], dXYs[Index], Color=Color)
+        PlotArrowPlt(ax, XYsStart[Index], dXYs[Index], Color=Color, HeadWidth=HeadWidth, SizeScale=SizeScale)
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+    SetTicksAndRangeForAx(ax, XYsStart[:, 0], XYsStart[:, 1], XRange, YRange)
 
 def PlotArrowFromVertexPairsPlt(ax, XYStart, XYEnd, Width=0.001, Color=ColorPlt.Red, SizeScale=1.0):
-    XYStart = ToNpArray(XYStart)
-    XYEnd = ToNpArray(XYEnd)
+    XYStart = utils_torch.ToNpArray(XYStart)
+    XYEnd = utils_torch.ToNpArray(XYEnd)
     PlotArrowPlt(ax, XYStart, XYEnd - XYStart, Width=Width, Color=Color, SizeScale=SizeScale)
 
-def PlotArrowPlt(ax, XYStart, dXY, Width=0.001, HeadWith=0.05, HeadLength=0.1, Color=ColorPlt.Red, SizeScale=None):
+def PlotArrowPlt(ax, XYStart, dXY, Width=0.001, HeadWidth=0.05, HeadLength=0.1, Color=ColorPlt.Red, SizeScale=None):
     Color = ParseColorPlt(Color)
-    XYStart = ToList(XYStart)
-    dXY = ToList(dXY)
+    XYStart = utils_torch.ToList(XYStart)
+    dXY = utils_torch.ToList(dXY)
     if SizeScale is not None:
-        Width = 0.001 * SizeScale
-        HeadWith = 0.05 * SizeScale
-        HeadLength = 0.1 * SizeScale
+        Width = Width * SizeScale
+        HeadWidth = HeadWidth * SizeScale
+        HeadLength = HeadLength * SizeScale
     else:
         SizeScale = 1.0
     ax.arrow(*XYStart, *dXY, 
         width=Width * SizeScale,
-        head_width=HeadWith * SizeScale,
+        head_width=HeadWidth * SizeScale,
         head_length=HeadLength * SizeScale,
         facecolor=Color,
         edgecolor=Color
@@ -303,7 +324,7 @@ def PlotArrowPlt(ax, XYStart, dXY, Width=0.001, HeadWith=0.05, HeadLength=0.1, C
 
 def PlotPolyLineFromVerticesPlt(ax, Points, Color=ColorPlt.Black, Width=2.0, Closed=False):
     # Points: np.ndarray with shape [PointNum, (x,y)]
-    Points = ToList(Points)
+    Points = utils_torch.ToList(Points)
     PointNum = len(Points)
     if Closed:
         LineNum = PointNum + 1
@@ -746,7 +767,7 @@ def ColorWheel(Index): #生成横跨0-255个位置的彩虹颜色.
         return (0, Index * 3, 255 - Index * 3)
 
 def PlotImages(imgs, ColNum):
-    img_num = len(images)
+    img_num = len(imgs)
     RowNum = img_num // ColNum
     if img_num%ColNum>0:
         RowNum += 1

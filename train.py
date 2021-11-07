@@ -59,13 +59,20 @@ class TrainerForEpochBatchTraining:
         self.ParseRouters()
         self.ClearEpoch()
         self.ClearBatch()
+        self.RegisterCheckPoint()
+    def RegisterCheckPoint(self):
+        cache = self.cache
+        cache.CheckPointList = []
+        for Name, Module in ListAttrsAndValues(cache.Modules, Exceptions=["__ResolveRef__", "__Entry__"]):
+            if hasattr(Module, "IsCheckPoint") and Module.IsCheckPoint is True:
+                self.cache.CheckPointList.append(Module)
     def ClearBatch(self):
         self.cache.BatchIndex = 0
     def ClearEpoch(self):
         self.cache.EpochIndex = 0
-    def AddBatch(self):
+    def AddBatchIndex(self):
         self.cache.BatchIndex += 1
-    def AddEpoch(self):
+    def AddEpochIndex(self):
         self.cache.EpochIndex += 1
     def NotifyEpochIndex(self):
         cache = self.cache
@@ -84,7 +91,11 @@ class TrainerForEpochBatchTraining:
         for Obj in self.cache.NotifyEpochBatchList:
             Obj.SetBatchNum(cache.BatchNum)
     def Register2NotifyEpochBatchList(self, List):
-        self.cache.NotifyEpochBatchList = List
+        cache = self.cache
+        cache.NotifyEpochBatchList = []
+        for Obj in List:
+            Obj = utils_torch.parse.ResolveStr(Obj)
+            cache.NotifyEpochBatchList.append(Obj)
     def GenerateContextInfo(self):
         cache = self.cache
         return {
@@ -224,6 +235,13 @@ class CheckPointForEpochBatchTraining:
             self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointOnline
         else:
             raise Exception(param.CalculateCheckPointMode)
+        
+        EnsureAttrs(param, "Method", default="&#utils_torch.functions.NullFunction")
+        cache.Method = utils_torch.parse.ResolveStr(
+            param.Method,
+            ObjCurrent=self,
+            ObjRoot=utils_torch.GetGlobalParam()
+        )
     def CalculateCheckPointList(param):
         BatchNumTotal = param.Epoch.Num * param.Batch.Num
         CheckPointBatchIndices = []
@@ -259,6 +277,9 @@ class CheckPointForEpochBatchTraining:
         else:
             IsCheckPoint = False
         return IsCheckPoint
+    def GetMethod(self):
+        return self.cache.Method
+CheckPointForEpochBatchTraining.IsCheckPoint = True
 utils_torch.model.SetEpochBatchMethodForModel(CheckPointForEpochBatchTraining)
 
 def ClearGrad(weights):

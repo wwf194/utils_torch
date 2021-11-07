@@ -327,7 +327,7 @@ def SetTrainWeightForModel(self):
     cache.TrainWeight = {}
     if hasattr(cache, "Modules"):
         for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
-            if hasattr(Module,"SetTrainWeight"):
+            if hasattr(Module, "SetTrainWeight"):
                 TrainWeight = Module.SetTrainWeight()
                 for name, weight in TrainWeight.items():
                     cache.TrainWeight[ModuleName + "." + name] = weight
@@ -441,6 +441,8 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
             DataPath = LoadDir + param.FullName + ".data"
             if utils_torch.FileExists(DataPath):
                 data = utils_torch.json.DataFile2PyObj(DataPath)
+            else:
+                data = utils_torch.EmptyPyObj()
         else:
             data = utils_torch.EmptyPyObj()
 
@@ -581,6 +583,43 @@ def BuildModulesForModel(self):
             self.add_module(Name, Module)
         setattr(cache.Modules, Name, Module)
 
+
+def LoadFromFileForModel(self, LoadDir, Name, **kw):
+    utils_torch.RemoveAttrIfExists(self, "cache")
+    utils_torch.RemoveAttrIfExists(self, "param")
+    utils_torch.RemoveAttrIfExists(self, "data")
+
+    ParamPath = LoadDir + Name + ".param.jsonc"
+    if utils_torch.FileExists(ParamPath):
+        param = utils_torch.json.JsonFile2PyObj(ParamPath)
+    else:
+        param = utils_torch.EmptyPyObj()
+    
+    DataPath = LoadDir + Name + ".data"
+    if utils_torch.FileExists(DataPath):
+        data = utils_torch.json.DataFile2PyObj(DataPath)
+    else:
+        data = utils_torch.EmptyPyObj()
+
+    cache = utils_torch.EmptyPyObj()
+    cache.LoadDir = LoadDir
+
+
+    param.cache.__object__ = self
+
+    cache.Modules = utils_torch.EmptyPyObj()
+    cache.Dynamics = utils_torch.EmptyPyObj()
+
+    HasTensor = kw.setdefault("HasTensor", True)
+    if HasTensor:
+        cache.Tensors = []
+
+    self.param = param
+    self.data = data
+    self.cache = cache
+    self.Modules = cache.Modules
+    self.Dynamics = cache.Dynamics
+
 def InitModulesForModel(self):
     cache = self.cache
     for name, module in ListAttrsAndValues(cache.Modules):
@@ -618,6 +657,9 @@ def ParseRoutersForModel(self):
     param = self.param
     cache = self.cache
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+        if isinstance(RouterParam, str) and RouterParam in ["ClassMethod"]:
+            setattr(cache.Dynamics, Name, getattr(self, Name))
+            continue
         if cache.IsInit:
             utils_torch.router.ParseRouterStatic(RouterParam)
             setattr(RouterParam, "Name", param.FullName + "." + Name) # For Debug
@@ -630,6 +672,8 @@ def ParseRoutersForModel(self):
     if hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
         ObjRefList += GlobalParam.cache.AdditionalObjRefListForParseRouters
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
+        if isinstance(RouterParam, str) and RouterParam in ["ClassMethod"]:
+            continue
         getattr(cache.Dynamics, Name).FromPyObj(
             utils_torch.router.ParseRouterDynamic(
                 RouterParam, 
@@ -658,9 +702,10 @@ def SaveForModel(self, SaveDir, Name=None, IsRoot=True):
         SavePath = SaveDir + SaveName + ".param.jsonc"
         utils_torch.EnsureFileDir(SavePath)
         utils_torch.json.PyObj2JsonFile(param, SavePath)
-    data = utils_torch.parse.ApplyMethodOnPyObj(data, ToNpArrayIfIsTensor)
-
-    PyObj2DataFile(data, SaveDir + SaveName + ".data")
+    if not data.IsEmpty():
+        data = utils_torch.parse.ApplyMethodOnPyObj(data, ToNpArrayIfIsTensor)
+        PyObj2DataFile(data, SaveDir + SaveName + ".data")
+    
     if hasattr(cache, "Modules"):
         for name, module in ListAttrsAndValues(cache.Modules):
             if HasAttrs(module, "Save"):
@@ -699,6 +744,8 @@ def SetMethodForModelClass(Class, **kw):
             Class.ClearPlotWeight = ClearPlotWeightForModel
     if not hasattr(Class, "Save"):
         Class.Save = SaveForModel
+    if not hasattr(Class, "LoadFromFile"):
+        Class.LoadFromFile = LoadFromFileForModel
     Class.InitModules = InitModulesForModel
     Class.BuildModules = BuildModulesForModel
     if not hasattr(Class, "ParseRouters"):

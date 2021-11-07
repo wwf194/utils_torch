@@ -108,9 +108,41 @@ def AnalyzeLossEpochBatch(Logs, SaveDir=None, **kw):
     utils_torch.files.Table2TextFileDict(LossDict, SavePath=SaveDir + "Loss~Epoch.txt")
     return
 
+def PlotResponseSimilarityAndWeightUpdateCorrelation(CorrelationMatrix, Weight, SaveDir, SaveName):
+    fig, axes = utils_torch.plot.CreateFigurePlt(2, Size="Medium")
+    
+    CorrelationMatrixFlat = utils_torch.EnsureFlat(CorrelationMatrix)
+    WeightFlat = utils_torch.EnsureFlat(Weight)
+    
+    ax = utils_torch.plot.GetAx(axes, 0)
+    
+    XYs = np.stack(
+        [
+            CorrelationMatrixFlat,
+            WeightFlat,
+        ],
+        axis=1
+    ) # [NeuronNumA * NeuronNumB, (Correlation, Weight)]
 
-def AnalyazeSpatialFiringPattern(agent, world, Activity):
+    Title = "Weight - ResponseSimilarity"
+    utils_torch.plot.PlotPoints(
+        ax, XYs, Color="Blue", Type="EmptyCircle", Size=0.5,
+        XLabel="Response Similarity", YLabel="Connection Strength", 
+        Title=Title,
+    )
 
+    ax = utils_torch.plot.GetAx(axes, 1)
+    BinStats = utils_torch.math.CalculateBinnedMeanAndStd(CorrelationMatrixFlat, WeightFlat)
+    
+    utils_torch.plot.PlotMeanAndStdCurve(
+        ax, BinStats.BinCenters, BinStats.Mean, BinStats.Std,
+        XLabel = "Response Similarity", YLabel="Connection Strength", Title="Weight - Response Similarity Binned Mean And Std",
+    )
+    
+    plt.suptitle(SaveName)
+    plt.tight_layout()
+    # Scatter plot points num might be very large, so saving in .svg might cause unsmoothness when viewing.
+    utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + "-Weight-Response-Similarity.png")
     return
 
 def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
@@ -127,6 +159,7 @@ def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
     ResponseB = ResponseB.reshape(-1, ResponseB.shape[-1])
 
     Weight = utils_torch.ToNpArray(Weight)
+    WeightFlat = utils_torch.FlattenNpArray(Weight)
     WeightUpdate = utils_torch.ToNpArray(WeightUpdate)
     if WeightUpdateMeasure in ["Sign"]:
         WeightUpdate = WeightUpdate / np.sign(Weight)
@@ -175,7 +208,7 @@ def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
     )
 
     ax = utils_torch.plot.GetAx(axes, 1)
-    WeightFlat = utils_torch.FlattenNpArray(Weight)
+    
     XYs = np.stack(
         [
             CorrelationMatrixFlat,

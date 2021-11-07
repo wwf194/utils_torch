@@ -61,6 +61,7 @@ def ProcessOriginalDataDict(Dict, FileNameList):
 class DataLoaderForEpochBatchTraining:
     def __init__(self, param, **kw):
         utils_torch.model.InitForNonModel(self, param, **kw)
+        self.GetRandomBatch = self.GetBatchRandom
         return
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForNonModel(self, IsLoad)
@@ -113,62 +114,70 @@ class DataLoaderForEpochBatchTraining:
         return utils_torch.dataset.CalculateBatchNum(BatchSize, Data.Images.Num)
     def PrepareBatches(self, BatchParam, Type="Train"):
         cache = self.cache
-        self.ClearBatches()
-        cache.IndexCurrent = 0
-        cache.BatchSize = BatchParam.Batch.Size
+        self.ClearBatches(Type=Type)
+        setattr(cache, Type, utils_torch.EmptyPyObj())
+        batches = getattr(cache, Type)
+        batches.IndexCurrent = 0
+        batches.BatchSize = BatchParam.Batch.Size
         Data = getattr(cache.Data, Type)
-        cache.BatchNum = utils_torch.dataset.CalculateBatchNum(cache.BatchSize, Data.Images.Num)
-        cache.IndexMax = Data.Images.Num
-        cache.DataForBatches = Data
-        cache.ImagesForBatches = GetAttrs(cache.DataForBatches.Images)
-        cache.LabelsForBatches = GetAttrs(cache.DataForBatches.Labels)
-        utils_torch.RemoveAttrIfExists(cache, "RandomBatchOrder")
-        utils_torch.RemoveAttrIfExists(cache, "RandomBatchIndex")
+        batches.BatchNum = utils_torch.dataset.CalculateBatchNum(batches.BatchSize, Data.Images.Num)
+        batches.IndexMax = Data.Images.Num
+        batches.DataForBatches = Data
+        batches.ImagesForBatches = GetAttrs(batches.DataForBatches.Images)
+        batches.LabelsForBatches = GetAttrs(batches.DataForBatches.Labels)
+        utils_torch.RemoveAttrIfExists(batches, "RandomBatchOrder")
+        utils_torch.RemoveAttrIfExists(batches, "RandomBatchIndex")
         return
-    def ClearBatches(self):
+    def ClearBatches(self, Type="Train"):
         cache = self.cache
-        RemoveAttrIfExists(cache, "BatchSize")
-        RemoveAttrIfExists(cache, "BatchNum")
-        RemoveAttrIfExists(cache, "IndexCurrent")
-        RemoveAttrIfExists(cache, "IndexMax")
-    def GetBatch(self):
+        if hasattr(cache, Type):
+            batches = getattr(cache, Type)
+            RemoveAttrIfExists(batches, "BatchSize")
+            RemoveAttrIfExists(batches, "BatchNum")
+            RemoveAttrIfExists(batches, "IndexCurrent")
+            RemoveAttrIfExists(batches, "IndexMax")
+    def GetBatch(self, Type="Train"):
         cache = self.cache
-        DataForBatches = cache.DataForBatches
-        assert cache.IndexCurrent <= cache.IndexMax
-        IndexStart = cache.IndexCurrent
-        IndexEnd = min(IndexStart + cache.BatchSize, cache.IndexMax)
+        batches = getattr(cache, Type)
+        DataForBatches = batches.DataForBatches
+        assert batches.IndexCurrent <= batches.IndexMax
+        IndexStart = batches.IndexCurrent
+        IndexEnd = min(IndexStart + batches.BatchSize, batches.IndexMax)
         DataBatch = {
             "Input": utils_torch.NpArray2Tensor(
-                    cache.ImagesForBatches[IndexStart:IndexEnd]
+                    batches.ImagesForBatches[IndexStart:IndexEnd]
                 ).to(self.GetTensorLocation()),
             "Output": utils_torch.NpArray2Tensor(
-                    cache.LabelsForBatches[IndexStart:IndexEnd],
+                    batches.LabelsForBatches[IndexStart:IndexEnd],
                     DataType=torch.long # CrossEntropyLoss requires label to be LongTensor.
                 ).to(self.GetTensorLocation()),
         }
-        cache.IndexCurrent = IndexEnd
+        batches.IndexCurrent = IndexEnd
         return DataBatch
-    def GetRandomBatch(self):
+    def GetBatchRandom(self, Type="Train"):
         cache = self.cache
-        if not hasattr(cache, "RandomBatchOrder"):
-            cache.RandomBatchOrder = utils_torch.RandomOrder(range(cache.IndexMax))
-            cache.RandomBatchIndex = 0
-        DataForBatches = cache.DataForBatches
-        IndexStart = cache.RandomBatchOrder[cache.RandomBatchIndex] * cache.BatchSize
-        IndexEnd = min(IndexStart + cache.BatchSize, cache.IndexMax)
+        batches = getattr(cache, Type)
+        if not hasattr(batches, "RandomBatchOrder"):
+            batches.RandomBatchOrder = utils_torch.RandomOrder(range(batches.BatchNum))
+            batches.RandomBatchIndex = 0
+        DataForBatches = batches.DataForBatches
+        IndexStart = batches.RandomBatchOrder[batches.RandomBatchIndex] * batches.BatchSize
+        IndexEnd = min(IndexStart + batches.BatchSize, batches.IndexMax)
         DataBatch = {
             "Input": utils_torch.NpArray2Tensor(
-                    cache.ImagesForBatches[IndexStart:IndexEnd]
+                    batches.ImagesForBatches[IndexStart:IndexEnd]
                 ).to(self.GetTensorLocation()),
             "Output": utils_torch.NpArray2Tensor(
-                    cache.LabelsForBatches[IndexStart:IndexEnd],
+                    batches.LabelsForBatches[IndexStart:IndexEnd],
                     DataType=torch.long # CrossEntropyLoss requires label to be LongTensor.
                 ).to(self.GetTensorLocation()),
         }
-        cache.RandomBatchIndex += 1
-        if cache.RandomBatchIndex > cache.IndexMax:
-            cache.RandomBatchIndex = 0
+        batches.RandomBatchIndex += 1
+        if batches.RandomBatchIndex > batches.IndexMax:
+            batches.RandomBatchIndex = 0
         return DataBatch
-    def GetBatchNum(self):
-        return self.cache.BatchNum
+    def GetBatchNum(self, Type="Train"):
+        cache = self.cache
+        batches = getattr(cache, Type)
+        return batches.BatchNum
 utils_torch.model.SetMethodForNonModelClass(DataLoaderForEpochBatchTraining, HasTensor=True)

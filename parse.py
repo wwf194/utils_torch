@@ -33,6 +33,8 @@ def ParseFunctionArg(Arg, ContextInfo):
         if Arg.startswith("__") and Arg.endswith("__"):
             return ContextInfo.get(Arg)
         elif "&" in Arg:
+            # if Arg in ["&~NotifyEpochBatchList"]:
+            #     print("AAA")
             #ArgParsed = ResolveArg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
             return ResolveStrDict(Arg, ContextInfo)
         else:

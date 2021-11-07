@@ -463,14 +463,15 @@ def LoadObjFromFile(Args, **kw):
     for SaveDir in SaveDirList:
         SaveDirParsedList.append(utils_torch.parse.ResolveStr(SaveDir, **kw))
 
-
     for SaveName, SaveDir, MountPath in zip(SaveNameList, SaveDirParsedList, MountPathList):
         ParamPath = SaveDir + SaveName + ".param.jsonc"
         assert utils_torch.FileExists(ParamPath)
         param = utils_torch.json.JsonFile2PyObj(ParamPath)
         DataPath = SaveDir + SaveName + ".data"
-        assert utils_torch.FileExists(DataPath)
-        data = utils_torch.json.DataFile2PyObj(DataPath)
+        if utils_torch.FileExists(DataPath):
+            data = utils_torch.json.DataFile2PyObj(DataPath)
+        else:
+            data = utils_torch.EmptyPyObj()
         Class = utils_torch.parse.ParseClass(param.ClassPath)
         Obj = Class(param, data, LoadDir=SaveDir)
         MountObj(MountPath, Obj, **kw)
@@ -495,40 +496,6 @@ def LoadJsonFile(Args):
 def _LoadJsonFile(Args, **kw):
     Obj = utils_torch.json.JsonFile2PyObj(Args.FilePath)
     MountObj(Args.MountPath, Obj, **kw)
-
-def AddLibraryPath(Args):
-    if isinstance(Args, dict):
-        _AddLibraryPath(Args)
-    elif isinstance(Args, list):
-        for Args_dict in Args:
-            _AddLibraryPath(Args_dict)
-    else:
-        raise Exception()
-
-# def _AddLibraryPath(Args):
-#     # requires Args to be a dict.
-#     lib_name = Args['name']
-#     lib_path = Args['path']
-#     if lib_path=="!Getfrom_config":
-#         success = False
-#         for config_name, config_dict in utils_torch.GetGlobalParam().ConfigDicts.__dict__.items():
-#             if config_dict.get("libs") is not None:
-#                 libs = config_dict["libs"]
-#                 if libs.get(lib_name) is not None:
-#                     lib_path = libs[lib_name]["path"]
-#                     success = True
-#                     break
-#         if not success:
-#             utils_torch.AddWarning('add_lib failed: cannot find path to lib %s'%lib_name)
-#             return
-#     if os.path.exists(lib_path):
-#         if os.path.isdir(lib_path):
-#             sys.path.append(lib_path)
-#             utils_torch.AddLog("Added library <%s> from path %s"%(lib_name, lib_path))
-#         else:
-#             utils_torch.AddWarning('add_lib failed: path %s exists but is not a directory.'%lib_path)
-#     else:
-#         utils_torch.AddWarning('add_lib: invalid lib_path: ', lib_path)
 
 def SaveObj(Args):
     Obj = utils_torch.parse.ResolveStr(Args.MountPath, ObjRoot=utils_torch.GetGlobalParam()),
@@ -1145,8 +1112,10 @@ def RandomSelect(List, SelectNum):
         return List
 
 def RandomOrder(List):
-    return random.shuffle(List)
-
+    if isinstance(List, range):
+        List = list(List)
+    random.shuffle(List) # InPlace operation
+    return List
 def GetLength(Obj):
     if utils_torch.IsIterable(Obj):
         return len(Obj)
@@ -1255,9 +1224,13 @@ def MountObj(MountPath, Obj, **kw):
 def MountDictOnObj(Obj, Dict):
     Obj.__dict__.update(Dict)
 
-ExternalMethods = utils_torch.PyObj()
+ExternalMethods = utils_torch.EmptyPyObj()
 def RegisterExternalMethods(Name, Method):
     setattr(ExternalMethods, Name, Method)
+
+ExternalClasses = utils_torch.EmptyPyObj()
+def RegisterExternalClasses(Name, Class):
+    setattr(ExternalClasses, Name, Class)
 
 def Bytes2Str(Bytes, Format="utf-8"):
     return str(Bytes, encoding = "utf-8")

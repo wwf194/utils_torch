@@ -124,7 +124,6 @@ def Norm2GivenMeanStdNp(data, Mean, Std, StdThreshold=1.0e-9):
 
 Norm2GivenMeanStd = Norm2GivenMeanStdNp
 
-
 def Norm2Mean0Std1Torch(data, axis=None, StdThreshold=1.0e-9):
     std = torch.std(data, dim=axis, keepdim=True)
     mean = torch.mean(data, dim=axis, keepdim=True)
@@ -206,8 +205,8 @@ def CalculatePearsonCoefficientMatrix(dataA, dataB):
     dataANormed = Norm2Mean0Std1Torch(dataAGPU, axis=0)
     dataBNormed = Norm2Mean0Std1Torch(dataBGPU, axis=0)
 
-    CorrelationMatrix = torch.mm(dataANormed.permute(1, 0), dataBNormed) / SampleNum
-    CorrelationMatrix = utils_torch.TorchTensor2NpArray(CorrelationMatrix)
+    CorrelationMatrixGPU = torch.mm(dataANormed.permute(1, 0), dataBNormed) / SampleNum
+    CorrelationMatrix = utils_torch.TorchTensor2NpArray(CorrelationMatrixGPU)
     return CorrelationMatrix
 
 def CalculateBinnedMeanAndStd(
@@ -270,7 +269,7 @@ import sklearn
 from sklearn.decomposition import PCA
 from mpl_toolkits.mplot3d import Axes3D
 
-class Analyzer_PCA:
+class AnalyzerPCA:
     def __init__(self, dim_num=3):
         self.pca = PCA(n_components=dim_num)
     def fit(self, data): #data:[sample_num, feature_size]

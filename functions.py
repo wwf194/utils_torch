@@ -30,13 +30,23 @@ StackFunction = StackFunctions
 
 def EmptyFunction(*Args, **KwArgs):
     return
+NullFunction = EmptyFunction
 
 def ParseFunctionParamsStatic(paramList):
     for index, param in enumerate(paramList):
         paramList[index] = ParseFunctionParamStatic(param)
 
+def Call(Callable, *Args, **kw):
+    if utils_torch.IsPyObj(Callable):
+        Output = Callable(*Args, **kw)
+        if isinstance(Output, list):
+            return tuple(Output)
+        return Output
+    else:
+        return Callable(*Args, **kw)
+
 def ParseFunctionParamStatic(param, InPlace=False):
-    if callable(param):
+    if callable(param) and not utils_torch.IsPyObj(param):
         return [param, []]
     elif isinstance(param, str):
         return [param, []]
@@ -62,7 +72,7 @@ def CallFunctions(param, **kw):
     elif isinstance(param, str):
         Output = _CallFunction([param], ContextInfo)
         Outputs.append(Output)
-    elif callable(param): # Already parsed to methods.
+    elif callable(param) and not utils_torch.IsPyObj(): # Already parsed to methods.
         Output = _CallFunction([param], ContextInfo)
         Outputs.append(Output)        
     else:
@@ -76,8 +86,9 @@ def _CallFunction(param, ContextInfo={}):
     ContextInfo.setdefault("__PreviousFunctionOutput__", None)
     if isinstance(param, str):
         param = [param]
-    elif callable(param):
+    elif callable(param) and not utils_torch.IsPyObj(param):
         param = [param]
+
     if len(param)==1:
         param.append([])
     

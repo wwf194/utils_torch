@@ -21,6 +21,8 @@ class GradientDescend:
         if LogGrad:
             GradLog = {}
         for Name, Weight in weights.items():
+            # if Name in ["Recurrent.FiringRate2RecurrentInput.Weight"]:
+            #     print("aaa")
             if Weight.grad is None:
                 if WarnNoneGrad:
                     utils_torch.AddWarning("%s.grad is None."%Name)

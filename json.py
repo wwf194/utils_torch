@@ -295,6 +295,10 @@ class PyObj(object):
             return PyObj1.__value__ + PyObj2.__value__
         else: # To Be Implemented: suuport for DictLikePyObj
             raise Exception()
+    def __call__(self, *Args, **kw):
+        return utils_torch.functions.CallGraph(
+            self, Args, **kw
+        )
     def FromDict(self, Dict):
         # Dict keys in form of "A.B.C" are supported.
         # {"A.B": "C"} will be understood as {"A": {"B": "C"}}
@@ -369,6 +373,8 @@ class PyObj(object):
             return value
         else:
             return value
+    def IsEmpty(self):
+        return len(self.__dict__)==1
     def ToList(self):
         if not self.IsListLike():
             raise Exception()
