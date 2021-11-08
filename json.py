@@ -361,6 +361,7 @@ class PyObj(object):
         return self
     def FromPyObj(self, Obj):
         self.FromDict(Obj.__dict__)
+        return self
     def ProcessValue(self, key, value):
         if isinstance(value, dict):
             return PyObj(value)

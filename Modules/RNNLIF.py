@@ -64,6 +64,41 @@ class RNNLIF(nn.Module):
             pass
         else:
             raise Exception(param.Iteration.Time)
+    def Run(self, input, IterationTime):
+        cache = self.cache
+        Modules = self.Modules
+        Dynamics = self.Dynamics
+        if IterationTime is None:
+            IterationTime = cache.IterationTime
+        
+        Modules.InputManager.Receive(input)
+        initState = self.GenerateZeroInitState(RefInput=input)
+        hiddenState, cellState = Modules.SplitHiddenAndCellState(initState)
+        for TimeIndex in range(IterationTime):
+            hiddenState, cellState = Dynamics.Iterate(hiddenState, cellState)
+
+        outputSeries = Modules.OutputManager.Send()
+        hiddenStateSeries = Modules.HiddenStates.Send()
+        cellStateSeries = Modules.CellStates.Send()
+        firingRateSeries = Modules.FiringRates.Send()
+        return {
+            "outputSeries": outputSeries,
+            "hiddenStateSeries": hiddenStateSeries,
+            "cellStateSeries": cellStateSeries,
+            "firingRateSeries": firingRateSeries,
+        }
+        # "In":["input", "time"],
+        # "Out":["outputSeries", "hiddenStateSeries", "cellStateSeries", "firingRateSeries"],
+        # "Routings":[
+        #     "input |--> &InputManager.Receive",
+        #     "RefInput=%input |--> &*GenerateZeroInitState |--> state", // States start from zero
+        #     "state |--> &SplitHiddenAndCellState |--> hiddenState, cellState",
+        #     "hiddenState, cellState |--> &Iterate |--> hiddenState, cellState || repeat=%time",
+        #     "&OutputManager.Send |--> outputSeries",
+        #     "&HiddenStates.Send |--> hiddenStateSeries",
+        #     "&CellStates.Send |--> cellStateSeries",
+        #     "&FiringRates.Send |--> firingRateSeries",
+        # ]
 
 __MainClass__ = RNNLIF
 utils_torch.model.SetMethodForModelClass(__MainClass__)

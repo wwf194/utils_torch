@@ -164,15 +164,17 @@ def EnsurePath(path, isFolder=False): # check if given path exists. if not, crea
                 #filepath, filename = os.path.split(path)
     return path
 
+def CreateEmptyFile(FilePath):
+    Str2File("", FilePath)
+EmptyFile = CreateEmptyFile
 
-def JoinPath(path_0, path_1):
-    if not path_0.endswith('/'):
-        path_0 += '/'
-    if path_1.startswith('./'):
-        path_1 = path_1.lstrip('./')
-    if path_1.startswith('/'):
-        raise Exception('join_path: path_1 is a absolute path: %s'%path_1)
-    return path_0 + path_1
+def JoinPath(Path1, Path2):
+    if not Path1.endswith('/'):
+        Path1 += '/'
+    Path2 = Path2.lstrip('./')
+    if Path2.startswith('/'):
+        raise Exception('JoinPath: Path2 is an absolute path: %s'%Path2)
+    return Path1 + Path2
 
 def CopyFolder(SourceDir, DestDir, exceptions=[], verbose=True):
     '''
@@ -309,6 +311,10 @@ def RenameDirIfExists(DirPath):
 
     DirPath += "/"
     return DirPath
+
+def Str2File(Str, FilePath):
+    with open(FilePath, "w") as file:
+        file.write(Str)
 
 
 def Table2TextFileDict(Dict, SavePath):

@@ -47,3 +47,18 @@ def GetTime(format="%Y-%m-%d %H:%M:%S", verbose=False):
     if verbose:
         print(TimeStr)
     return TimeStr
+
+import dateutil
+def GetTimeDifferenceFromStr(TimeStr1, TimeStr2):
+    Time1 = dateutil.parser.parse(TimeStr1)
+    Time2 = dateutil.parser.parse(TimeStr2)
+
+    TimeDiffSeconds = (Time2 - Time1).total_seconds()
+    TimeDiffSeconds = round(TimeDiffSeconds)
+
+    _Second = TimeDiffSeconds % 60
+    Minute = TimeDiffSeconds // 60
+    _Minute = Minute % 60
+    Hour = Minute // 60
+    TimeDiffStr = "%d:%02d:%02d"%(Hour, _Minute, _Second)
+    return TimeDiffStr

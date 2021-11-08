@@ -494,8 +494,16 @@ def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity",
         Name = param.FullName + "." + Name
     logger.AddLogCache(Name, data, Type)
 
+def LogActivityForModel(self, data, Name, Type="Activity", logger="Data"):
+    logger = utils_torch.ParseLogger(logger)
+    param = self.param
+    data = utils_torch.ToNpArray(data)
+    if hasattr(param, "FullName"):
+        Name = param.FullName + "." + Name
+    logger.AddLogCache(Name, data, Type)
+
 def LogForModel(self, data, Name, Type=None, logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+    logger = utils_torch.ParseLogger(logger)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
@@ -503,7 +511,7 @@ def LogForModel(self, data, Name, Type=None, logger="Data"):
     logger.AddLog(Name, data, Type)
 
 def LogWeightForModel(self, weights, Name="Weight", Type="Weight", logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+    logger = utils_torch.ParseLogger(logger)
     param = self.param
     _weights = {}
     for name, weight in weights.items():
@@ -511,7 +519,7 @@ def LogWeightForModel(self, weights, Name="Weight", Type="Weight", logger="Data"
     logger.AddLogCache(Name, _weights, Type)
 
 def LogFloatForModel(self, data, Name, Type="Float", logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+    logger = utils_torch.ParseLogger(logger)
     param = self.param
     if isinstance(data, torch.Tensor):
         data = data.item()
@@ -520,7 +528,7 @@ def LogFloatForModel(self, data, Name, Type="Float", logger="Data"):
     logger.AddLog(Name, data, Type)
 
 def LogLossForModel(self, loss, Name, Type="Loss", logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+    logger = utils_torch.ParseLogger(logger)
     # param = self.param
     if isinstance(loss, torch.Tensor):
         data = loss.item()
@@ -657,7 +665,7 @@ def ParseRoutersForModel(self):
     param = self.param
     cache = self.cache
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-        if isinstance(RouterParam, str) and RouterParam in ["ClassMethod"]:
+        if isinstance(RouterParam, str) and RouterParam in ["ClassMethod", "InternalMethod"]:
             setattr(cache.Dynamics, Name, getattr(self, Name))
             continue
         if cache.IsInit:
@@ -672,7 +680,7 @@ def ParseRoutersForModel(self):
     if hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
         ObjRefList += GlobalParam.cache.AdditionalObjRefListForParseRouters
     for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveRef__", "__Entry__"]):
-        if isinstance(RouterParam, str) and RouterParam in ["ClassMethod"]:
+        if isinstance(RouterParam, str) and RouterParam in ["ClassMethod", "InternalMethod"]:
             continue
         getattr(cache.Dynamics, Name).FromPyObj(
             utils_torch.router.ParseRouterDynamic(

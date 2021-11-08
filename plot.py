@@ -152,8 +152,25 @@ def PlotPointsPltNp(
     SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
     SetTicksAndRangeForAx(ax, Xs, Ys, XRange, YRange)
     return
-
 PlotPoints = PlotPointsPltNp
+
+def PlotMultiPoints(
+        ax, Xs, Ys, Color="Blue", Type="Circle", Size=None, Labels=None,
+        XLabel=None, YLabel=None, Title=None, XRange=None, YRange=None
+    ):
+    GroupNum = len(Xs)
+    Colors = GenerateColors(GroupNum)
+    if Labels is None:
+        Labels = [None for _ in range(GroupNum)]
+    for Index, (_Xs, _Ys) in enumerate(zip(Xs, Ys)):
+        Color=ParseColorPlt(Colors[Index])
+        Size = ParseMarkerSize(Size)
+        Type = ParsePointTypePlt(Type)
+        ax.scatter(_Xs, _Ys, color=Color, s=Size, marker=Type, facecolors="none", label=Labels[Index])
+    ax.legend(loc="upper right")
+    SetTitleAndLabelForAx(ax, XLabel, YLabel, Title)
+    # SetTicksAndRangeForAx(ax, Xs, Ys, XRange, YRange)
+    return
 
 def SetTicksAndRangeForAx(ax, Xs, Ys, XRange, YRange):
     SetXTicksAndRange(ax, Xs, XRange)
@@ -922,14 +939,14 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
         raise Exception()
 
 def PlotLineChart(ax=None, Xs=None, Ys=None,
-        XLabel=None, YLabel=None, Title="Undefined",
+        XLabel=None, YLabel=None, Title="Undefined", Label=None,
         Color="Black", LineWidth=2.0, XTicks=None, YTicks=None,
-        Save=False, SavePath=None,
+        Save=False, SavePath=None, 
     ):
     if ax is None:
         fig, ax = CreateFigurePlt()
     Color = ParseColorPlt(Color)
-    ax.plot(Xs, Ys, color=Color, linewidth=LineWidth)
+    ax.plot(Xs, Ys, color=Color, linewidth=LineWidth, label=Label)
 
     if XTicks in ["Float"]:
         SetXTicksFloat(ax, np.nanmin(Xs), np.nanmax(Xs))
@@ -941,7 +958,36 @@ def PlotLineChart(ax=None, Xs=None, Ys=None,
     SaveFigForPlt(Save, SavePath)
     return ax
 
-def PlotMultiLineChart(ax=None, Xs=None, YsDict=None,
+def PlotMultiLineChart(ax=None, Xs=None, Ys=None,
+        XLabel=None, YLabel=None, Title="Undefined", Labels=None,
+        Color="Black", LineWidth=2.0, XTicks=None, YTicks=None,
+        Save=False, SavePath=None,
+    ):
+    Index = 0
+    LineNum = len(Xs)
+    Colors = GenerateColors(LineNum)
+    for _Xs, _Ys in zip(Xs, Ys):
+        if Labels is None:
+            Label = None
+        else:
+            Label = Labels[Index]
+        PlotLineChart(
+            ax, _Xs, _Ys, Label=Label, Color=Colors[Index], LineWidth=LineWidth, Save=False
+        )
+        Index += 1
+    if XTicks in ["Float"]:
+        SetXTicksFloat(ax, np.nanmin(Xs), np.nanmax(Xs))
+    if YTicks in ["Float"]:
+        SetYTicksFloat(ax, np.nanmin(Ys), np.nanmax(Ys))
+    SetXYLabelForAx(ax, XLabel, YLabel)
+    SetTitleForAx(ax, Title)
+
+    if Labels is not None:
+        ax.legend(loc="upper right")
+    SaveFigForPlt(Save, SavePath)
+    return ax
+
+def PlotMultiLineChartWithSameXs(ax=None, Xs=None, YsDict=None,
         XLabel=None, YLabel=None, Title="Undefined",
         Color="Auto", LineWidth=1.0, XTicks=None, YTicks=None,
         Save=False, SavePath=None,
@@ -958,7 +1004,7 @@ def PlotMultiLineChart(ax=None, Xs=None, YsDict=None,
             linewidth=LineWidth,
             label=Name,
         )
-    ax.legend()
+    ax.legend(loc="upper right")
 
     if XTicks in ["Float"]:
         Min, Max = np.nanmin(Xs), np.nanmax(Xs)
@@ -1442,7 +1488,6 @@ def SetYRangeMinMax(ax, Min, Max, Pad=0.05):
 
 def SetMatplotlibParamToDefault():
     mpl.rcParams.update(mpl.rcParamsDefault)
-
 
 def SetAxisLocationForAx(ax, XAxisLocation=None, YAxisLocation=None):
     if XAxisLocation is not None:

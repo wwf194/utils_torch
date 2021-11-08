@@ -19,9 +19,7 @@ import torch
 import torch.nn as nn
 import matplotlib as mpl
 from matplotlib import pyplot as plt
-
-from inspect import getframeinfo, stack
-
+# from inspect import getframeinfo, stack
 from utils_torch.attrs import *
 from utils_torch.files import *
 
@@ -68,6 +66,10 @@ def ParseTaskName(task):
     return task
 
 def Main(**kw):
+    GlobalParam = utils_torch.GetGlobalParam()
+    SetAttrs(GlobalParam, "time.StartTime", value=utils_torch.system.GetTime())
+    
+    #try:
     CmdArgs = kw.get("CmdArgs")
     if CmdArgs is None:
         CmdArgs = ParseCmdArgs()
@@ -87,7 +89,7 @@ def Main(**kw):
             try: # catch all unhandled exceptions
                 utils_torch.DoTasks(Tasks, ObjRoot=utils_torch.GetGlobalParam())
             except Exception:
-                utils_torch.AddError(traceback.format_exc())
+                utils_torch.AddLog(traceback.format_exc())
                 raise Exception()
         else:
             utils_torch.DoTasks(Tasks, ObjRoot=utils_torch.GetGlobalParam())
@@ -113,6 +115,19 @@ def Main(**kw):
         utils_torch.CalculateGitProjectTotalLines()
     else:
         raise Exception("Inavlid Task: %s"%CmdArgs.task)
+
+    GlobalParam = utils_torch.GetGlobalParam()
+    
+    SetAttrs(GlobalParam, "time.EndTime", value=utils_torch.system.GetTime())
+    DurationTime = utils_torch.system.GetTimeDifferenceFromStr(GlobalParam.time.StartTime, GlobalParam.time.EndTime)
+    SetAttrs(GlobalParam, "time.DurationTime", value=DurationTime)
+    _StartEndTime2File()
+
+def _StartEndTime2File():
+    GlobalParam = utils_torch.GetGlobalParam()
+    utils_torch.files.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-0-Time-Start:%s"%GlobalParam.time.EndTime)
+    utils_torch.files.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-1-Time- End :%s"%GlobalParam.time.StartTime)
+    utils_torch.files.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-2-Time-Duration:%s"%GlobalParam.time.DurationTime)
 
 def ParsedArgs2CmdArgs(ParsedArgs, Exceptions=[]):
     CmdArgsList = []
@@ -258,8 +273,8 @@ def DoTask(Task, **kw):
         LoadObjFromFile(TaskArgs, **kw)
     elif TaskType in ["LoadObj"]:
         utils_torch.LoadObj(TaskArgs, **kw)
-    elif TaskType in ["AddLibraryPath"]:
-        AddLibraryPath(TaskArgs)
+    # elif TaskType in ["AddLibraryPath"]:
+    #     AddLibraryPath(TaskArgs)
     elif TaskType in ["LoadJsonFile"]:
         LoadJsonFile(TaskArgs)
     elif TaskType in ["LoadParamFile"]:
@@ -1154,9 +1169,7 @@ def GetDimensionNum(data):
 def ToLowerStr(Str):
     return Str.lower()
 
-def Str2File(Str, FilePath):
-    with open(FilePath, "w") as file:
-        file.write(Str)
+from utils_torch.files import Str2File
 
 def GetSavePathFromName(Name, Suffix=""):
     if not Suffix.startswith("."):
@@ -1271,3 +1284,8 @@ def EnsurePyObj(Obj):
         return utils_torch.PyObj(Obj)
     else:
         raise Exception(type(Obj))
+
+class LoggerForPCA:
+    def __init__(self):
+        return
+    

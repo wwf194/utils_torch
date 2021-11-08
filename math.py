@@ -1,5 +1,6 @@
 import torch
 import math
+import pandas as pd
 import numpy as np
 import scipy
 import utils_torch
@@ -190,6 +191,20 @@ def Floats2BaseAndExponent(Floats, Base=10.0):
     Coefficient = Floats / 10.0 ** Exponent
     return Coefficient, Exponent
 
+
+def CalculatePearsonCoefficient(dataA, dataB):
+    # dataA: 1d array
+    # dataB: 1d array
+    dataA = utils_torch.EnsureFlat(dataA)
+    dataB = utils_torch.EnsureFlat(dataB)
+    # data = pd.DataFrame({
+    #     "dataA": dataA, "dataB": dataB
+    # })
+    # return data.corr()
+    dataA=pd.Series(dataA)
+    dataB=pd.Series(dataB)
+    return dataA.corr(dataB, method='pearson')
+
 def CalculatePearsonCoefficientMatrix(dataA, dataB):
     # dataA: Design matrix of shape [SampleNum, FeatureNumA]
     # dataB: Design matrix of shape [SampleNum, FeatureNumB]
@@ -265,30 +280,23 @@ def CalculateBinnedMeanAndStd(
     else:
         raise Exception(BinMethod)
 
-import sklearn
-from sklearn.decomposition import PCA
-from mpl_toolkits.mplot3d import Axes3D
 
-class AnalyzerPCA:
-    def __init__(self, dim_num=3):
-        self.pca = PCA(n_components=dim_num)
-    def fit(self, data): #data:[sample_num, feature_size]
-        self.pca.fit(data)
-    def visualize_traj(self, trajs): #data:[traj_num][traj_length, N_num]
-        fig, ax = utils_torch.plot.CreateFigurePlt()
-        plt.title("Neural Trajectories")
-        ax = fig.gca(projection='3d')
-        mpl.rcParams['legend.fontsize'] = 10
-        for traj in trajs:
-            traj_trans = self.pca.transform(traj) #[dim_num, traj_length]
-            ax.plot(traj_trans[:,0], traj_trans[:, 1], traj_trans[:, 2], label='parametric curve')
-        plt.show()
-        plt.savefig("./trajs_PCA3d.png")
+def PCA(data, ReturnType="PyObj"):
+    FeatureNum = data.shape[1]
+    PCATransform = sklearn.decomposition.PCA(n_components=FeatureNum)
+    PCATransform.fit(data) # Learn PC directions
+    dataPCA = PCATransform.transform(data) #[SampleNum, FeatureNum]
 
-def PCA(data):
-    data = utils_torch.ToNpArray(data)
-
-    return
-
-PrincipalComponentAnalysis = PCA
-
+    if ReturnType in ["Transform"]:
+        return PCATransform
+    # elif ReturnType in ["TransformAndData"]:
+    #     return 
+    elif ReturnType in ["PyObj"]:
+        return utils_torch.PyObj({
+            "dataPCA": utils_torch.ToNpArray(dataPCA),
+            "Axis": utils_torch.ToNpArray(PCATransform.components_),
+            "VarianceExplained": utils_torch.ToNpArray(PCATransform.explained_variance_),
+            "VarianceExplainedRatio": utils_torch.ToNpArray(PCATransform.explained_variance_ratio_)
+        })
+    else:
+        raise Exception(ReturnType)
