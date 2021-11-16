@@ -109,3 +109,8 @@ OperatorList.append("CompareDensityCurve")
 from utils_torch.train import ClearGrad
 OperatorList.append("ClearGrad")
 
+from utils_torch.train import Probability2MostProbableIndex
+OperatorList.append("Probability2MostProbableIndex")
+
+from utils_torch.model import LogAccuracyForSingleClassPrediction
+OperatorList.append("LogAccuracyForSingleClassPrediction")

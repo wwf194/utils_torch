@@ -247,7 +247,7 @@ def AnalyzeResponseSimilarityAndWeightUpdateCorrelation(
     utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + "-Weight-Response-Similarity.png")
     return
 
-class LoggerForPCA:
+class LogForPCA:
     def __init__(self):
         self.Data = []
         self.status = "Initialized"
@@ -262,7 +262,7 @@ class LoggerForPCA:
         self.status = "AppliedPCA"
         return
 
-class LoggerForPCAAlongTraining:
+class LogForPCAAlongTraining:
     def __init__(self, EpochNum, BatchNum):
         #ConnectivityPattern = utils_torch.EmptyPyObj()
         self.EpochNum = EpochNum
@@ -338,6 +338,8 @@ def AnalyzePCA(*Args, **kw):
     GlobalParam = utils_torch.GetGlobalParam()
     kw.setdefault("ObjRoot", GlobalParam)
     
+    AnalysisSaveDir = kw.setdefault("SaveDir", utils_torch.GetMainSaveDir() + "PCA-Analysis-Along-Training-Test/")
+
     utils_torch.DoTasks( # Dataset can be reused.
         "&^param.task.BuildDataset", **kw
     )
@@ -348,8 +350,6 @@ def AnalyzePCA(*Args, **kw):
     
     BatchSize = GlobalParam.param.task.Train.BatchParam.Batch.Size
     BatchNum = GlobalParam.object.image.EstimateBatchNum(BatchSize, Type="Train")
-    
-    AnalysisSaveDir = utils_torch.GetMainSaveDir() + "PCA-Analysis-Along-Training-Test/"
 
     LoggerPCA = LoggerForPCAAlongTraining(EpochNum, BatchNum)
     for SaveDir in SaveDirs:
@@ -402,25 +402,26 @@ def _AnalyzePCA(**kw):
     Dataset = GlobalParam.object.image
     BatchParam = GlobalParam.param.task.Train.BatchParam
     Dataset.PrepareBatches(BatchParam, "Test")
-    logger = kw.get("logger")
+    log = utils_torch.log.LogForEpochBatchTrain()
     TestBatchNum = kw.setdefault("TestBatchNum", 10)
     EpochIndex = kw["EpochIndex"]
     BatchIndex = kw["BatchIndex"]
-    loggerPCA = LoggerForPCA()
+    logPCA = LogForPCA()
     for TestBatchIndex in range(TestBatchNum):
         utils_torch.AddLog("Epoch%d-Index%d-TestBatchIndex-%d"%(EpochIndex, BatchIndex, TestBatchIndex))
-        In = utils_torch.parse.ParsePyObjDynamic(
+        InList = utils_torch.parse.ParsePyObjDynamic(
             utils_torch.PyObj([
                 "&^param.task.Train.BatchParam",
                 "&^param.task.Train.OptimizeParam",
                 #"&^param.task.Train.NotifyEpochBatchList"
+                log,
             ]),
             ObjRoot=GlobalParam
         )
-        utils_torch.CallGraph(agent.Dynamics.TestRandom, In=In)
+        utils_torch.CallGraph(agent.Dynamics.TestBatchRandom, InList=InList)
 
-        loggerPCA.Log(
-            logger.GetLogByName("agent.model.FiringRates")["Value"][:, -1, :],
+        logPCA.Log(
+            log.GetLogByName("agent.model.FiringRates")["Value"][:, -1, :],
         )
-    loggerPCA.ApplyPCA()
-    return loggerPCA
+    logPCA.ApplyPCA()
+    return logPCA

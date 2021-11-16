@@ -76,7 +76,7 @@ def CreateExcitatoryInhibitoryMask(InputNum, OutputNum, ExcitatoryNum, Inhibitor
         InhibitoryNum = InputNum - ExcitatoryNum
     else:
         if InputNum != ExcitatoryNum + InhibitoryNum:
-            raise Exception("GetExcitatoryInhibitoryMask: InputNum==ExcitatoryNum + InhibitoryNum must be satisfied.")
+            raise Exception("GetExcitatoryInhibitoryMask: InputNum == ExcitatoryNum + InhibitoryNum must be satisfied.")
 
     ExcitatoryMask = np.full((ExcitatoryNum, OutputNum), fill_value=1.0, dtype=np.float32)
     InhibitoryMask = np.full((InhibitoryNum, OutputNum), fill_value=-1.0, dtype=np.float32)
@@ -374,13 +374,13 @@ def ClearTrainWeightForModel(self):
     if hasattr(cache, "TrainWeight"):
         delattr(cache, "TrainWeight")
 
-def SetLoggerForModel(self, logger):
+def SetlogForModel(self, log):
     cache = self.cache
-    cache.Logger = logger
+    cache.log = log
     if hasattr(cache, "Modules"):   
         for Name, Module in ListAttrsAndValues(self.cache.Modules):
-            if hasattr(Module, "SetLogger"):
-                Module.SetLogger(utils_torch.log.DataLogger().SetParent(logger, prefix=Name + "."))
+            if hasattr(Module, "Setlog"):
+                Module.Setlog(utils_torch.log.Datalog().SetParent(log, prefix=Name + "."))
 
 def SetFullNameForModel(self, FullName):
     cache = self.cache
@@ -395,10 +395,10 @@ def SetFullNameForModel(self, FullName):
                 else:
                     Module.SetFullName(FullName + "." + Name)
 
-def GetLoggerForModel(self):
+def GetlogForModel(self):
     cache = self.cache
-    if hasattr(cache, "Logger"):
-        return cache.Logger
+    if hasattr(cache, "log"):
+        return cache.log
     else:
         return None
 
@@ -411,11 +411,18 @@ def InitFromParamForModel(self, IsLoad):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
+    utils_torch.parse.ParsePyObjStatic(self.param)
+
 def InitFromParamForNonModel(self, IsLoad):
     cache = self.cache
     cache.IsLoad = IsLoad
     cache.IsInit = not IsLoad
     cache.__object__ = self
+
+    self.Modules = cache.Modules
+    self.Dynamics = cache.Dynamics
+
+    utils_torch.parse.ParsePyObjStatic(self.param)
 
 def DoTasksForModel(Tasks, **kw):
     kw["DoNotChangeObjCurrent"] = True
@@ -428,6 +435,7 @@ def InitForNonModel(self, param=None, data=None, ClassPath=None, **kw):
 def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     LoadDir = kw.get("LoadDir")
     FullName = kw.setdefault("FullName", "Unnamed")
+    HasTensor = kw.setdefault("HasTensor", True)
 
     if param is None:
         param = utils_torch.EmptyPyObj()
@@ -457,7 +465,6 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     cache.Modules = utils_torch.EmptyPyObj()
     cache.Dynamics = utils_torch.EmptyPyObj()
 
-    HasTensor = kw.setdefault("HasTensor", True)
     if HasTensor:
         cache.Tensors = []
 
@@ -467,83 +474,90 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
-def LogStatForModel(self, data, Name, Type="Stat", logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+def LogStatForModel(self, data, Name, Type="Stat", log="Data"):
+    log = utils_torch.ParseLog(log)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
     data = utils_torch.ToNpArray(data)
     stat = utils_torch.math.NpStatistics(data, ReturnType="Dict")
-    logger.AddLogDict(Name + "-Stat", stat, Type)
+    log.AddLogDict(Name + "-Stat", stat)
 
-def LogActivityStatForModel(self, data, Name, Type="Activity-Stat", logger="Data"):
-    LogStatForModel(self, data, Name, Type=Type, logger=logger)
+def LogActivityStatForModel(self, data, Name, Type="Activity-Stat", log="Data"):
+    LogStatForModel(self, data, Name, Type=Type, log=log)
 
-def LogWeightStatForModel(self, weights, Type="Weight-Stat", logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+def LogWeightStatForModel(self, weights, Name="Weight-Stat", log="Data"):
+    log = utils_torch.ParseLog(log)
     param = self.param
     for Name, Weight in weights.items():
         WeightStat = utils_torch.math.TorchTensorStat(Weight, ReturnType="Dict")
-        logger.AddLogDict(Name, WeightStat, Type)
+        log.AddLogDict(Name, WeightStat)
 
-def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity", logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity", log="Data"):
+    log = utils_torch.ParseLog(log)
     param = self.param
     data = utils_torch.ToNpArray(data)
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
-    logger.AddLogCache(Name, data, Type)
+    log.AddLogCache(Name, data, Type)
 
-def LogActivityForModel(self, data, Name, Type="Activity", logger="Data"):
-    logger = utils_torch.ParseLogger(logger)
+def LogActivityForModel(self, data, Name, Type="Activity", log="Data"):
+    log = utils_torch.ParseLog(log)
     param = self.param
     data = utils_torch.ToNpArray(data)
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
-    logger.AddLogCache(Name, data, Type)
+    log.AddLogCache(Name, data, Type)
 
-def LogForModel(self, data, Name, Type=None, logger="Data"):
-    logger = utils_torch.ParseLogger(logger)
+def LogForModel(self, data, Name, Type=None, log="Data"):
+    log = utils_torch.ParseLog(log)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
     data = ProcessLogData(data)
-    logger.AddLog(Name, data, Type)
+    log.AddLog(Name, data, Type)
 
-def LogWeightForModel(self, weights, Name="Weight", Type="Weight", logger="Data"):
-    logger = utils_torch.ParseLogger(logger)
+def LogWeightForModel(self, weights, Name="Weight", Type="Weight", log="Data"):
+    log = utils_torch.ParseLog(log)
     param = self.param
     _weights = {}
     for name, weight in weights.items():
         _weights[name] = utils_torch.ToNpArray(weight)
-    logger.AddLogCache(Name, _weights, Type)
+    log.AddLogCache(Name, _weights, Type)
 
-def LogFloatForModel(self, data, Name, Type="Float", logger="Data"):
-    logger = utils_torch.ParseLogger(logger)
+def LogFloatForModel(self, data, Name, Type="Float", log="Data"):
+    log = utils_torch.ParseLog(log)
     param = self.param
     if isinstance(data, torch.Tensor):
         data = data.item()
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
-    logger.AddLog(Name, data, Type)
+    log.AddLog(Name, data, Type)
 
-def LogLossForModel(self, loss, Name, Type="Loss", logger="Data"):
-    logger = utils_torch.ParseLogger(logger)
+def LogLossForModel(self, loss, Name, Type="Loss", log="Data"):
+    log = utils_torch.ParseLog(log)
     # param = self.param
     if isinstance(loss, torch.Tensor):
         data = loss.item()
     # Generally, loss is global, so FullName isnt's used here.
     # if hasattr(param, "FullName"):
     #     Name = param.FullName + "." + Name
-    logger.AddLog(Name, data, Type)
+    log.AddLog(Name, data, Type)
 
-def LogCacheForModel(self, data, Name, Type=None, logger="Data"):
-    logger = utils_torch.GetLogger(logger)
+def LogAccuracyForSingleClassPrediction(ClassIndexPredicted, ClassIndexTruth, log):
+    #log = utils_torch.ParseLog(log)
+    ClassIndexPredicted = utils_torch.ToNpArray(ClassIndexPredicted)
+    ClassIndexTruth = utils_torch.ToNpArray(ClassIndexTruth)
+    NumCorrect, NumTotal = utils_torch.evaluate.CalculateAccuracyForSingelClassPrediction(ClassIndexPredicted, ClassIndexTruth)
+    log.AddLogCache("SampleNumTotal", NumTotal)
+    log.AddLogCache("SampleNumCorrect", NumCorrect)
+def LogCacheForModel(self, data, Name, Type=None, log="Data"):
+    log = utils_torch.ParseLog(log)
     data = ProcessLogData(data)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
-    logger.AddLogCache(Name, data, Type)
+    log.AddLogCache(Name, data, Type)
 
 def ProcessLogData(data):
     if isinstance(data, torch.Tensor):

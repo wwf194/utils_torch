@@ -36,7 +36,7 @@ def ParseFunctionArg(Arg, ContextInfo):
             # if Arg in ["&~NotifyEpochBatchList"]:
             #     print("AAA")
             #ArgParsed = ResolveArg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
-            return ResolveStrDict(Arg, ContextInfo)
+            return ResolveStr(Arg, ContextInfo)
         else:
             try:
                 return eval(Arg)
@@ -45,11 +45,13 @@ def ParseFunctionArg(Arg, ContextInfo):
     else:
         return Arg
 
-def ResolveStr(param, **kw):
-    kw.setdefault("ObjRoot", utils_torch.GetGlobalParam())
-    return ResolveStrDict(param, kw)
+# def ResolveStr(Str, **kw):
+#     kw.setdefault("ObjRoot", utils_torch.GetGlobalParam())
+#     return ResolveStr(Str, kw)
 
-def ResolveStrDict(param, ContextInfo):
+def ResolveStr(param, ContextDict={}, **kw):
+    ContextDict.update(kw)
+    ContextDict.setdefault("ObjRoot", utils_torch.GetGlobalParam())
     if not isinstance(param, str):
         return param
     if "#" in param:
@@ -70,15 +72,18 @@ def ResolveStrDict(param, ContextInfo):
     if "&" in param:
         # if param in ["&~cache.In.SaveDir"]:
         #     print("aaa")
-        ObjRoot = ContextInfo.get("ObjRoot")
-        ObjCurrent = ContextInfo.get("ObjCurrent")
-        if ContextInfo.get("ObjRefList") is not None:
-            ObjRefList = ContextInfo["ObjRefList"]
+        ObjRoot = ContextDict.get("ObjRoot")
+        ObjCurrent = ContextDict.get("ObjCurrent")
+        if ContextDict.get("ObjRefList") is not None:
+            ObjRefList = ContextDict["ObjRefList"]
             sentence = param
             sentence = sentence.replace("&^", "ObjRoot.")
             sentence = sentence.replace("&~", "ObjCurrent.cache.__ParentRef__.")
             sentence = sentence.replace("&*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("&", "ObjRef.")
+            while "~" in sentence or "*" in sentence:
+                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("*", "cache.__object__.")
             for ObjRef in ObjRefList:
                 try:
                     result = eval(sentence)
@@ -92,10 +97,13 @@ def ResolveStrDict(param, ContextInfo):
             sentence = sentence.replace("&~", "ObjCurrent.cache.__ParentRef__.")
             sentence = sentence.replace("&*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("&", "ObjCurrent.")
+            while "~" in sentence or "*" in sentence:
+                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("*", "cache.__object__.")
         try:
             return eval(sentence)
         except Exception:
-            utils_torch.AddWarning("ResolveStrDict: Failed to run: %s"%sentence)
+            utils_torch.AddWarning("ResolveStr: Failed to run: %s"%sentence)
             return param
     else:
         return eval(param)
@@ -201,7 +209,9 @@ def _ParsePyObjDynamicInPlace(Obj, parent, attr, RaiseFailedParse, **kw):
             sentence = sentence.replace("&^", "ObjRoot.")
             sentence = sentence.replace("&~", "ObjCurrent.cache.__ParentRef__.")
             sentence = sentence.replace("&", "ObjCurrent.")
-
+            while "~" in sentence or "*" in sentence:
+                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("*", "cache.__object__.")
         # Some Tricks
         if "|-->" in sentence:
             return
@@ -301,6 +311,9 @@ def _ParsePyObjDynamicMultiRefsInPlace(Obj, parent, Attr, RaiseFailedParse, **kw
             sentence = sentence.replace("&~", "ObjCurrent.cache.__ParentRef__.")
             sentence = sentence.replace("&*", "ObjRef.cache.__object__.")
             sentence = sentence.replace("&", "ObjRef.")
+            while "~" in sentence or "*" in sentence:
+                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("*", "cache.__object__.")
             for ObjRef in ObjRefList:
                 try:
                     ObjParsed = eval(sentence)
@@ -371,6 +384,7 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
     kw.setdefault("Attrs", [])
     kw["Attrs"].append(Attr)
     Attrs = kw["Attrs"]
+    ObjCurrent = kw.get("ObjCurrent")
     if isinstance(Obj, list):
         if parent is not None and Attr not in ["__value__"]:
             SetAttr(parent, Attr, utils_torch.PyObj({
@@ -386,9 +400,12 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
             _ParseResolveBaseInPlace(Value, Obj, Key, WithinJson=WithinJson, **kw)
     elif utils_torch.IsPyObj(Obj):
         if Obj.IsResolveBase():
-            setattr(Obj.cache, "__ParentRef__", kw.get("ObjCurrent"))
+            setattr(Obj.cache, "__ParentRef__", ObjCurrent)
             kw["ObjCurrent"] = Obj
-        setattr(Obj.cache, "__ResolveRef__", kw.get("ObjCurrent"))
+        else:
+            if hasattr(ObjCurrent.cache, "__ParentRef__"):
+                setattr(Obj.cache, "__ParentRef__", ObjCurrent.cache.__ParentRef__)
+        setattr(Obj.cache, "__ResolveRef__", ObjCurrent)
         for _Attr, Value in ListAttrsAndValues(Obj):
             _ParseResolveBaseInPlace(Value, Obj, _Attr, WithinJson=WithinJson, **kw)
     else:
@@ -448,7 +465,7 @@ def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
         pass
 
 def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
-    # if Str in ["&^object.agent.Dynamics.InitBeforeEpochTrain"]:
+    # if Str in ["&^object.agent.Dynamics.TrainEpochInit"]:
     #     print("aaa")
 
     Str = utils_torch.RemoveHeadTailWhiteChars(Str)
@@ -464,13 +481,18 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
             sentence = sentence.replace("&~", "ObjCurrent.cache.__ParentRef__.")
             sentence = sentence.replace("&*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("&", "ObjCurrent.")
+            while "~" in sentence or "*" in sentence:
+                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("*", "cache.__object__.")
     else:
         while "$" in sentence:
             sentence = sentence.replace("$^", "ObjRoot.")
             sentence = sentence.replace("$~", "parent.")
             sentence = sentence.replace("$*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("$", "ObjCurrent.")
-        
+            while "~" in sentence or "*" in sentence:
+                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("*", "cache.__object__.")
     success = False
     try:
         Str = eval(sentence)

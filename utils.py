@@ -250,7 +250,7 @@ def DoTask(Task, **kw):
     TaskType = Task.Type
     TaskArgs = Task.Args
     if isinstance(TaskArgs, str) and "&" in TaskArgs:
-        TaskArgs = utils_torch.parse.ResolveStr(TaskArgs, **kw)
+        TaskArgs = utils_torch.parse.ResolveStr(TaskArgs, kw)
     if TaskType in ["BuildObjFromParam", "BuildObjectFromParam"]:
         BuildObjFromParam(TaskArgs, **kw)
     elif TaskType in ["FunctionCall"]:
@@ -341,7 +341,7 @@ def _BuildObjFromParam(Args, **kw):
     MountPathList = utils_torch.ToList(Args.MountPath)
 
     for ModulePath, ParamPath, MountPath, in zip(ModulePathList, ParamPathList, MountPathList):        
-        param = utils_torch.parse.ResolveStr(ParamPath, **kw)
+        param = utils_torch.parse.ResolveStr(ParamPath, kw)
         #Class = eval(ModulePath)
         #Obj = Class(param)
         Class = utils_torch.parse.ParseClass(ModulePath)
@@ -1285,7 +1285,6 @@ def EnsurePyObj(Obj):
     else:
         raise Exception(type(Obj))
 
-class LoggerForPCA:
-    def __init__(self):
-        return
-    
+from collections import defaultdict
+def CreateDefaultDict(GetDefaultMethod):
+    return defaultdict(GetDefaultMethod)

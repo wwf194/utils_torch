@@ -316,7 +316,6 @@ def Str2File(Str, FilePath):
     with open(FilePath, "w") as file:
         file.write(Str)
 
-
 def Table2TextFileDict(Dict, SavePath):
     utils_torch.Str2File(pd.DataFrame(Dict).to_string(), SavePath)   
 Table2TextFile = Table2TextFileDict
@@ -586,5 +585,6 @@ def _CopyTree(SourceDir, DestDir, **kw):
     for Dir in Dirs:
         EnsureDir(DestDir + Dir)
         _CopyTree(SourceDir + Dir, DestDir + Dir, **kw)
+
 
     

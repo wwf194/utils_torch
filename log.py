@@ -16,7 +16,7 @@ from inspect import getframeinfo, stack
 import utils_torch
 from utils_torch.attrs import *
 
-class DataLogger:
+class DataLog:
     def __init__(self, IsRoot=False):
         if IsRoot:
             self.tables = {}
@@ -26,8 +26,8 @@ class DataLogger:
         param.LocalColumnNames = cache.LocalColumn.keys()
         self.HasParent = False
         return
-    def SetParent(self, logger, prefix=""):
-        self.parent = logger
+    def SetParent(self, log, prefix=""):
+        self.parent = log
         self.parentPrefix = prefix
         self.HasParent = True
         self.IsRoot = False
@@ -105,9 +105,9 @@ def PlotLogList(Name, Log, SaveDir=None, **kw):
         SavePath=SaveDir + "%s-Epoch.txt"%Name
     )
 
-class LoggerForEpochBatchTrain:
+class LogForEpochBatchTrain:
     def __init__(self, param=None, **kw):
-        utils_torch.model.InitForNonModel(self, param, ClassPath="utils_torch.train.LoggerForEpochBatchTrain", **kw)
+        utils_torch.model.InitForNonModel(self, param, ClassPath="utils_torch.train.LogForEpochBatchTrain", **kw)
         self.InitFromParam(IsLoad=False)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
@@ -141,13 +141,13 @@ class LoggerForEpochBatchTrain:
         log["Epoch"].append(cache.EpochIndex)
         log["Batch"].append(cache.BatchIndex),
         log["Value"].append(Value)
-    def AddLogDict(self, Name, Dict, Type=None):
+    def AddLogDict(self, Name, Dict):
         data = self.data
         cache = self.cache
         if not Name in data.log:
             data.log[Name] = defaultdict(lambda:[])
-            if Type is not None:
-                data.logType[Name] = Type
+            # if Type is not None:
+            #     data.logType[Name] = Type
         Log = data.log[Name]
         for key, value in Dict.items():
             Log[key].append(value)
@@ -239,11 +239,11 @@ class LoggerForEpochBatchTrain:
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-utils_torch.model.SetEpochBatchMethodForModel(LoggerForEpochBatchTrain)
+utils_torch.model.SetEpochBatchMethodForModel(LogForEpochBatchTrain)
 
-class Logger:
+class Log:
     def __init__(self, Name, **kw):
-        self.logger = _CreateLogger(Name, **kw)
+        self.log = _CreateLog(Name, **kw)
     def AddLog(self, log, TimeStamp=True, File=True, LineNum=True, StackIndex=1, **kw):
         Caller = getframeinfo(stack()[StackIndex][0])
         if TimeStamp:
@@ -252,7 +252,7 @@ class Logger:
             log = "%s File \"%s\""%(log, Caller.filename)
         if LineNum:
             log = "%s, line %d"%(log, Caller.lineno)
-        self.logger.debug(log)
+        self.log.debug(log)
 
     def AddWarning(self, log, TimeStamp=True, File=True, LineNum=True, StackIndex=1, **kw):
         Caller = getframeinfo(stack()[StackIndex][0])
@@ -262,42 +262,42 @@ class Logger:
             log = "%s File \"%s\""%(log, Caller.filename)
         if LineNum:
             log = "%s, line %d"%(log, Caller.lineno)
-        self.logger.debug(log)
+        self.log.debug(log)
 
     def AddError(self, log, TimeStamp=True, **kw):
         if TimeStamp:
-            self.logger.error("[%s][ERROR]%s"%(utils_torch.system.GetTime(), log))
+            self.log.error("[%s][ERROR]%s"%(utils_torch.system.GetTime(), log))
         else:
-            self.logger.error("%s"%log)
+            self.log.error("%s"%log)
     def Save(self):
         return
 
-def ParseLogger(logger, **kw):
-    if logger is None:
-        logger = GetLoggerGlobal()
-    elif isinstance(logger, str):
-        logger = GetLogger(logger, **kw)
+def ParseLog(log, **kw):
+    if log is None:
+        log = GetLogGlobal()
+    elif isinstance(log, str):
+        log = GetLog(log, **kw)
     else:
-        raise Exception()
-    return logger
+        return log
+    return log
 
-def AddLog(log, logger=None, *args, **kw):
-    ParseLogger(logger, **kw).AddLog(log, *args, StackIndex=2, **kw)
+def AddLog(Str, log=None, *args, **kw):
+    ParseLog(log, **kw).AddLog(Str, *args, StackIndex=2, **kw)
 
-def AddWarning(log, logger=None, *args, **kw):
-    ParseLogger(logger, **kw).AddWarning(log, *args, StackIndex=2, **kw)
+def AddWarning(Str, log=None, *args, **kw):
+    ParseLog(log, **kw).AddWarning(Str, *args, StackIndex=2, **kw)
 
-def AddError(log, logger=None, *args, **kw):
-    ParseLogger(logger, **kw).AddError(log, *args, StackIndex=2, **kw)
+def AddError(Str, log=None, *args, **kw):
+    ParseLog(log, **kw).AddError(Str, *args, StackIndex=2, **kw)
 
-def AddLogger(Name, **kw):
+def AddLog2GlobalParam(Name, **kw):
     import utils_torch
-    setattr(utils_torch.GlobalParam.log, Name, CreateLogger(Name, **kw))
+    setattr(utils_torch.GlobalParam.log, Name, CreateLog(Name, **kw))
 
-def CreateLogger(Name, **kw):
-    return Logger(Name, **kw)
+def CreateLog(Name, **kw):
+    return Log(Name, **kw)
 
-def _CreateLogger(Name, SaveDir=None, **kw):
+def _CreateLog(Name, SaveDir=None, **kw):
     if SaveDir is None:
         SaveDir = utils_torch.GetMainSaveDir()
     utils_torch.EnsureDir(SaveDir)
@@ -306,20 +306,20 @@ def _CreateLogger(Name, SaveDir=None, **kw):
         HandlerList = ["File"]
 
     # 输出到file
-    logger = logging.Logger(Name)
-    logger.setLevel(logging.DEBUG)
-    logger.HandlerList = HandlerList
+    log = logging.Logger(Name)
+    log.setLevel(logging.DEBUG)
+    log.HandlerList = HandlerList
 
     for HandlerType in HandlerList:
         if HandlerType in ["Console"]:
             # 输出到console
             ConsoleHandler = logging.StreamHandler()
             ConsoleHandler.setLevel(logging.DEBUG) # 指定被处理的信息级别为最低级DEBUG，低于level级别的信息将被忽略
-            logger.addHandler(ConsoleHandler)
+            log.addHandler(ConsoleHandler)
         elif HandlerType in ["File"]:
             FileHandler = logging.FileHandler(SaveDir + "%s.txt"%(Name), mode='w', encoding='utf-8')  # 不拆分日志文件，a指追加模式,w为覆盖模式
             FileHandler.setLevel(logging.DEBUG)     
-            logger.addHandler(FileHandler)
+            log.addHandler(FileHandler)
         else:
             raise Exception(HandlerType)
 
@@ -327,15 +327,15 @@ def _CreateLogger(Name, SaveDir=None, **kw):
     if len(HandlerList)==0:
         raise Exception(HandlerNum)
 
-    return logger
+    return log
 
-def SetLoggerGlobal(GlobalParam):
-    GlobalParam.log.Global = CreateLogger('Global')
+def SetLogGlobal(GlobalParam):
+    GlobalParam.log.Global = CreateLog('Global')
 
-def SetLogger(Name, logger):
-    setattr(utils_torch.GlobalParam.log, Name, logger)
+def SetLog(Name, log):
+    setattr(utils_torch.GlobalParam.log, Name, log)
 
-def GetLoggerGlobal():
+def GetLogGlobal():
     return utils_torch.GlobalParam.log.Global
 
 def SetGlobalParam(GlobalParam):
@@ -417,13 +417,35 @@ def GetAllSubSaveDirsEpochBatch(Name, GlobalParam=None):
         SaveDirs[Index] = utils_torch.GetMainSaveDir(GlobalParam) + Name + "/" + SaveDir # SaveDir already ends with "/"
     return SaveDirs
 
-def GetDataLogger():
+def GetDataLog():
     return utils_torch.GlobalParam.log.Data
 
-def GetLogger(Name, CreateIfNone=True, **kw):
+def GetLog(Name, CreateIfNone=True, **kw):
     if not hasattr(utils_torch.GlobalParam.log, Name):
         if CreateIfNone:
-            utils_torch.AddLogger(Name)
+            utils_torch.AddLog(Name)
         else:
             raise Exception()
     return getattr(utils_torch.GlobalParam.log, Name)
+
+class LogForAccuracyAlongTraining:
+    def __init__(self, param=None):
+        self.param = param
+        self.cache = utils_torch.EmptyPyObj()
+        cache = self.cache
+        
+        EnsureAttrs(param, "LogBatchNum", default=5)
+        cache.LogBatchNum = param.LogBatchNum
+        
+        cache.CorrectNumList = [0 for _ in range(cache.LogBatchNum)]
+        cache.TotalNumList = [0 for _ in range(cache.LogBatchNum)]
+        cache.ListIndex = 0
+        return
+    def Update(self, CorrectNum, TotalNum):
+        cache = self.cache
+        cache.CorrectNumList[cache.ListIndex] = CorrectNum
+        cache.TotalNumList[cache.ListIndex] = TotalNum
+        cache.ListIndex = (cache.ListIndex + 1) / cache.LogBatchNum
+    def GetAccuracy(self):
+        cache = self.cache
+        return 1.0 * sum(cache.CorrectNumList) / sum(cache.TotalNumList)

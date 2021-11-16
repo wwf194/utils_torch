@@ -64,6 +64,54 @@ class RNNLIF(nn.Module):
             pass
         else:
             raise Exception(param.Iteration.Time)
+    def Train(self, TrainData, TrainParam, log):
+        Dynamics = self.Dynamics
+        input = TrainData.input
+        outputTarget = TrainData.outputTarget
+
+        # inputInit = input.inputInit
+        # inputSeries = input.inputSeries
+        # IterationTime = input.IterationTime
+        outputs = Dynamics.Run(input)
+
+        log.hiddenStates = outputs.hiddenStateSeries
+        log.cellStates = outputs.cellStateSeries
+        log.firingRates = outputs.firingRateSeries
+        log.output = outputs.outputSeries
+        log.outputTarget = outputTarget
+
+        Dynamics.Optimize(outputTarget, outputs.output, TrainParam, log=log)
+        return
+        # "Train":{
+        #     "In":["input", "outputTarget", "trainParam"],
+        #     "Out":[],
+        #     "Routings":[
+        #         "input |--> &Split |--> inputInit, inputSeries, time",
+        #         "inputInit, inputSeries, time |--> &Run |--> outputSeries, hiddenStateSeries, cellStateSeries, firingRateSeries",
+        #         "hiddenStateSeries, cellStateSeries, firingRateSeries |--> &Merge |--> activity",
+        #         "outputSeries, outputTarget, activity, trainParam |--> &Optimize",
+
+        #         "hiddenStateSeries, Name=HiddenStates,  logger=DataTrain |--> &LogTimeVaryingActivity",
+        #         "cellStateSeries,   Name=CellStates,    logger=DataTrain |--> &LogTimeVaryingActivity",
+        #         "firingRateSeries,  Name=FiringRates,   logger=DataTrain |--> &LogTimeVaryingActivity",
+        #         "outputSeries,      Name=Outputs,       logger=DataTrain |--> &LogTimeVaryingActivity",
+        #         "outputTarget,      Name=OutputTargets, logger=DataTrain |--> &LogTimeVaryingActivity",
+                
+        #         // "firingRateSeries,  Name=FiringRates, logger=DataTrain |-->   &LogSpatialActivity",
+        #     ]
+        # },
+    
+    def Optimize(self, output, outputTarget, activity, trainParam):
+
+        return
+    def Iterate(self, hiddenState, cellState):
+        # hiddenState: recurrent input from last time step
+        Modules = self.Modules
+        Modules.Recurrent(hiddenState, cellState, inputProcessed)
+
+        Modules.LoghiddenState.Receive(hiddenState)
+        Modules.LogCellState.Receive(cellState)
+        Modules.LogFiringRate.Receive(firingRate)
     def Run(self, input, IterationTime):
         cache = self.cache
         Modules = self.Modules

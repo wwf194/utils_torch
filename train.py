@@ -47,13 +47,25 @@ def NotifyBatchNum(ObjList, BatchNum):
     for Obj in ObjList:
         Obj.NotifyBatchNum(BatchNum)
 
-class TrainerForEpochBatchTraining:
+class TrainerForEpochBatchTrain:
     def __init__(self, param, **kw):
         utils_torch.model.InitForNonModel(self, param, **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.model.InitFromParamForModel(self, IsLoad)
         param = self.param
         cache = self.cache
+        data = self.data
+        
+        Modules = self.Modules
+        Modules.LogTrain = utils_torch.log.LogForEpochBatchTrain()
+        cache.LogTrain = utils_torch.log.LogForEpochBatchTrain()
+
+        Modules.LogTest = utils_torch.log.LogForEpochBatchTrain()
+        cache.LogTest = utils_torch.log.LogForEpochBatchTrain()    
+        
+        # data.log = utils_torch.EmptyPyObj()
+        # data.log.Train = utils_torch.EmptyPyObj()
+        # data.log.Test = utils_torch.EmptyPyObj()
         self.BuildModules()
         self.InitModules()
         self.ParseRouters()
@@ -98,80 +110,22 @@ class TrainerForEpochBatchTraining:
             cache.NotifyEpochBatchList.append(Obj)
     def GenerateContextInfo(self):
         cache = self.cache
-        return {
+        return utils_torch.PyObj({
             "Trainer": self,
+            #"log": cache.LogTrain,
             "EpochNum": cache.EpochNum,
             "BatchNum": cache.BatchNum,
             "EpochIndex": cache.EpochIndex,
             "BatchIndex": cache.BatchIndex,
-        }
+        })
     def __call__(self):
         utils_torch.CallGraph(self.Dynamics.Main)
     def ReportEpochBatch(self):
         cache = self.cache
         utils_torch.AddLog("Epoch%d-Batch%d"%(cache.EpochIndex, cache.BatchIndex))
 
-utils_torch.model.SetMethodForNonModelClass(TrainerForEpochBatchTraining)
-utils_torch.model.SetEpochBatchMethodForModel(TrainerForEpochBatchTraining)
-# def TrainEpochBatch(param, **kw):
-#     kw["ObjCurrent"] = param
-#     logger = kw["Logger"]
-    
-#     param = utils_torch.parse.ParsePyObjStatic(param, InPlace=True, **kw)
-#     Routers = ParseRoutersFromTrainParam(param, **kw)
-#     NofityEpochBatchList = utils_torch.parse.ParsePyObjDynamic(
-#         param.NotifyEpochBatchList, InPlace=False, **kw
-#     )
-
-#     EpochNum, BatchNum = param.Epoch.Num, param.Batch.Num
-#     NotifyEpochNum(NofityEpochBatchList, EpochNum)
-#     NotifyBatchNum(NofityEpochBatchList, BatchNum)
-    
-#     EpochIndex, BatchIndex = -1, BatchNum - 1
-#     NotifyEpochIndex(NofityEpochBatchList, EpochIndex)
-#     NotifyBatchIndex(NofityEpochBatchList, BatchIndex)
-
-#     utils_torch.CallGraph(Routers.Test, In=Routers.In)
-
-#     SaveAndLoad(EpochIndex, BatchIndex, **kw)
-#     Routers = ParseRoutersFromTrainParam(param, **kw)
-
-#     AnalyzeAfterBatch(
-#         utils_torch.GetLogger("DataTest"),
-#         Routers=Routers, param=param,
-#         EpochNum=EpochNum, EpochIndex=EpochIndex,
-#         BatchNum=BatchNum, BatchIndex=BatchIndex,
-#         **kw
-#     )
-
-#     CheckPointSave = CheckPoint()
-#     CheckPointAnalyze = CheckPoint()
-#     CheckPointSave.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
-#     CheckPointAnalyze.SetCheckPoint(EpochNum, BatchNum, IntervalStart=20)
-
-
-#     for EpochIndex in range(EpochNum):
-#         NotifyEpochIndex(NofityEpochBatchList, EpochIndex)
-#         #utils_torch.AddLog("Epoch: %d"%EpochIndex)
-#         for BatchIndex in range(BatchNum):
-#             NotifyBatchIndex(NofityEpochBatchList, BatchIndex)
-#             utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
-#             utils_torch.CallGraph(Routers.Train, In=Routers.In) 
-            
-#             # Save and Reload.
-#             if CheckPointSave.AddBatchAndReturnIsCheckPoint():
-#                 SaveAndLoad(EpochIndex, BatchIndex, **kw)
-#                 Routers = ParseRoutersFromTrainParam(param, **kw)
-            
-#             # Do analysis
-#             if CheckPointAnalyze.AddBatchAndReturnIsCheckPoint():
-#                 AnalyzeAfterBatch(
-#                     utils_torch.GetLogger("Data"),
-#                     Routers=Routers, param=param,
-#                     EpochNum=EpochNum, EpochIndex=EpochIndex,
-#                     BatchNum=BatchNum, BatchIndex=BatchIndex,
-#                     **kw
-#                 )
+utils_torch.model.SetMethodForNonModelClass(TrainerForEpochBatchTrain)
+utils_torch.model.SetEpochBatchMethodForModel(TrainerForEpochBatchTrain)
                 
 def ParseRoutersFromTrainParam(param, **kw):
     Routers = utils_torch.PyObj()
@@ -184,11 +138,11 @@ def SetSaveDirForSavedModel(EpochIndex, BatchIndex):
     SaveDirForSavedModel = utils_torch.GetMainSaveDir() + "SavedModel/" + "Epoch%d-Batch%d/"%(EpochIndex, BatchIndex)
     utils_torch.SetSubSaveDir(SaveDirForSavedModel, Type="Obj")
 
-# def CallGraphEpochBatch(router, In, logger, EpochIndex, BatchIndex):
+# def CallGraphEpochBatch(router, InList, logger, EpochIndex, BatchIndex):
 #     logger.SetLocal("EpochIndex", EpochIndex)
 #     logger.SetLocal("BatchIndex", BatchIndex)
 #     utils_torch.AddLog("Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
-#     utils_torch.CallGraph(router, In=In) 
+#     utils_torch.CallGraph(router, InList=InList) 
 
 def ParseEpochBatchFromStr(Str):
     MatchResult = re.match(r"^.*Epoch(-?\d*)-Batch(\d*).*$", Str)
@@ -212,6 +166,7 @@ class CheckPointForEpochBatchTraining:
         param = self.param
         cache = self.cache
         EnsureAttrs(param, "CalculateCheckPointMode", default="Online")
+
         if param.CalculateCheckPointMode in ["Static"]: # For cases where EpochNum and BatchNum is known before training.
             assert HasAttrs(param, "Epoch.Num")
             assert HasAttrs(param, "Batch.Num")
@@ -233,13 +188,17 @@ class CheckPointForEpochBatchTraining:
             cache.IntervalMax = param.Interval.Max
             cache.IntervalIncreaseCoefficient = param.Interval.IncreaseCoefficient
             self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointOnline
+        elif param.CalculateCheckPointMode in ["Always", "EveryBatch"]:
+            cache.BatchIndex = -1
+            cache.IntervalIndex = 0
+            self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointAlwaysTrue
         else:
             raise Exception(param.CalculateCheckPointMode)
         
         EnsureAttrs(param, "Method", default="&#utils_torch.functions.NullFunction")
         cache.Method = utils_torch.parse.ResolveStr(
             param.Method,
-            ObjCurrent=self,
+            ObjCurrent=self.param,
             ObjRoot=utils_torch.GetGlobalParam()
         )
     def CalculateCheckPointList(param):
@@ -277,6 +236,10 @@ class CheckPointForEpochBatchTraining:
         else:
             IsCheckPoint = False
         return IsCheckPoint
+    def AddBatchAndReturnIsCheckPointAlwaysTrue(self, **kw):
+        cache = self.cache
+        cache.BatchIndex += 1
+        return True
     def GetMethod(self):
         return self.cache.Method
 CheckPointForEpochBatchTraining.IsCheckPoint = True
@@ -318,36 +281,6 @@ def evaluate(net, testloader, criterion, scheduler, augment, device):
     net.train()
     return val_loss, val_acc
 
-def evaluate_iter(net, testloader, criterion, scheduler, augment, device):
-    net.eval()
-    count=0
-    labels_count=0
-    correct_count=0
-    labels_count=0
-    loss_total=0.0
-    #torch.cuda.empty_cache()
-    for data in testloader:
-        #print("\r","progress:%d/%d "%(count,len(testloader)), end="", flush=True)
-        count=count+1
-        inputs, labels = data
-        inputs=inputs.to(device)
-        labels=labels.to(device)
-        if(augment==True):
-            bs, ncrops, c, h, w = inputs.size()
-            outputs = net(inputs.view(-1, c, h, w))
-            outputs = outputs.view(bs, ncrops, -1).mean(1)
-        else:
-            outputs, act = net(inputs)
-            #outputs = list(map(lambda x:x.to(device), outputs))  
-        loss_total += net.Getloss(inputs, labels).item()
-        correct_count+=(torch.max(outputs[-1], 1)[1]==labels).sum().item()
-        labels_count+=labels.size(0)
-    #print("\n")
-    val_loss=loss_total/count
-    val_acc=correct_count/labels_count
-    net.train()
-    return val_loss, val_acc
-
 def GetEpochFloat(EpochIndex, BatchIndex, BatchNum):
     return EpochIndex + BatchIndex / BatchNum * 1.0
 
@@ -369,30 +302,12 @@ def Labels2OneHotVectors(Labels, VectorSize=None):
     OneHotVectors[range(SampleNum), Labels] = 1
     return OneHotVectors
 
-def Probability2MostProbableClassIndex(Probabilities):
-    # Probabilities: [BatchSize, ClassNum]
-    Max, MaxIndices = torch.max(Probabilities, dim=1)
-    return utils_torch.TorchTensor2NpArray(MaxIndices) # [BatchSize]
+def Probability2MostProbableIndex(Probability):
+    # Probability: [BatchSize, ClassNum]
+    #Max, MaxIndices = torch.max(Probability, dim=1)
+    #return utils_torch.TorchTensor2NpArray(MaxIndices) # [BatchSize]
+    return torch.argmax(Probability, axis=1)
 
-def InitAccuracy():
-    Accuracy = utils_torch.PyObj()
-    Accuracy.Num = 0
-    Accuracy.NumCorrect = 0
-    return Accuracy
-
-def ResetAccuracy(Accuracy):
-    Accuracy.Num = 0
-    Accuracy.NumCorrect = 0
-    return Accuracy
-
-def CalculateAccuracy(Accuracy):
-    Accuracy.RatioCorrect = 1.0 * Accuracy.NumCorrect / Accuracy.Num
-    return Accuracy
-
-def LogAccuracyForSingleClassPrediction(Accuracy, Output, OutputTarget):
-    # Output: np.ndarray. Predicted class indices in shape of [BatchNum]
-    # OutputTarget: np.ndarray. Ground Truth class indices in shape of [BatchNum]
-    SampleNum = Output.shape[0]
-    CorrectNum = np.sum(Output==OutputTarget)
-    Accuracy.Num += SampleNum
-    Accuracy.NumCorrect += CorrectNum
+# def Probability2MaxIndex(Probability):
+#     # Probability: [BatchSize, ClassNum]
+#     return torch.argmax(Probability, axis=1)

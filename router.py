@@ -64,6 +64,8 @@ def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
             Routing.cache.RepeatTime = Routing.RepeatTime
         if "Condition" not in Routing.OnlineParseAttrs:
             Routing.cache.Condition = Routing.Condition
+        if "InheritStates" not in Routing.OnlineParseAttrs:
+            Routing.cache.InheritStates = Routing.InheritStates
     return RouterParsed
 
 
@@ -153,8 +155,6 @@ def ParseRoutingStatic(Routing):
         setattr(param, _Attr, value)
 
     EnsureAttrs(param, "RepeatTime", value=1)
-    EnsureAttrs(param, "Condition", value=True)
-
     param.cache.RepeatTime = param.RepeatTime
     param.OnlineParseAttrs = []
     for attr, value in ListAttrsAndValues(param):
@@ -162,4 +162,6 @@ def ParseRoutingStatic(Routing):
             if value[0]=="%": # Dynamic Parse
                 param.OnlineParseAttrs.append(attr)
 
+    EnsureAttrs(param, "Condition", value=True)
+    EnsureAttrs(param, "InheritStates", value=False)
     return param

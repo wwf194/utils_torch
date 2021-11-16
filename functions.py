@@ -58,22 +58,22 @@ def ParseFunctionParamStatic(param, InPlace=False):
         raise Exception(type(param))
 
 def CallFunctions(param, **kw):
-    ContextInfo = kw
+    ContextDict = kw
     Outputs = []
     if isinstance(param, utils_torch.PyObj):
         param = GetAttrs(param)
     if isinstance(param, utils_torch.PyObj): # Call one function
-        Output = _CallFunction(param, ContextInfo)
+        Output = _CallFunction(param, ContextDict)
         Outputs.append(Output)
     elif isinstance(param, list) or utils_torch.IsListLikePyObj(param): # Call a cascade of functions
         for _param in param:
-            Output = _CallFunction(_param, ContextInfo)
+            Output = _CallFunction(_param, ContextDict)
             Outputs.append(Output)
     elif isinstance(param, str):
-        Output = _CallFunction([param], ContextInfo)
+        Output = _CallFunction([param], ContextDict)
         Outputs.append(Output)
     elif callable(param) and not utils_torch.IsPyObj(): # Already parsed to methods.
-        Output = _CallFunction([param], ContextInfo)
+        Output = _CallFunction([param], ContextDict)
         Outputs.append(Output)        
     else:
         raise Exception(param)
@@ -96,7 +96,7 @@ def _CallFunction(param, ContextInfo={}):
     FunctionArgs = utils_torch.ToList(param[1])
     # if FunctionName in ["&#utils_torch.ExternalMethods.AddObjRefForParseRouters"]:
     #     print("aaa")
-    Function = utils_torch.parse.ResolveStrDict(
+    Function = utils_torch.parse.ResolveStr(
         FunctionName,
         ContextInfo
     )
@@ -108,12 +108,22 @@ def _CallFunction(param, ContextInfo={}):
     else:
         return FunctionOutput
 
-def CallGraph(Router, In, **kw):
-    States = utils_torch.EmptyPyObj()
+def CallGraph(Router, InList, InDict=None, **kw):
     # Register Router Input
-    for Index, Key in enumerate(Router.In):
-        States[Key] = In[Index]
-    
+    if InDict is None:
+        States = kw.setdefault("States", utils_torch.EmptyPyObj())
+        for Index, Key in enumerate(Router.In):
+            States[Key] = InList[Index]
+    else:
+        for Index, Key in enumerate(Router.In):
+            States = utils_torch.EmptyPyObj().FromDict(InDict)
+            Index = 0
+            for Index, Key in enumerate(Router.In):
+                if Key in InDict:
+                    States[Key] = InDict[Key] 
+                else:
+                    States[Key] = InList[Index]
+                    Index += 1
     # Run Router Routings
     for RoutingIndex, Routing in enumerate(Router.Routings):
         if isinstance(Routing, list):
@@ -127,20 +137,28 @@ def CallGraph(Router, In, **kw):
                     for Index, State in enumerate(Routing.In):
                         InputList.append(States[State])
                     InputDict = Routing.InNamed.ToDict()
+                    
                     for key, value in InputDict.items():
                         if isinstance(value, str) and value.startswith("%"):
                             InputDict[key] = States[value[1:]]
                     #InputList = utils_torch.parse.FilterFromPyObj(States, Routing.In)
+                
+                    # Routing.Module is a router
                     if isinstance(Routing.Module, utils_torch.PyObj):
+                        _States = States if Routing.cache.InheritStates else utils_torch.EmptyPyObj()
                         if len(Routing.InNamed) > 0:
-                            raise Exception(Routing.InNamed)
-                        OutputList = CallGraph(Routing.Module, InputList)
-                    else:
+                            #raise Exception(Routing.InNamed)
+                            OutputList = CallGraph(Routing.Module, InputList, InputDict, States=_States)
+                        else:
+                            OutputList = CallGraph(Routing.Module, InputList, States=_States)
+                    else: # Routing.Module is a  
                         OutputList = Routing.Module(*InputList, **InputDict)
                     
                     # Process Module OutputList
                     if len(Routing.Out) > 1:
                         for Index, Key in enumerate(Routing.Out):
+                            if isinstance(OutputList, dict):
+                                OutputList = list(OutputList.values())
                             States[Key] = OutputList[Index]
                     elif len(Routing.Out) == 1:
                         if isinstance(OutputList, list):

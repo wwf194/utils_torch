@@ -9,10 +9,10 @@ DefaultRoutings = [
     "&GetBias |--> bias",
     "&GetNoise |--> noise",
     "hiddenState, input, noise, bias |--> &Add |--> inputTotal",
-    "inputTotal, cellState |--> &ProcessInputTotalAndcellState |--> cellState",
-    "cellState |--> &NonLinear |--> hiddenState",
+    "inputTotal, membranePotential |--> &ProcessInputTotalAndmembranePotential |--> membranePotential",
+    "membranePotential |--> &NonLinear |--> hiddenState",
     "hiddenState |--> &HiddenStateTransform |--> hiddenState",
-    "cellState |--> &CellStateDecay |--> cellState"
+    "membranePotential |--> &MembranePotentialDecay |--> membranePotential"
 ]
 
 class RecurrentLIFLayer(nn.Module):
@@ -48,21 +48,21 @@ class RecurrentLIFLayer(nn.Module):
 
             if param.TimeConst.Excitatory==param.TimeConst.Inhibitory:
                 TimeConst = param.TimeConst.Excitatory
-                Modules.CellStateDecay = lambda CellState: (1.0 - TimeConst) * CellState
+                Modules.MembranePotentialDecay = lambda MembranePotential: (1.0 - TimeConst) * MembranePotential
                 Modules.ProcessTotalInput = \
                     lambda TotalInput: TimeConst * TotalInput
-                Modules.ProcessCellStateAndTotalInput = \
-                    lambda CellState, TotalInput: \
-                    CellState + Modules.ProcessTotalInput(TotalInput)
+                Modules.ProcessMembranePotentialAndTotalInput = \
+                    lambda MembranePotential, TotalInput: \
+                    MembranePotential + Modules.ProcessTotalInput(TotalInput)
             else:
                 TimeConstExci = param.TimeConst.Excitatory
                 TimeConstInhi = param.TimeConst.Inhibitory
                 if not (0.0 <= TimeConstExci <= 1.0 and 0.0 <= TimeConstExci <= 1.0):
                     raise Exception()
-                Modules.CellStateDecay = lambda CellState: \
+                Modules.MembranePotentialDecay = lambda MembranePotential: \
                     torch.concatenate([
-                            CellState[:, :ExciNeuronsNum] * (1.0 - TimeConstExci), 
-                            CellState[:, ExciNeuronsNum:] * (1.0 - TimeConstInhi),
+                            MembranePotential[:, :ExciNeuronsNum] * (1.0 - TimeConstExci), 
+                            MembranePotential[:, ExciNeuronsNum:] * (1.0 - TimeConstInhi),
                         ], 
                         axis=1
                     )
@@ -73,20 +73,20 @@ class RecurrentLIFLayer(nn.Module):
                         ], 
                         axis=1
                     )
-                Modules.ProcessCellStateAndTotalInput = lambda CellState, TotalInput: \
-                    CellState + Modules.ProcessTotalInput(TotalInput)
+                Modules.ProcessMembranePotentialAndTotalInput = lambda MembranePotential, TotalInput: \
+                    MembranePotential + Modules.ProcessTotalInput(TotalInput)
         else:
             if cache.IsInit:
                 EnsureAttrs(param, "TimeConst", default=0.1)
             TimeConst = GetAttrs(param.TimeConst)
             if not 0.0 <= TimeConst <= 1.0:
                 raise Exception()
-            Modules.CellStateDecay = lambda CellState: (1.0 - TimeConst) * CellState
+            Modules.MembranePotentialDecay = lambda MembranePotential: (1.0 - TimeConst) * MembranePotential
             Modules.ProcessTotalInput = lambda TotalInput: TimeConst * TotalInput
-            Modules.ProcessCellStateAndTotalInput = lambda CellState, TotalInput: \
-                CellState + Modules.ProcessTotalInput(TotalInput)
-    def forward(self, CellState, RecurrentInput, Input):
+            Modules.ProcessMembranePotentialAndTotalInput = lambda MembranePotential, TotalInput: \
+                MembranePotential + Modules.ProcessTotalInput(TotalInput)
+    def forward(self, MembranePotential, RecurrentInput, Input):
         cache = self.cache
-        return utils_torch.CallGraph(cache.Dynamics.Main, [CellState, RecurrentInput, Input])  
+        return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])  
 __MainClass__ = RecurrentLIFLayer
 utils_torch.model.SetMethodForModelClass(__MainClass__)

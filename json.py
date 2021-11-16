@@ -254,8 +254,10 @@ class PyObj(object):
                 self.FromDict(param)
             elif type(param) is list:
                 self.FromList(param)
+            elif type(param) is PyObj:
+                self.FromPyObj(param)
             else:
-                raise Exception()
+                raise Exception(type(param))
     def __repr__(self):
         return str(self.ToDict())
     def __setitem__(self, key, value):
@@ -275,6 +277,12 @@ class PyObj(object):
             return len(self.__dict__) - 1
     def __str__(self):
         return utils_torch.json.PyObj2JsonStr(self)
+    def setdefault(self, attr, value):
+        if attr in self.__dict__:
+            return getattr(self, attr)
+        else:
+            setattr(self, attr, value)
+            return value
     def FromList(self, List, InPlace=True):
         ListParsed = []
         for Index, Item in enumerate(List):
@@ -299,6 +307,8 @@ class PyObj(object):
         return utils_torch.functions.CallGraph(
             self, Args, **kw
         )
+    def Update(self, Dict):
+        self.FromDict(Dict)
     def FromDict(self, Dict):
         # Dict keys in form of "A.B.C" are supported.
         # {"A.B": "C"} will be understood as {"A": {"B": "C"}}
@@ -380,10 +390,6 @@ class PyObj(object):
         if not self.IsListLike():
             raise Exception()
         return self.__value__
-    def ToDict(self):
-        Dict = dict(self.__dict__)
-        Dict.pop("cache")
-        return Dict
     def IsListLike(self):
         return hasattr(self, "__value__") and isinstance(self.__value__, list)
     def IsDictLike(self):
@@ -403,12 +409,17 @@ class PyObj(object):
         if not self.IsListLike():
             raise Exception()
         self.__value__.append(content)
+    # def ToDict(self):
+    #     Dict = {}
+    #     for key, value in ListAttrsAndValues(self, Exceptions=["__ResolveRef__"]):
+    #         if type(value) is PyObj:
+    #             value = value.ToDict()
+    #         Dict[key] = value
+    #     return Dict
     def ToDict(self):
-        Dict = {}
-        for key, value in ListAttrsAndValues(self, Exceptions=["__ResolveRef__"]):
-            if type(value) is PyObj:
-                value = value.ToDict()
-            Dict[key] = value
+        Dict = dict(self.__dict__)
+        Dict.pop("cache")
         return Dict
+
     def Items(self):
         return ListAttrsAndValues(self)
