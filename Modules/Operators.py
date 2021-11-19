@@ -50,7 +50,7 @@ def FunctionsOutputs2List(Functions):
 
 class FunctionsOutputs:
     def __init__(self, param=None, data=None, **kw):
-        utils_torch.model.InitForModel(self, param, data, 
+        utils_torch.module.InitForModule(self, param, data, 
             ClassPath="utils_torch.Modules.Operators.FunctionsOutputs", **kw)
     def InitFromParam(self, IsLoad=False):
         param = self.param
@@ -68,7 +68,7 @@ class FunctionsOutputs:
         return self.forward()
     def forward(self):
         return FunctionsOutputs2List(self.cache.Functions)
-utils_torch.model.SetMethodForModelClass(FunctionsOutputs)
+utils_torch.module.SetMethodForModuleClass(FunctionsOutputs)
 OperatorList.append("FunctionsOutputs")
 
 def CalculateGradient(loss):
@@ -112,5 +112,5 @@ OperatorList.append("ClearGrad")
 from utils_torch.train import Probability2MostProbableIndex
 OperatorList.append("Probability2MostProbableIndex")
 
-from utils_torch.model import LogAccuracyForSingleClassPrediction
+from utils_torch.module import LogAccuracyForSingleClassPrediction
 OperatorList.append("LogAccuracyForSingleClassPrediction")

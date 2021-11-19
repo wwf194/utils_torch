@@ -49,9 +49,9 @@ def NotifyBatchNum(ObjList, BatchNum):
 
 class TrainerForEpochBatchTrain:
     def __init__(self, param, **kw):
-        utils_torch.model.InitForNonModel(self, param, **kw)
+        utils_torch.module.InitForNonModel(self, param, **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        utils_torch.module.InitFromParamForModule(self, IsLoad)
         param = self.param
         cache = self.cache
         data = self.data
@@ -62,7 +62,10 @@ class TrainerForEpochBatchTrain:
 
         Modules.LogTest = utils_torch.log.LogForEpochBatchTrain()
         cache.LogTest = utils_torch.log.LogForEpochBatchTrain()    
-        
+
+        cache.NotifyEpochBatchList = []
+        cache.CheckPointList = []
+        self.Register2NotifyEpochBatchList([cache.LogTrain, cache.LogTest])
         # data.log = utils_torch.EmptyPyObj()
         # data.log.Train = utils_torch.EmptyPyObj()
         # data.log.Test = utils_torch.EmptyPyObj()
@@ -104,7 +107,7 @@ class TrainerForEpochBatchTrain:
             Obj.SetBatchNum(cache.BatchNum)
     def Register2NotifyEpochBatchList(self, List):
         cache = self.cache
-        cache.NotifyEpochBatchList = []
+        #cache.NotifyEpochBatchList = []
         for Obj in List:
             Obj = utils_torch.parse.ResolveStr(Obj)
             cache.NotifyEpochBatchList.append(Obj)
@@ -124,8 +127,8 @@ class TrainerForEpochBatchTrain:
         cache = self.cache
         utils_torch.AddLog("Epoch%d-Batch%d"%(cache.EpochIndex, cache.BatchIndex))
 
-utils_torch.model.SetMethodForNonModelClass(TrainerForEpochBatchTrain)
-utils_torch.model.SetEpochBatchMethodForModel(TrainerForEpochBatchTrain)
+utils_torch.module.SetMethodForNonModelClass(TrainerForEpochBatchTrain)
+utils_torch.module.SetEpochBatchMethodForModule(TrainerForEpochBatchTrain)
                 
 def ParseRoutersFromTrainParam(param, **kw):
     Routers = utils_torch.PyObj()
@@ -159,9 +162,9 @@ def ParseOptimizeParamEpochBatch(param):
 
 class CheckPointForEpochBatchTraining:
     def __init__(self, param, **kw):
-        utils_torch.model.InitForNonModel(self, param, ClassPath="utils_torch.Train.CheckPointForEpochBatchTraining", **kw)
+        utils_torch.module.InitForNonModel(self, param, ClassPath="utils_torch.Train.CheckPointForEpochBatchTraining", **kw)
     def InitFromParam(self, IsLoad):
-        utils_torch.model.InitFromParamForNonModel(self, IsLoad)
+        utils_torch.module.InitFromParamForNonModel(self, IsLoad)
         # Intervals are calculated in batches, not epochs.
         param = self.param
         cache = self.cache
@@ -243,7 +246,7 @@ class CheckPointForEpochBatchTraining:
     def GetMethod(self):
         return self.cache.Method
 CheckPointForEpochBatchTraining.IsCheckPoint = True
-utils_torch.model.SetEpochBatchMethodForModel(CheckPointForEpochBatchTraining)
+utils_torch.module.SetEpochBatchMethodForModule(CheckPointForEpochBatchTraining)
 
 def ClearGrad(weights):
     for name, weight in weights.items():

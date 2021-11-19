@@ -309,6 +309,7 @@ class PyObj(object):
         )
     def Update(self, Dict):
         self.FromDict(Dict)
+        return self
     def FromDict(self, Dict):
         # Dict keys in form of "A.B.C" are supported.
         # {"A.B": "C"} will be understood as {"A": {"B": "C"}}
@@ -369,6 +370,9 @@ class PyObj(object):
                             parent, parentAttr = obj, key
                             obj = getattr(obj, key)
         return self
+    def Copy(self):
+        return utils_torch.PyObj(self.__dict__)
+        # to be implemented: also copy cache
     def FromPyObj(self, Obj):
         self.FromDict(Obj.__dict__)
         return self

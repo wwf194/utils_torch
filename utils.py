@@ -457,7 +457,7 @@ def SaveObj(Args, **kw):
 
     for SaveObj, SaveDir in zip(SaveObjList, SaveDirList):
         if SaveDir in ["auto", "Auto"]:
-            SaveDir = utils_torch.GetMainSaveDirForModel()
+            SaveDir = utils_torch.GetMainSaveDirForModule()
         Obj = utils_torch.parse.ResolveStr(SaveObj, **kw)
         Obj.Save(SaveDir)
 
@@ -577,7 +577,7 @@ def ToNpArray(data, DataType=np.float32):
     elif isinstance(data, torch.Tensor):
         return Tensor2NpArray(data)
     else:
-        raise Exception()
+        raise Exception(type(data))
 
 
 def ToTorchTensor(data):
@@ -1288,3 +1288,4 @@ def EnsurePyObj(Obj):
 from collections import defaultdict
 def CreateDefaultDict(GetDefaultMethod):
     return defaultdict(GetDefaultMethod)
+GetDefaultDict = CreateDefaultDict

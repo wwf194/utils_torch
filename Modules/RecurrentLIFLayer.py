@@ -18,9 +18,9 @@ DefaultRoutings = [
 class RecurrentLIFLayer(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(RecurrentLIFLayer, self).__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.RecurrentLIFLayer", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.RecurrentLIFLayer", **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        utils_torch.module.InitFromParamForModule(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -41,7 +41,7 @@ class RecurrentLIFLayer(nn.Module):
                     EnsureAttrs(param, "TimeConst", default=0.1)
                     SetAttrs(param, "TimeConst.Excitatory", GetAttrs(param.TimeConst))
                     SetAttrs(param, "TimeConst.Inhibitory", GetAttrs(param.TimeConst))
-                    utils_torch.model.ParseExciInhiNum(param.Neurons)
+                    utils_torch.module.ParseExciInhiNum(param.Neurons)
             ExciNeuronsNum = param.Neurons.Excitatory.Num
             InhiNeuronsNum = param.Neurons.Inhibitory.Num
             #ExciNeuronsNum = 80
@@ -89,4 +89,4 @@ class RecurrentLIFLayer(nn.Module):
         cache = self.cache
         return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])  
 __MainClass__ = RecurrentLIFLayer
-utils_torch.model.SetMethodForModelClass(__MainClass__)
+utils_torch.module.SetMethodForModuleClass(__MainClass__)

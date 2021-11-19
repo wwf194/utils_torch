@@ -44,10 +44,10 @@ def BuildModuleFromType(param, **kw):
         Obj = Module.__MainClass__(param, **kw)
         return Obj
     elif param.Type in ["Internal"]:
-        utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type Internal.")
+        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type Internal.")
         raise Exception()
     elif param.Type in ["External"]:
-        utils_torch.AddWarning("utils_torch.model.BuildModule does not build Module of type External.")
+        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type External.")
         raise Exception()
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
@@ -306,7 +306,7 @@ def PrintStateDict(optimizer):
     for key, value in dict_.items():
         print('%s: %s'%(key, value))
 
-def SetTensorLocationForModel(self, Location):
+def SetTensorLocationForModule(self, Location):
     cache = self.cache
     cache.TensorLocation = Location
     if hasattr(cache, "Tensors"):
@@ -321,8 +321,8 @@ def SetTensorLocationForModel(self, Location):
                 if isinstance(module, nn.Module):
                     utils_torch.AddWarning("%s is an instance of nn.Module, but has not implemented SetTensorLocation method."%name)
 
-def SetTrainWeightForModel(self):
-    ClearTrainWeightForModel(self)
+def SetTrainWeightForModule(self):
+    ClearTrainWeightForModule(self)
     cache = self.cache
     cache.TrainWeight = {}
     if hasattr(cache, "Modules"):
@@ -338,7 +338,7 @@ def SetTrainWeightForModel(self):
     else:
         return {}
 
-def GetPlotWeightForModel(self):
+def GetPlotWeightForModule(self):
     cache = self.cache
     if not hasattr(cache, "PlotWeight"):
         self.SetPlotWeight()
@@ -347,8 +347,8 @@ def GetPlotWeightForModel(self):
         weights[name] = method()
     return weights
 
-def SetPlotWeightForModel(self):
-    ClearPlotWeightForModel(self)
+def SetPlotWeightForModule(self):
+    ClearPlotWeightForModule(self)
     cache = self.cache
     cache.PlotWeight = {}
     if hasattr(cache, "Modules"):
@@ -364,17 +364,17 @@ def SetPlotWeightForModel(self):
     else:
         return {}
 
-def ClearPlotWeightForModel(self):
+def ClearPlotWeightForModule(self):
     cache = self.cache
     if hasattr(cache, "PlotWeight"):
         delattr(cache, "PlotWeight")
 
-def ClearTrainWeightForModel(self):
+def ClearTrainWeightForModule(self):
     cache = self.cache
     if hasattr(cache, "TrainWeight"):
         delattr(cache, "TrainWeight")
 
-def SetlogForModel(self, log):
+def SetlogForModule(self, log):
     cache = self.cache
     cache.log = log
     if hasattr(cache, "Modules"):   
@@ -382,7 +382,7 @@ def SetlogForModel(self, log):
             if hasattr(Module, "Setlog"):
                 Module.Setlog(utils_torch.log.Datalog().SetParent(log, prefix=Name + "."))
 
-def SetFullNameForModel(self, FullName):
+def SetFullNameForModule(self, FullName):
     cache = self.cache
     param = self.param
     if FullName not in [""]:
@@ -395,14 +395,20 @@ def SetFullNameForModel(self, FullName):
                 else:
                     Module.SetFullName(FullName + "." + Name)
 
-def GetlogForModel(self):
+def GetFullNameForModule(self):
+    if hasattr(self, "param"):
+        if hasattr(self.param, "FullName"):
+            return self.param.FullName
+    return None
+
+def GetlogForModule(self):
     cache = self.cache
     if hasattr(cache, "log"):
         return cache.log
     else:
         return None
 
-def InitFromParamForModel(self, IsLoad):
+def InitFromParamForModule(self, IsLoad):
     cache = self.cache
     cache.IsLoad = IsLoad
     cache.IsInit = not IsLoad
@@ -424,15 +430,15 @@ def InitFromParamForNonModel(self, IsLoad):
 
     utils_torch.parse.ParsePyObjStatic(self.param)
 
-def DoTasksForModel(Tasks, **kw):
+def DoTasksForModule(Tasks, **kw):
     kw["DoNotChangeObjCurrent"] = True
     utils_torch.DoTasks(Tasks, **kw)
 
 def InitForNonModel(self, param=None, data=None, ClassPath=None, **kw):
-    InitForModel(self, param, data, ClassPath, HasTensor=False, **kw)
+    InitForModule(self, param, data, ClassPath, HasTensor=False, **kw)
     return
 
-def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
+def InitForModule(self, param=None, data=None, ClassPath=None, **kw):
     LoadDir = kw.get("LoadDir")
     FullName = kw.setdefault("FullName", "Unnamed")
     HasTensor = kw.setdefault("HasTensor", True)
@@ -474,26 +480,35 @@ def InitForModel(self, param=None, data=None, ClassPath=None, **kw):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
-def LogStatForModel(self, data, Name, Type="Stat", log="Data"):
+def LogDictForModule(self, Dict, Name, Type=None, log="Data"):
+    log = utils_torch.ParseLog(log)
+    param = self.param
+    if hasattr(param, "FullName"):
+        Name = param.FullName + "." + Name
+    log.AddLogDict(Name, Dict, Type)
+
+def LogStatForModule(self, data, Name, Type="Stat", log="Data"):
     log = utils_torch.ParseLog(log)
     param = self.param
     if hasattr(param, "FullName"):
         Name = param.FullName + "." + Name
     data = utils_torch.ToNpArray(data)
     stat = utils_torch.math.NpStatistics(data, ReturnType="Dict")
-    log.AddLogDict(Name + "-Stat", stat)
+    if not Name.endswith("Stat"):
+        Name += "-Stat"
+    log.AddLogDict(Name, stat, Type)
 
-def LogActivityStatForModel(self, data, Name, Type="Activity-Stat", log="Data"):
-    LogStatForModel(self, data, Name, Type=Type, log=log)
+def LogActivityStatForModule(self, data, Name, Type="Activity-Stat", log="Data"):
+    LogStatForModule(self, data, Name, Type=Type, log=log)
 
-def LogWeightStatForModel(self, weights, Name="Weight-Stat", log="Data"):
+def LogWeightStatForModule(self, weights, Name, Type="Weight-Stat", log="Data"):
     log = utils_torch.ParseLog(log)
     param = self.param
     for Name, Weight in weights.items():
         WeightStat = utils_torch.math.TorchTensorStat(Weight, ReturnType="Dict")
-        log.AddLogDict(Name, WeightStat)
+        log.AddLogDict(Name, WeightStat, Type)
 
-def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity", log="Data"):
+def LogTimeVaryingActivityForModule(self, data, Name, Type="TimeVaryingActivity", log="Data"):
     log = utils_torch.ParseLog(log)
     param = self.param
     data = utils_torch.ToNpArray(data)
@@ -501,7 +516,7 @@ def LogTimeVaryingActivityForModel(self, data, Name, Type="TimeVaryingActivity",
         Name = param.FullName + "." + Name
     log.AddLogCache(Name, data, Type)
 
-def LogActivityForModel(self, data, Name, Type="Activity", log="Data"):
+def LogActivityForModule(self, data, Name, Type="Activity", log="Data"):
     log = utils_torch.ParseLog(log)
     param = self.param
     data = utils_torch.ToNpArray(data)
@@ -509,7 +524,7 @@ def LogActivityForModel(self, data, Name, Type="Activity", log="Data"):
         Name = param.FullName + "." + Name
     log.AddLogCache(Name, data, Type)
 
-def LogForModel(self, data, Name, Type=None, log="Data"):
+def LogForModule(self, data, Name, Type=None, log="Data"):
     log = utils_torch.ParseLog(log)
     param = self.param
     if hasattr(param, "FullName"):
@@ -517,7 +532,7 @@ def LogForModel(self, data, Name, Type=None, log="Data"):
     data = ProcessLogData(data)
     log.AddLog(Name, data, Type)
 
-def LogWeightForModel(self, weights, Name="Weight", Type="Weight", log="Data"):
+def LogWeightForModule(self, weights, Name="Weight", Type="Weight", log="Data"):
     log = utils_torch.ParseLog(log)
     param = self.param
     _weights = {}
@@ -525,7 +540,7 @@ def LogWeightForModel(self, weights, Name="Weight", Type="Weight", log="Data"):
         _weights[name] = utils_torch.ToNpArray(weight)
     log.AddLogCache(Name, _weights, Type)
 
-def LogFloatForModel(self, data, Name, Type="Float", log="Data"):
+def LogFloatForModule(self, data, Name, Type="Float", log="Data"):
     log = utils_torch.ParseLog(log)
     param = self.param
     if isinstance(data, torch.Tensor):
@@ -534,14 +549,10 @@ def LogFloatForModel(self, data, Name, Type="Float", log="Data"):
         Name = param.FullName + "." + Name
     log.AddLog(Name, data, Type)
 
-def LogLossForModel(self, loss, Name, Type="Loss", log="Data"):
+def LogLossForModule(self, loss, Name, Type="Loss", log="Data"):
     log = utils_torch.ParseLog(log)
-    # param = self.param
     if isinstance(loss, torch.Tensor):
         data = loss.item()
-    # Generally, loss is global, so FullName isnt's used here.
-    # if hasattr(param, "FullName"):
-    #     Name = param.FullName + "." + Name
     log.AddLog(Name, data, Type)
 
 def LogAccuracyForSingleClassPrediction(ClassIndexPredicted, ClassIndexTruth, log):
@@ -549,9 +560,14 @@ def LogAccuracyForSingleClassPrediction(ClassIndexPredicted, ClassIndexTruth, lo
     ClassIndexPredicted = utils_torch.ToNpArray(ClassIndexPredicted)
     ClassIndexTruth = utils_torch.ToNpArray(ClassIndexTruth)
     NumCorrect, NumTotal = utils_torch.evaluate.CalculateAccuracyForSingelClassPrediction(ClassIndexPredicted, ClassIndexTruth)
-    log.AddLogCache("SampleNumTotal", NumTotal)
-    log.AddLogCache("SampleNumCorrect", NumCorrect)
-def LogCacheForModel(self, data, Name, Type=None, log="Data"):
+    log.AddLogDict(
+        "Accuracy",
+        {
+            "SampleNumTotal": NumTotal,
+            "SampleNumCorrect": NumCorrect,
+        }
+    )
+def LogCacheForModule(self, data, Name, Type=None, log="Data"):
     log = utils_torch.ParseLog(log)
     data = ProcessLogData(data)
     param = self.param
@@ -564,13 +580,13 @@ def ProcessLogData(data):
         data = utils_torch.Tensor2NumpyOrFloat(data)
     return data
 
-def GetTensorLocationForModel(self):
+def GetTensorLocationForModule(self):
     return self.cache.TensorLocation
 
-def GetTrainWeightForModel(self):
+def GetTrainWeightForModule(self):
     return self.cache.TrainWeight
 
-def PlotWeightForModel(self, SaveDir=None):
+def PlotWeightForModule(self, SaveDir=None):
     if SaveDir is None:
         SaveDir = utils_torch.GetMainSaveDir() + "weights/"
     cache = self.cache
@@ -581,7 +597,7 @@ def PlotWeightForModel(self, SaveDir=None):
             if hasattr(Module,"PlotWeight"):
                 Module.PlotWeight(SaveDir)
 
-def BuildModulesForModel(self):
+def BuildModulesForModule(self):
     # initialize modules
     # for module in ListAttrs(param.modules):
     param = self.param
@@ -605,8 +621,7 @@ def BuildModulesForModel(self):
             self.add_module(Name, Module)
         setattr(cache.Modules, Name, Module)
 
-
-def LoadFromFileForModel(self, LoadDir, Name, **kw):
+def LoadFromFileForModule(self, LoadDir, Name, **kw):
     utils_torch.RemoveAttrIfExists(self, "cache")
     utils_torch.RemoveAttrIfExists(self, "param")
     utils_torch.RemoveAttrIfExists(self, "data")
@@ -642,7 +657,7 @@ def LoadFromFileForModel(self, LoadDir, Name, **kw):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
-def InitModulesForModel(self):
+def InitModulesForModule(self):
     cache = self.cache
     for name, module in ListAttrsAndValues(cache.Modules):
         if hasattr(module, "InitFromParam"):
@@ -659,10 +674,11 @@ def InitModulesForModel(self):
             if module is None:
                 raise Exception(name)
 
-def LoadFromParamForModel(self):
+
+def LoadFromParamForModule(self):
     self.InitFromParam(IsLoad=True)
 
-def DoInitTasksForModel(self):
+def DoInitTasksForModule(self):
     param = self.param
     EnsureAttrs(param, "InitTasks", default=[])
     for Task in self.param.InitTasks:
@@ -674,7 +690,7 @@ def Add2ObjRefListForParseRouters(ObjRef):
         GlobalParam.cache.AdditionalObjRefListForParseRouters = []
     GlobalParam.cache.AdditionalObjRefListForParseRouters.append(ObjRef)
 
-def ParseRoutersForModel(self):
+def ParseRoutersForModule(self):
     GlobalParam = utils_torch.GetGlobalParam()
     param = self.param
     cache = self.cache
@@ -705,12 +721,12 @@ def ParseRoutersForModel(self):
         )
     return
 
-def RegisterExternalMethodForModel(self, Name, Method):
+def RegisterExternalMethodForModule(self, Name, Method):
     if not callable(Method):
         Method = utils_torch.parse.ResolveStr(Method)
     setattr(self, Name, Method)
 
-def SaveForModel(self, SaveDir, Name=None, IsRoot=True):
+def SaveForModule(self, SaveDir, Name=None, IsRoot=True):
     param = self.param
     data = self.data
     cache = self.cache
@@ -742,80 +758,82 @@ def ToNpArrayIfIsTensor(data):
 def Interest():
     return
 
-def SetMethodForModelClass(Class, **kw):
+def SetMethodForModuleClass(Class, **kw):
     HasTensor = kw.setdefault("HasTensor", True)
-    Class.Log = LogForModel
-    Class.PlotWeight = PlotWeightForModel
-    Class.SetFullName = SetFullNameForModel
-    Class.RegisterExternalMethod = RegisterExternalMethodForModel
-    Class.DoInitTasks = DoInitTasksForModel
+    Class.Log = LogForModule
+    Class.PlotWeight = PlotWeightForModule
+    Class.SetFullName = SetFullNameForModule
+    Class.GetFullName = GetFullNameForModule
+    Class.RegisterExternalMethod = RegisterExternalMethodForModule
+    Class.DoInitTasks = DoInitTasksForModule
     if HasTensor:
-        Class.SetTensorLocation = SetTensorLocationForModel
-        Class.GetTensorLocation = GetTensorLocationForModel
+        Class.SetTensorLocation = SetTensorLocationForModule
+        Class.GetTensorLocation = GetTensorLocationForModule
         if not hasattr(Class, "SetTrainWeight"):
-            Class.SetTrainWeight = SetTrainWeightForModel
+            Class.SetTrainWeight = SetTrainWeightForModule
         if not hasattr(Class, "GetTrainWeight"):
-            Class.GetTrainWeight = GetTrainWeightForModel
+            Class.GetTrainWeight = GetTrainWeightForModule
         if not hasattr(Class, "ClearTrainWeight"):
-            Class.ClearTrainWeight = ClearTrainWeightForModel
+            Class.ClearTrainWeight = ClearTrainWeightForModule
         if not hasattr(Class, "SetPlotWeight"):
-            Class.SetPlotWeight = SetPlotWeightForModel
+            Class.SetPlotWeight = SetPlotWeightForModule
         if not hasattr(Class, "GetPlotWeight"):
-            Class.GetPlotWeight = GetPlotWeightForModel
+            Class.GetPlotWeight = GetPlotWeightForModule
         if not hasattr(Class, "ClearPlotWeight"):
-            Class.ClearPlotWeight = ClearPlotWeightForModel
+            Class.ClearPlotWeight = ClearPlotWeightForModule
     if not hasattr(Class, "Save"):
-        Class.Save = SaveForModel
+        Class.Save = SaveForModule
     if not hasattr(Class, "LoadFromFile"):
-        Class.LoadFromFile = LoadFromFileForModel
-    Class.InitModules = InitModulesForModel
-    Class.BuildModules = BuildModulesForModel
+        Class.LoadFromFile = LoadFromFileForModule
+    Class.InitModules = InitModulesForModule
+    Class.BuildModules = BuildModulesForModule
     if not hasattr(Class, "ParseRouters"):
-        Class.ParseRouters = ParseRoutersForModel
-    Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModel
-    Class.LogWeight = LogWeightForModel
-    Class.LogWeightStat = LogWeightStatForModel
-    Class.LogActivityStat = LogActivityStatForModel
-    Class.LoadFromParam = LoadFromParamForModel
-    Class.LogStat = LogStatForModel
-    Class.LogCache = LogCacheForModel
-    Class.LogFloat = LogFloatForModel
-    Class.LogLoss = LogLossForModel
+        Class.ParseRouters = ParseRoutersForModule
+    Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModule
+    Class.LogWeight = LogWeightForModule
+    Class.LogWeightStat = LogWeightStatForModule
+    Class.LogActivityStat = LogActivityStatForModule
+    Class.LoadFromParam = LoadFromParamForModule
+    Class.LogStat = LogStatForModule
+    Class.LogCache = LogCacheForModule
+    Class.LogDict = LogDictForModule
+    Class.LogFloat = LogFloatForModule
+    Class.LogLoss = LogLossForModule
 
 def SetMethodForNonModelClass(Class, **kw):
     HasTensor = kw.setdefault("HasTensor", False)
     if not hasattr(Class, "SetFullName"):
-        Class.SetFullName = SetFullNameForModel
+        Class.SetFullName = SetFullNameForModule
     if not hasattr(Class, "Save"):
-        Class.Save = SaveForModel
-    Class.LoadFromParam = LoadFromParamForModel
-    Class.RegisterExternalMethod = RegisterExternalMethodForModel
+        Class.Save = SaveForModule
+    Class.LoadFromParam = LoadFromParamForModule
+    Class.RegisterExternalMethod = RegisterExternalMethodForModule
     if HasTensor:
-        Class.SetTensorLocation = SetTensorLocationForModel
-        Class.GetTensorLocation = GetTensorLocationForModel
-    Class.InitModules = InitModulesForModel
-    Class.BuildModules = BuildModulesForModel
+        Class.SetTensorLocation = SetTensorLocationForModule
+        Class.GetTensorLocation = GetTensorLocationForModule
+    Class.InitModules = InitModulesForModule
+    Class.BuildModules = BuildModulesForModule
     if not hasattr(Class, "ParseRouters"):
-        Class.ParseRouters = ParseRoutersForModel
+        Class.ParseRouters = ParseRoutersForModule
 
-def SetEpochIndexForModel(self, EpochIndex):
+def SetEpochIndexForModule(self, EpochIndex):
     self.cache.EpochIndex = EpochIndex
 
-def SetBatchIndexForModel(self, BatchIndex):
+def SetBatchIndexForModule(self, BatchIndex):
     self.cache.BatchIndex = BatchIndex
 
-def SetEpochNumForModel(self, EpochNum):
+def SetEpochNumForModule(self, EpochNum):
     self.cache.EpochNum = EpochNum
 
-def SetBatchNumForModel(self, BatchNum):
+def SetBatchNumForModule(self, BatchNum):
     self.cache.BatchNum = BatchNum
 
-def SetEpochBatchMethodForModel(Class):
+def SetEpochBatchMethodForModule(Class):
     if not hasattr(Class, "SetEpochIndex"):
-        Class.SetEpochIndex = SetEpochIndexForModel
+        Class.SetEpochIndex = SetEpochIndexForModule
     if not hasattr(Class, "SetBatchIndex"):
-        Class.SetBatchIndex = SetBatchIndexForModel
+        Class.SetBatchIndex = SetBatchIndexForModule
     if not hasattr(Class, "SetEpochNum"):
-        Class.SetEpochNum = SetEpochNumForModel
+        Class.SetEpochNum = SetEpochNumForModule
     if not hasattr(Class, "SetBatchNum"):
-        Class.SetBatchNum = SetBatchNumForModel
+        Class.SetBatchNum = SetBatchNumForModule

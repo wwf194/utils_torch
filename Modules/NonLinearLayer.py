@@ -15,7 +15,7 @@ from utils_torch.Modules.SingleLayer import SingleLayer
 class NonLinearLayer(SingleLayer):
     def __init__(self, param=None, data=None, **kw):
         super().__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.NonLinearLayer", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.NonLinearLayer", **kw)
     def InitFromParam(self, IsLoad=False):
         super().InitFromParam(IsLoad)
         param = self.param        
@@ -60,4 +60,4 @@ class NonLinearLayer(SingleLayer):
             else:
                 raise Exception("NonLinearLayer: Invalid Subtype: %s"%param.Subtype)
 __MainClass__ = NonLinearLayer
-#utils_torch.model.SetMethodForModelClass(__MainClass__)
+#utils_torch.module.SetMethodForModuleClass(__MainClass__)

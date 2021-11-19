@@ -5,7 +5,7 @@ from collections import defaultdict
 
 class GradientDescend:
     def __init__(self, param=None, data=None, **kw):
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.optimize.GradientDescend")
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.optimize.GradientDescend")
     def InitFromParam(self, IsLoad=False):
         cache = self.cache
         cache.IsLoad = IsLoad
@@ -52,7 +52,7 @@ class GradientDescend:
             # else:
             # if LogWeightChangeRatio:
             #     utils_torch.GetDataLogger().AddLog("%s.ChangeRatio"%Name,
-            #         utils_torch.model.CalculateWeightChangeRatio(Weight, WeightChange),
+            #         utils_torch.module.CalculateWeightChangeRatio(Weight, WeightChange),
             #         Type="WeightChangeRatio"
             #     )
             if Update:
@@ -64,4 +64,4 @@ class GradientDescend:
             return GradLog
 
 
-utils_torch.model.SetMethodForModelClass(GradientDescend)
+utils_torch.module.SetMethodForModuleClass(GradientDescend)

@@ -86,13 +86,21 @@ class DataLog:
                 table.insert(**ColumnValues, **self.cache.LocalColumn)
             table.commit()
 
-def ListLog2EpochsFloat(Log, **kw):
-    if isinstance(Log, dict):
-        Log = list(Log.values())[0]
+def LogList2EpochsFloat(Log, **kw):
+    # for _Log in Log:
+    #     EpochIndices.append(_Log[0])
+    #     BatchIndices.append(_Log[1])
+    if ("EpochFloat" in Log) and len(Log["EpochFloat"])==len(Log["Epoch"]):
+        pass
+    else:
+        Log["EpochFloat"] = utils_torch.train.EpochBatchIndices2EpochsFloat(Log["Epoch"], Log["Batch"], **kw)
+    return Log["EpochFloat"]
+
+def LogDict2EpochsFloat(Log, **kw):
     return utils_torch.train.EpochBatchIndices2EpochsFloat(Log["Epoch"], Log["Batch"], **kw)
 
 def PlotLogList(Name, Log, SaveDir=None, **kw):
-    EpochsFloat = ListLog2EpochsFloat(Log, BatchNum=kw["BatchNum"])
+    EpochsFloat = LogList2EpochsFloat(Log, BatchNum=kw["BatchNum"])
     Ys = Log["Value"]
     fig, ax = plt.subplots()
     utils_torch.plot.PlotLineChart(ax, EpochsFloat, Ys, Title="%s-Epoch"%Name, XLabel="Epoch", YLabel=Name)
@@ -107,10 +115,10 @@ def PlotLogList(Name, Log, SaveDir=None, **kw):
 
 class LogForEpochBatchTrain:
     def __init__(self, param=None, **kw):
-        utils_torch.model.InitForNonModel(self, param, ClassPath="utils_torch.train.LogForEpochBatchTrain", **kw)
+        utils_torch.module.InitForNonModel(self, param, ClassPath="utils_torch.train.LogForEpochBatchTrain", **kw)
         self.InitFromParam(IsLoad=False)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.model.InitFromParamForModel(self, IsLoad)
+        utils_torch.module.InitFromParamForModule(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -141,13 +149,13 @@ class LogForEpochBatchTrain:
         log["Epoch"].append(cache.EpochIndex)
         log["Batch"].append(cache.BatchIndex),
         log["Value"].append(Value)
-    def AddLogDict(self, Name, Dict):
+    def AddLogDict(self, Name, Dict, Type=None):
         data = self.data
         cache = self.cache
         if not Name in data.log:
             data.log[Name] = defaultdict(lambda:[])
-            # if Type is not None:
-            #     data.logType[Name] = Type
+            if Type is not None:
+                data.logType[Name] = Type
         Log = data.log[Name]
         for key, value in Dict.items():
             Log[key].append(value)
@@ -208,6 +216,12 @@ class LogForEpochBatchTrain:
         plt.tight_layout()
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png"%Name)
         utils_torch.files.Table2TextFileDict(Log, SavePath=SaveDir + "%s-Epoch"%Name)
+    def GetLogValueByName(self, Name):
+        Log = self.GetLogByName(Name)
+        if isinstance(Log, dict) and "Value" in Log:
+            return Log["Value"]
+        else:
+            return Log
     def GetLogByName(self, Name):
         data = self.data
         if not Name in data.log:
@@ -226,7 +240,7 @@ class LogForEpochBatchTrain:
         data = self.data
         Logs = {}
         for Name, Log in data.log.items():
-            if data.logType[Name] in [Type]:
+            if data.logType[Name] == Type:
                 Logs[Name] = Log
         return Logs
     def PlotAllLogs(self, SaveDir=None):
@@ -239,17 +253,20 @@ class LogForEpochBatchTrain:
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-utils_torch.model.SetEpochBatchMethodForModel(LogForEpochBatchTrain)
+utils_torch.module.SetEpochBatchMethodForModule(LogForEpochBatchTrain)
 
 class Log:
     def __init__(self, Name, **kw):
         self.log = _CreateLog(Name, **kw)
-    def AddLog(self, log, TimeStamp=True, File=True, LineNum=True, StackIndex=1, **kw):
+    def AddLog(self, log, TimeStamp=True, FilePath=True, RelativeFilePath=True, LineNum=True, StackIndex=1, **kw):
         Caller = getframeinfo(stack()[StackIndex][0])
         if TimeStamp:
             log = "[%s]%s"%(utils_torch.system.GetTime(), log)
-        if File:
-            log = "%s File \"%s\""%(log, Caller.filename)
+        if FilePath:
+            if RelativeFilePath:
+                log = "%s File \"%s\""%(log, utils_torch.files.GetRelativePath(Caller.filename, "."))
+            else:
+                log = "%s File \"%s\""%(log, Caller.filename)
         if LineNum:
             log = "%s, line %d"%(log, Caller.lineno)
         self.log.debug(log)

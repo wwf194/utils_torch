@@ -7,15 +7,13 @@ from collections import defaultdict
 
 import utils_torch
 
-def AnalyzeTimeVaryingActivitiesEpochBatch(Logs, PlotIndex=0, EpochIndex=None, BatchIndex=None, SaveDir=None):
-    if SaveDir is None:
-        SaveDir = utils_torch.GetMainSaveDir() + "NeuronActivity-Plot/"
+def AnalyzeTimeVaryingActivitiesEpochBatch(Logs, PlotIndex=0, SaveDir=None, ContextObj=None):
     PlotIndex = 0
     for name, activity in Logs.items():
         EpochIndex = activity["Epoch"]
         BatchIndex = activity["Batch"]
         activity = activity["Value"]
-        _name = "%s-Epoch%d-Batch%d-No%d"%(name, EpochIndex, BatchIndex, PlotIndex)
+        _name = "%s-Epoch%d-Batch%d-No%d"%(name, ContextObj.EpochIndex, ContextObj.BatchIndex, PlotIndex)
         utils_torch.analysis.AnalyzeTimeVaryingActivity(
             activity,
             PlotIndex=PlotIndex,
@@ -33,25 +31,18 @@ def AnalyzeTimeVaryingActivity(activity, PlotIndex, Name=None, SavePath=None):
         SavePath=SavePath,
     )
 
-def AnalyzeWeightsEpochBatch(Logs, EpochIndex=None, BatchIndex=None, PlotIndex=0, SaveDir=None):
-    if SaveDir is None:
-        SaveDir = utils_torch.GetMainSaveDir() + "Weight-Plot/"
+def AnalyzeWeightsEpochBatch(Logs, BatchIndex=None, PlotIndex=0, SaveDir=None, ContextObj=None):
     PlotIndex = 0
-    for Name, Weights in Logs.items():
-        # EpochIndex = Weights[0]
-        # BatchIndex = Weights[1]
-        # weights = Weights[2]
-        EpochIndex = Weights["Epoch"]
-        BatchIndex = Weights["Batch"]
-        weights = Weights["Value"]
-  
-        for name, weight in weights.items():
-            _name = "%s-Epoch%d-Batch%d-No%d"%(name, EpochIndex, BatchIndex, PlotIndex)
-            utils_torch.analysis.AnalyzeWeight(
-                weight,
-                Name=_name, 
-                SavePath=SaveDir + "%s/%s.svg"%(name, _name),
-            )
+    weights = Logs["Value"]
+    EpochIndex = Logs["Epoch"]
+    BatchIndex = Logs["Batch"]
+    for name, weight in weights.items():
+        _name = "Epoch%d-Batch%d-No%d-%s"%(EpochIndex, BatchIndex, PlotIndex, name)
+        utils_torch.analysis.AnalyzeWeight(
+            weight,
+            Name=_name, 
+            SavePath=SaveDir + name + "/" + "%s.svg"%(_name),
+        )
 
 def AnalyzeWeight(weight, Name, SavePath=None):
     utils_torch.plot.PlotWeightAndDistribution(
@@ -62,15 +53,13 @@ def AnalyzeWeight(weight, Name, SavePath=None):
     )
     return
 
-def AnalyzeWeightStatAlongTrainingEpochBatch(Logs, SaveDir=None, **kw):
-    if SaveDir is None:
-        SaveDir = utils_torch.GetMainSaveDir() + "Weight-Stat/"
+def AnalyzeStatAlongTrainingEpochBatch(Logs, SaveDir, ContextObj):
     for Name, Log in Logs.items(): # Each Log is statistics of a weight along training process.
         assert isinstance(Log, dict)
         EpochIndices = Log["Epoch"]
         BatchIndices = Log["Batch"]
         EpochsFloat = utils_torch.train.EpochBatchIndices2EpochsFloat(
-            EpochIndices, BatchIndices, BatchNum = kw["BatchNum"]
+            EpochIndices, BatchIndices, BatchNum = ContextObj["BatchNum"]
         )
         fig, ax = utils_torch.plot.CreateFigurePlt()
         utils_torch.plot.PlotMeanAndStdCurve(
@@ -88,10 +77,9 @@ def PlotLogDictStatistics(self, Name, Log, SaveDir=None):
     Epochs = self.GetEpochsFloatFromLogDict(Log)
     fig, ax = plt.subplots()
 
-def AnalyzeLossEpochBatch(Logs, SaveDir=None, **kw):
-    if SaveDir is None:
-        SaveDir = utils_torch.GetMainSaveDir() + "Loss/"
-    EpochsFloat = utils_torch.log.ListLog2EpochsFloat(Logs, BatchNum=kw["BatchNum"])
+def AnalyzeLossEpochBatch(Logs, SaveDir, ContextObj=None):
+    assert len(Logs) > 0
+    EpochsFloat = utils_torch.log.LogList2EpochsFloat(list(Logs.values())[0], BatchNum=ContextObj["BatchNum"])
     LossDict = {}
     for Name, Log in Logs.items(): # Each Log is statistics of a weight along training process.
         #assert isinstance(Log, list)
@@ -103,13 +91,34 @@ def AnalyzeLossEpochBatch(Logs, SaveDir=None, **kw):
         XTicks="Float", YTicks="Float",
         Title="Loss - Epoch", XLabel="Epoch", YLabel="Loss",
     )
-
     plt.tight_layout()
     utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "Loss~Epoch.svg")
     utils_torch.files.Table2TextFileDict(LossDict, SavePath=SaveDir + "Loss~Epoch.txt")
     return
 
-def PlotResponseSimilarityAndWeightUpdateCorrelation(CorrelationMatrix, Weight, SaveDir, SaveName):
+def AnalyzeAccuracyEpochBatch(LogDict, SaveDir, ContextObj=None):
+    EpochsFloat = utils_torch.log.LogDict2EpochsFloat(LogDict, BatchNum=ContextObj["BatchNum"])
+    CorrectRate = LogDict["CorrectRate"]
+    fig, ax = utils_torch.plot.CreateFigurePlt()
+    utils_torch.plot.PlotLineChart(
+        ax, Xs=EpochsFloat, Ys=CorrectRate,
+        XTicks="Float", YTicks="Float",
+        Title="Accuracy - Epoch", XLabel="Epoch", YLabel="Accuracy",
+    )
+    plt.tight_layout()
+    utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "Accuracy~Epoch.svg")
+    utils_torch.files.Table2TextFileDict(LogDict, SavePath=SaveDir + "Accuracy~Epoch.txt")
+    return
+
+def PlotResponseSimilarityAndWeightCorrelation(log, SaveDir, ContextObj):
+    for Name, Data in log.data.items():
+        _PlotResponseSimilarityAndWeightCorrelation(
+            Data.CorrelationMatrix, Data.Weight, 
+            SaveDir=SaveDir + Name + "/",
+            SaveName="Epoch%d-Batch%d-%s-Weight~ResponseSimilarity"%(ContextObj.EpochIndex, ContextObj.BatchIndex, Name)
+        )
+
+def _PlotResponseSimilarityAndWeightCorrelation(CorrelationMatrix, Weight, SaveDir, SaveName):
     fig, axes = utils_torch.plot.CreateFigurePlt(2, Size="Medium")
     
     CorrelationMatrixFlat = utils_torch.EnsureFlat(CorrelationMatrix)
@@ -332,7 +341,7 @@ class LogForPCAAlongTraining:
         )
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + ".svg")
 
-def AnalyzePCA(*Args, **kw):
+def AnalyzePCAEpochBatch(*Args, **kw):
     TestBatchNum = kw.setdefault("TestBatchNum", 10)
     # Do supplementary analysis for all saved models under main save directory.
     GlobalParam = utils_torch.GetGlobalParam()
@@ -351,7 +360,7 @@ def AnalyzePCA(*Args, **kw):
     BatchSize = GlobalParam.param.task.Train.BatchParam.Batch.Size
     BatchNum = GlobalParam.object.image.EstimateBatchNum(BatchSize, Type="Train")
 
-    LoggerPCA = LoggerForPCAAlongTraining(EpochNum, BatchNum)
+    LoggerPCA = LogForPCAAlongTraining(EpochNum, BatchNum)
     for SaveDir in SaveDirs:
         EpochIndex, BatchIndex = utils_torch.train.ParseEpochBatchFromStr(SaveDir)
         CacheSavePath = AnalysisSaveDir + "cache/" + "Epoch%d-Batch%d.data"%(EpochIndex, BatchIndex)
@@ -364,7 +373,6 @@ def AnalyzePCA(*Args, **kw):
             else:
                 LoggerPCA.Data.append(Data)
             continue
-
         utils_torch.AddLog("Testing Model at Epoch%d-Batch%d"%(EpochIndex, BatchIndex))
         logger = utils_torch.GetLogger("DataTest")
         logger.SetEpochIndex(EpochIndex)
@@ -378,37 +386,34 @@ def AnalyzePCA(*Args, **kw):
         utils_torch.DoTasks(
             "&^param.task.BuildTrainer", **kw
         )
-        
-        _LoggerPCA = _AnalyzePCA(
+        logPCA = CalculatePCA(
             EpochIndex=EpochIndex, BatchIndex=BatchIndex, logger=logger, TestBatchNum=TestBatchNum
         )
-
         utils_torch.json.PyObj2DataFile(
             utils_torch.PyObj({
-                "PCATransform": _LoggerPCA.PCATransform,
+                "PCATransform": logPCA.PCATransform,
             }),
             CacheSavePath
         )
         LoggerPCA.Log(
-            EpochIndex, BatchIndex, _LoggerPCA.PCATransform
+            EpochIndex, BatchIndex, logPCA.PCATransform
         )
     LoggerPCA.Plot(
         SaveDir=AnalysisSaveDir, SaveName="agent.model.FiringRates"
     )
 
-def _AnalyzePCA(**kw):
+def CalculatePCA(ContextObj):
     GlobalParam = utils_torch.GetGlobalParam()
-    agent = GlobalParam.object.agent
+    Trainer = ContextObj.Trainer
+    agent = Trainer.agent
     Dataset = GlobalParam.object.image
     BatchParam = GlobalParam.param.task.Train.BatchParam
     Dataset.PrepareBatches(BatchParam, "Test")
     log = utils_torch.log.LogForEpochBatchTrain()
-    TestBatchNum = kw.setdefault("TestBatchNum", 10)
-    EpochIndex = kw["EpochIndex"]
-    BatchIndex = kw["BatchIndex"]
+    TestBatchNum = ContextObj.setdefault("TestBatchNum", 10)
     logPCA = LogForPCA()
     for TestBatchIndex in range(TestBatchNum):
-        utils_torch.AddLog("Epoch%d-Index%d-TestBatchIndex-%d"%(EpochIndex, BatchIndex, TestBatchIndex))
+        utils_torch.AddLog("Epoch%d-Index%d-TestBatchIndex-%d"%(ContextObj.EpochIndex, ContextObj.BatchIndex, TestBatchIndex))
         InList = utils_torch.parse.ParsePyObjDynamic(
             utils_torch.PyObj([
                 "&^param.task.Train.BatchParam",
@@ -419,9 +424,8 @@ def _AnalyzePCA(**kw):
             ObjRoot=GlobalParam
         )
         utils_torch.CallGraph(agent.Dynamics.TestBatchRandom, InList=InList)
-
         logPCA.Log(
-            log.GetLogByName("agent.model.FiringRates")["Value"][:, -1, :],
+            log.GetLogValueByName("agent.model.FiringRates")[:, -1, :],
         )
     logPCA.ApplyPCA()
     return logPCA

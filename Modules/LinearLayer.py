@@ -9,7 +9,7 @@ from utils_torch.Modules.SingleLayer import SingleLayer
 class LinearLayer(SingleLayer):
     def __init__(self, param=None, data=None, **kw):
         super().__init__()
-        utils_torch.model.InitForModel(self, param, data, ClassPath="utils_torch.Modules.LinearLayer", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.LinearLayer", **kw)
     def InitFromParam(self, param=None, IsLoad=False):
         super().InitFromParam(IsLoad)
         param = self.param
@@ -38,4 +38,4 @@ class LinearLayer(SingleLayer):
             raise Exception("LinearLayer: Invalid Subtype: %s"%param.Subtype)
 
 __MainClass__ = LinearLayer
-#utils_torch.model.SetMethodForModelClass(__MainClass__)
+#utils_torch.module.SetMethodForModuleClass(__MainClass__)

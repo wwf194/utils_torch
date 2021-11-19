@@ -497,7 +497,14 @@ def select_file(name, candidate_files, default_file=None, match_prefix='', match
 def ToAbsPath(Path):
     return os.path.abspath(Path)
 
-def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
+def GetRelativePath(PathTarget, PathRef):
+    PathTarget = ToAbsPath(PathTarget)
+    PathRef = ToAbsPath(PathRef)
+    PathRef2Target = PathTarget.replace(PathRef, ".")
+    # To be implemented: support forms such as '../../a/b/c'
+    return PathRef2Target
+
+def VisitTreeAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
     if func is None:
         func = args.func   
     if path is None:
@@ -518,7 +525,7 @@ def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
         FilePath = os.path.join(abspath, name)
         if os.path.isdir(FilePath):
             if Recur:
-                VisitDirAndApplyMethodOnFiles(FilePath, Method, Recur, **kw)
+                VisitTreeAndApplyMethodOnFiles(FilePath, Method, Recur, **kw)
         else:
             Method(FilePath)
     return filepaths

@@ -60,11 +60,11 @@ def ProcessOriginalDataDict(Dict, FileNameList):
 
 class DataLoaderForEpochBatchTraining:
     def __init__(self, param, **kw):
-        utils_torch.model.InitForNonModel(self, param, **kw)
+        utils_torch.module.InitForNonModel(self, param, **kw)
         self.GetRandomBatch = self.GetBatchRandom
         return
     def InitFromParam(self, IsLoad=False):
-        utils_torch.model.InitFromParamForNonModel(self, IsLoad)
+        utils_torch.module.InitFromParamForNonModel(self, IsLoad)
         return
     def ApplyTransformOnData(self, TransformParam="Auto", Type=["Train", "Test"]):
         utils_torch.AddLog("Applying transformation on dataset images...")
@@ -180,4 +180,4 @@ class DataLoaderForEpochBatchTraining:
         cache = self.cache
         batches = getattr(cache, Type)
         return batches.BatchNum
-utils_torch.model.SetMethodForNonModelClass(DataLoaderForEpochBatchTraining, HasTensor=True)
+utils_torch.module.SetMethodForNonModelClass(DataLoaderForEpochBatchTraining, HasTensor=True)
