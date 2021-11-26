@@ -280,10 +280,11 @@ def CalculateBinnedMeanAndStd(
     else:
         raise Exception(BinMethod)
 
-
+import sklearn
+from sklearn.decomposition import PCA as PCAsklearn # sklearn.decomposition.PCA not supported
 def PCA(data, ReturnType="PyObj"):
     FeatureNum = data.shape[1]
-    PCATransform = sklearn.decomposition.PCA(n_components=FeatureNum)
+    PCATransform = PCAsklearn(n_components=FeatureNum)
     PCATransform.fit(data) # Learn PC directions
     dataPCA = PCATransform.transform(data) #[SampleNum, FeatureNum]
 

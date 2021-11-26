@@ -21,6 +21,7 @@ import utils_torch.dataset as dataset
 import utils_torch.Loss as Loss
 import utils_torch.evaluate as evaluate
 import utils_torch.system as system
+import utils_torch.analysis as analysis
 
 from utils_torch.utils import *
 from utils_torch.functions import *

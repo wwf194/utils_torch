@@ -314,3 +314,37 @@ def Probability2MostProbableIndex(Probability):
 # def Probability2MaxIndex(Probability):
 #     # Probability: [BatchSize, ClassNum]
 #     return torch.argmax(Probability, axis=1)
+
+def CmpEpochBatch(EpochIndex1, BatchIndex1, EpochIndex2, BatchIndex2):
+    if EpochIndex1 < EpochIndex2:
+        return -1
+    elif EpochIndex1 > EpochIndex2:
+        return 1
+    else:
+        if BatchIndex1 < BatchIndex2:
+            return -1
+        elif BatchIndex1 > BatchIndex2:
+            return 1
+        else:
+            return 0   
+
+def CmpEpochBachData(data1, data2):
+    EpochIndex1 = data1.EpochIndex
+    BatchIndex1 = data1.BatchIndex
+    EpochIndex2 = data2.EpochIndex
+    BatchIndex2 = data2.BatchIndex
+    return CmpEpochBatch(EpochIndex1, BatchIndex1, EpochIndex2, BatchIndex2)
+
+def CmpEpochBachDict(Dict1, Dict2):
+    EpochIndex1 = Dict1["Epoch"]
+    BatchIndex1 = Dict1["Batch"]
+    EpochIndex2 = Dict2["Epoch"]
+    BatchIndex2 = Dict2["Batch"]
+    return CmpEpochBatch(EpochIndex1, BatchIndex1, EpochIndex2, BatchIndex2)
+
+def CmpEpochBatchObj(Obj1, Obj2):
+    EpochIndex1 = Obj1.GetEpochIndex()
+    BatchIndex1 = Obj1.GetBatchIndex()
+    EpochIndex2 = Obj2.GetEpochIndex()
+    BatchIndex2 = Obj2.GetBatchIndex()
+    return CmpEpochBatch(EpochIndex1, BatchIndex1, EpochIndex2, BatchIndex2)

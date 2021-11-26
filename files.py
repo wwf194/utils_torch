@@ -71,10 +71,8 @@ def ListAllFilesAndDirs(DirPath):
 GetAllFilesAndDirs = ListAllFilesAndDirs
 
 def ListFiles(DirPath):
-    if not os.path.exists(DirPath):
-        raise Exception()
-    if not os.path.isdir(DirPath):
-        raise Exception()
+    assert os.path.exists(DirPath), "Non-existing DirPath: %s"%DirPath
+    assert os.path.isdir(DirPath), "Not a Dir: %s"%DirPath
     items = os.listdir(DirPath)
     Files = []
     for item in items:

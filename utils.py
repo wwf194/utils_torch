@@ -700,6 +700,11 @@ def ToList(Obj):
     else:
         return [Obj]
 
+import functools
+def SortListByCmpMethod(List, CmpMethod):
+    # Python3 no longer supports list.sort(cmp=...)
+    List.sort(key=functools.cmp_to_key(CmpMethod))
+
 # def GetFunction(FunctionName, ObjRoot=None, ObjCurrent=None, **kw):
 #     return eval(FunctionName.replace("&^", "ObjRoot.").replace("&", "ObjCurrent"))
 

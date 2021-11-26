@@ -816,24 +816,53 @@ def SetMethodForNonModelClass(Class, **kw):
     if not hasattr(Class, "ParseRouters"):
         Class.ParseRouters = ParseRoutersForModule
 
-def SetEpochIndexForModule(self, EpochIndex):
-    self.cache.EpochIndex = EpochIndex
+# def SetEpochIndexForModule(self, EpochIndex):
+#     self.cache.EpochIndex = EpochIndex
 
-def SetBatchIndexForModule(self, BatchIndex):
-    self.cache.BatchIndex = BatchIndex
+# def SetBatchIndexForModule(self, BatchIndex):
+#     self.cache.BatchIndex = BatchIndex
 
-def SetEpochNumForModule(self, EpochNum):
-    self.cache.EpochNum = EpochNum
+# def SetEpochNumForModule(self, EpochNum):
+#     self.cache.EpochNum = EpochNum
 
-def SetBatchNumForModule(self, BatchNum):
-    self.cache.BatchNum = BatchNum
+# def SetBatchNumForModule(self, BatchNum):
+#     self.cache.BatchNum = BatchNum
 
-def SetEpochBatchMethodForModule(Class):
-    if not hasattr(Class, "SetEpochIndex"):
-        Class.SetEpochIndex = SetEpochIndexForModule
-    if not hasattr(Class, "SetBatchIndex"):
-        Class.SetBatchIndex = SetBatchIndexForModule
-    if not hasattr(Class, "SetEpochNum"):
-        Class.SetEpochNum = SetEpochNumForModule
-    if not hasattr(Class, "SetBatchNum"):
-        Class.SetBatchNum = SetBatchNumForModule
+def SetEpochBatchMethodForModule(Class, **kw):
+    MountLocation = kw.setdefault("MountLocation", "cache")
+    if MountLocation in ["Cache", "cache"]:
+        if not hasattr(Class, "SetEpochIndex"):
+            Class.SetEpochIndex = lambda self, EpochIndex:setattr(self.cache, "EpochIndex", EpochIndex)
+        if not hasattr(Class, "SetBatchIndex"):
+            Class.SetBatchIndex = lambda self, EpochIndex:setattr(self.cache, "BatchIndex", EpochIndex)
+        if not hasattr(Class, "SetEpochNum"):
+            Class.SetEpochNum = lambda self, EpochNum:setattr(self.cache, "EpochNum", EpochNum)
+        if not hasattr(Class, "SetBatchNum"):
+            Class.SetBatchNum = lambda self, BatchNum:setattr(self.cache, "BatchNum", BatchNum)
+        if not hasattr(Class, "GetEpochIndex"):
+            Class.GetEpochIndex = lambda self:self.cache.EpochIndex
+        if not hasattr(Class, "GetBatchIndex"):
+            Class.GetBatchIndex = lambda self:self.cache.BatchIndex
+        if not hasattr(Class, "GetEpochNum"):
+            Class.GetEpochNum = lambda self:self.cache.EpochNum
+        if not hasattr(Class, "GetBatchNum"):
+            Class.GetBatchNum = lambda self:self.cache.BatchNum
+    elif MountLocation in ["Data", "data"]:
+        if not hasattr(Class, "SetEpochIndex"):
+            Class.SetEpochIndex = lambda self, EpochIndex:setattr(self.data, "EpochIndex", EpochIndex)
+        if not hasattr(Class, "SetBatchIndex"):
+            Class.SetBatchIndex = lambda self, EpochIndex:setattr(self.data, "BatchIndex", EpochIndex)
+        if not hasattr(Class, "SetEpochNum"):
+            Class.SetEpochNum = lambda self, EpochNum:setattr(self.data, "EpochNum", EpochNum)
+        if not hasattr(Class, "SetBatchNum"):
+            Class.SetBatchNum = lambda self, BatchNum:setattr(self.data, "BatchNum", BatchNum)
+        if not hasattr(Class, "GetEpochIndex"):
+            Class.GetEpochIndex = lambda self:self.data.EpochIndex
+        if not hasattr(Class, "GetBatchIndex"):
+            Class.GetBatchIndex = lambda self:self.data.BatchIndex
+        if not hasattr(Class, "GetEpochNum"):
+            Class.GetEpochNum = lambda self:self.data.EpochNum
+        if not hasattr(Class, "GetBatchNum"):
+            Class.GetBatchNum = lambda self:self.data.BatchNum
+    else:
+        raise Exception(MountLocation)

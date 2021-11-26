@@ -423,10 +423,12 @@ def GetSubSaveDirEpochBatch(Name, EpochIndex, BatchIndex, BatchInternalIndex=Non
     #     utils_torch.GetMainSaveDir(GlobalParam) + Name + "/" +  DirName + "/"
     return utils_torch.GetMainSaveDir(GlobalParam) + Name + "/" +  DirName + "/"
 
-def GetAllSubSaveDirsEpochBatch(Name, GlobalParam=None):
+def GetAllSubSaveDirsEpochBatch(Name, SaveDir=None, GlobalParam=None):
     if GlobalParam is None:
         GlobalParam = utils_torch.GetGlobalParam()
-    SaveDirs = utils_torch.files.ListAllDirs(utils_torch.GetMainSaveDir(GlobalParam) + Name + "/")
+    if SaveDir is None:
+        SaveDir = utils_torch.GetMainSaveDir(GlobalParam)
+    SaveDirs = utils_torch.files.ListAllDirs(SaveDir + Name + "/")
     SaveDirNum = len(SaveDirs)
     if SaveDirNum == 0:
         raise Exception(SaveDirNum)
@@ -445,24 +447,3 @@ def GetLog(Name, CreateIfNone=True, **kw):
             raise Exception()
     return getattr(utils_torch.GlobalParam.log, Name)
 
-class LogForAccuracyAlongTraining:
-    def __init__(self, param=None):
-        self.param = param
-        self.cache = utils_torch.EmptyPyObj()
-        cache = self.cache
-        
-        EnsureAttrs(param, "LogBatchNum", default=5)
-        cache.LogBatchNum = param.LogBatchNum
-        
-        cache.CorrectNumList = [0 for _ in range(cache.LogBatchNum)]
-        cache.TotalNumList = [0 for _ in range(cache.LogBatchNum)]
-        cache.ListIndex = 0
-        return
-    def Update(self, CorrectNum, TotalNum):
-        cache = self.cache
-        cache.CorrectNumList[cache.ListIndex] = CorrectNum
-        cache.TotalNumList[cache.ListIndex] = TotalNum
-        cache.ListIndex = (cache.ListIndex + 1) / cache.LogBatchNum
-    def GetAccuracy(self):
-        cache = self.cache
-        return 1.0 * sum(cache.CorrectNumList) / sum(cache.TotalNumList)

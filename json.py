@@ -220,8 +220,8 @@ def DataFile2PyObj(FilePath):
     DataObj = DataFile2JsonObj(FilePath)
     return JsonObj2PyObj(DataObj)
 
-def PyObj2DataFile(Obj, FilePath):
-    DataObj = PyObj2DataObj(Obj)
+def PyObj2DataFile(PyObj, FilePath):
+    DataObj = PyObj2DataObj(PyObj)
     JsonObj2DataFile(DataObj, FilePath)
 
 def EmptyPyObj():
@@ -318,12 +318,11 @@ class PyObj(object):
                 if not hasattr(self, "__ResolveRef__"):
                     setattr(self.cache, key, value)
                 continue
-            
             if "." in key: # and "|-->" not in key:
                 keys = key.split(".")
             else:
                 keys = [key]
-            utils_torch.python.CheckIsLegalPyName(keys[0])
+            #utils_torch.python.CheckIsLegalPyName(keys[0])
             obj = self
             parent, parentAttr = None, None
             for index, key in enumerate(keys):
@@ -371,9 +370,10 @@ class PyObj(object):
                             obj = getattr(obj, key)
         return self
     def Copy(self):
-        return utils_torch.PyObj(self.__dict__)
         # to be implemented: also copy cache
+        return utils_torch.PyObj(self.__dict__)
     def FromPyObj(self, Obj):
+        # to be implemented: also copy cache
         self.FromDict(Obj.__dict__)
         return self
     def ProcessValue(self, key, value):
@@ -390,14 +390,24 @@ class PyObj(object):
             return value
     def IsEmpty(self):
         return len(self.__dict__)==1
-    def ToList(self):
-        if not self.IsListLike():
-            raise Exception()
-        return self.__value__
-    def IsListLike(self):
-        return hasattr(self, "__value__") and isinstance(self.__value__, list)
     def IsDictLike(self):
         return not self.IsListLike()
+    def IsListLike(self):
+        return hasattr(self, "__value__") and isinstance(self.__value__, list)
+    def ToDict(self):
+        assert self.IsDictLike(), "Only DictLike PyObj supports ToDict()"
+        Dict = dict(self.__dict__)
+        Dict.pop("cache")
+        return Dict
+    def items(self):
+        assert self.IsDictLike(), "Only DictLike PyObj supports items()"
+        return ListAttrsAndValues(self)
+    def ToList(self):
+        assert self.IsListLike(), "Only ListLike PyObj supports ToList()"
+        return self.__value__
+    def append(self, content):
+        assert self.IsListLike(), "Only ListLike PyObj supports append()"
+        self.__value__.append(content)
     def SetResolveBase(self, value=True):
         if value:
             self.__ResolveBase__ = True
@@ -409,21 +419,5 @@ class PyObj(object):
             if self.__ResolveBase__==True or self.__ResolveBase__ in ["here"]:
                 return True
         return False
-    def append(self, content):
-        if not self.IsListLike():
-            raise Exception()
-        self.__value__.append(content)
-    # def ToDict(self):
-    #     Dict = {}
-    #     for key, value in ListAttrsAndValues(self, Exceptions=["__ResolveRef__"]):
-    #         if type(value) is PyObj:
-    #             value = value.ToDict()
-    #         Dict[key] = value
-    #     return Dict
-    def ToDict(self):
-        Dict = dict(self.__dict__)
-        Dict.pop("cache")
-        return Dict
-
-    def Items(self):
-        return ListAttrsAndValues(self)
+PyObj.Append = PyObj.append
+PyObj.Items = PyObj.items

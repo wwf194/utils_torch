@@ -146,13 +146,20 @@ def ParseRoutingStatic(Routing):
 
     for Attr in Attrs:
         Attr = Attr.split("=")
-        if len(Attr)!=2:
-            raise Exception()
-        _Attr, value = Attr[0], Attr[1]
+        if len(Attr)==1:
+            _Attr = Attr[0]
+            if _Attr in ["InheritStates"]:
+                Value = True
+            else:
+                raise Exception(_Attr)
+        elif len(Attr)==2:
+            _Attr, Value = Attr[0], Attr[1]
+        else:
+            raise Exception(len(Attr))
 
         if _Attr in ["repeat", "Repeat", "RepeatTime"]:
             _Attr = "RepeatTime"
-        setattr(param, _Attr, value)
+        setattr(param, _Attr, Value)
 
     EnsureAttrs(param, "RepeatTime", value=1)
     param.cache.RepeatTime = param.RepeatTime
@@ -163,5 +170,10 @@ def ParseRoutingStatic(Routing):
                 param.OnlineParseAttrs.append(attr)
 
     EnsureAttrs(param, "Condition", value=True)
+    if param.Condition is None:
+        param.Condition = True
+
     EnsureAttrs(param, "InheritStates", value=False)
+    if param.InheritStates is None:
+        param.InheritStates = False
     return param

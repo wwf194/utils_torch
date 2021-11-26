@@ -940,17 +940,18 @@ def GetAx(axes, Index=None, RowIndex=None, ColIndex=None):
 
 def PlotLineChart(ax=None, Xs=None, Ys=None,
         XLabel=None, YLabel=None, Title="Undefined", Label=None,
-        Color="Black", LineWidth=2.0, XTicks=None, YTicks=None,
-        Save=False, SavePath=None, 
+        Color="Black", LineWidth=2.0, 
+        PlotTicks=True, XTicks=None, YTicks=None,
+        Save=False, SavePath=None, **kw
     ):
     if ax is None:
         fig, ax = CreateFigurePlt()
     Color = ParseColorPlt(Color)
     ax.plot(Xs, Ys, color=Color, linewidth=LineWidth, label=Label)
 
-    if XTicks in ["Float"]:
+    if PlotTicks and XTicks in ["Float"]:
         SetXTicksFloat(ax, np.nanmin(Xs), np.nanmax(Xs))
-    if YTicks in ["Float"]:
+    if PlotTicks and YTicks in ["Float"]:
         SetYTicksFloat(ax, np.nanmin(Ys), np.nanmax(Ys))
 
     SetXYLabelForAx(ax, XLabel, YLabel)
@@ -1312,6 +1313,44 @@ def SetColorBarTicks(ColorBar, Ticks, Orientation, Min=None, Max=None, **kw):
         pass
     else:
         raise Exception(Ticks)
+
+def SetXTicksFloatFromData(ax, data, **kw):
+    if isinstance(data, np.ndarray):
+        Min = np.nanmin(data)
+        Max = np.nanmax(data)
+    elif isinstance(data, list):
+        Min = min(
+            list(map(
+                lambda x:np.nanmin(x), data
+            ))
+        )
+        Max = min(
+            list(map(
+                lambda x:np.nanmax(x), data
+            ))
+        )
+    else:
+        raise Exception(type(data))
+    SetXTicksFloat(ax, Min, Max, **kw)
+
+def SetYTicksFloatFromData(ax, data, **kw):
+    if isinstance(data, np.ndarray):
+        Min = np.nanmin(data)
+        Max = np.nanmax(data)
+    elif isinstance(data, list):
+        Min = min(
+            list(map(
+                lambda x:np.nanmin(x), data
+            ))
+        )
+        Max = min(
+            list(map(
+                lambda x:np.nanmax(x), data
+            ))
+        )
+    else:
+        raise Exception(type(data))
+    SetYTicksFloat(ax, Min, Max, **kw)
 
 def SetXTicksFloat(ax, Min, Max, Method="Auto", Rotate45=True):
     if not np.isfinite(Min) or not np.isfinite(Max):
