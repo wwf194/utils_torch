@@ -1137,6 +1137,12 @@ def RandomSelect(List, SelectNum):
     else:
         return List
 
+def RandomIntInRange(Left, Right, IncludeRight=True):
+    if not IncludeRight:
+        Right -= 1
+    #assert Left <= Right 
+    return random.randint(Left, Right)
+
 def RandomOrder(List):
     if isinstance(List, range):
         List = list(List)

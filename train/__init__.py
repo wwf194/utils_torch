@@ -59,10 +59,6 @@ def ParseEpochBatchFromStr(Str):
     BatchIndex = int(MatchResult.group(2))
     return EpochIndex, BatchIndex
 
-def ParseOptimizeParamEpochBatch(param):
-    EnsureAttrs(param, "Nesterov", value=False)
-    EnsureAttrs(param, "Dampening", value=0.0)
-    EnsureAttrs(param, "Momentum", value=0.0)
 
 def ClearGrad(weights):
     for name, weight in weights.items():

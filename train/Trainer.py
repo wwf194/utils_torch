@@ -19,9 +19,6 @@ class TrainerForEpochBatchTrain:
         cache.NotifyEpochBatchList = []
         cache.CheckPointList = []
         self.Register2NotifyEpochBatchList([cache.LogTrain, cache.LogTest])
-        # data.log = utils_torch.EmptyPyObj()
-        # data.log.Train = utils_torch.EmptyPyObj()
-        # data.log.Test = utils_torch.EmptyPyObj()
         self.BuildModules()
         self.InitModules()
         self.ParseRouters()
@@ -71,14 +68,13 @@ class TrainerForEpochBatchTrain:
         cache = self.cache
         return utils_torch.PyObj({
             "Trainer": self,
-            #"log": cache.LogTrain,
             "EpochNum": cache.EpochNum,
             "BatchNum": cache.BatchNum,
             "EpochIndex": cache.EpochIndex,
             "BatchIndex": cache.BatchIndex,
         })
-    def __call__(self):
-        utils_torch.CallGraph(self.Dynamics.Main)
+    # def __call__(self):
+    #     utils_torch.CallGraph(self.Dynamics.Main)
     def ReportEpochBatch(self):
         cache = self.cache
         utils_torch.AddLog("Epoch%d-Batch%d"%(cache.EpochIndex, cache.BatchIndex))

@@ -30,8 +30,8 @@ def BuildModuleFromType(param, **kw):
         return utils_torch.Modules.BuildModule(param, **kw)
     elif utils_torch.Loss.IsLegalModuleType(param.Type):
         return utils_torch.Loss.BuildModule(param)
-    elif utils_torch.Datasets.IsLegalModuleType(param.Type):
-        utils_torch.Datasets.BuildObj(param)
+    elif utils_torch.dataset.IsLegalModuleType(param.Type):
+        utils_torch.dataset.BuildObj(param)
     elif utils_torch.Modules.Operators.IsLegalModuleType(param.Type):
         return utils_torch.Modules.Operators.BuildModule(param, **kw)
 

@@ -138,11 +138,15 @@ ensure_attrs = EnsureAttrs
 
 def SetAttr(Obj, Attr, Value):
     if isinstance(Obj, list):
-        Obj[int(Attr)] = Value
+        Attr = int(Attr)
+        Obj[Attr] = Value
+        return Obj[Attr]
     elif isinstance(Obj, dict):
         Obj[Attr] = Value
+        return Obj[Attr]
     elif utils_torch.IsPyObj(Obj):
         setattr(Obj, Attr, Value)
+        return getattr(Obj, Attr)
     else:
         raise Exception(type(Obj))
 

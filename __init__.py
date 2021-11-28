@@ -16,7 +16,7 @@ import utils_torch.log as log
 import utils_torch.analysis as analysis
 import utils_torch.optimize as optimize # model -> optimize
 import utils_torch.Modules as Modules
-import utils_torch.Datasets as Datasets
+import utils_torch.dataset as Datasets
 import utils_torch.dataset as dataset
 import utils_torch.Loss as Loss
 import utils_torch.evaluate as evaluate

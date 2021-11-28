@@ -38,6 +38,7 @@ def ParseRouterStatic(Router, InPlace=True, **kw):
         Router = RouterParsed
     EnsureAttrs(Router, "In", default=[])
     EnsureAttrs(Router, "Out", default=[])
+
     CheckRoutingsInputOutputNum(Router)
     utils_torch.parse.ParsePyObjStatic(Router, InPlace=True, **kw)
     return Router
@@ -66,17 +67,9 @@ def ParseRouterDynamic(Router, ObjRefList=[], InPlace=False, **kw):
             Routing.cache.Condition = Routing.Condition
         if "InheritStates" not in Routing.OnlineParseAttrs:
             Routing.cache.InheritStates = Routing.InheritStates
+        Routing.cache.InDict = utils_torch.PyObj(Routing.InDict)
     return RouterParsed
 
-
-def ParseRoutingAttrsOnline(Routing, States):
-    #utils_torch.parse.RedirectPyObj(Routing, States)
-    for attr in Routing.OnlineParseAttrs:
-        value = GetAttrs(Routing, attr)    
-        #value = re.sub("(%\w+)", lambda matchedStr:"getattr(States, %s)"%matchedStr[1:], value)
-        value = eval(value.replace("%", "States."))     
-        SetAttrs(Routing.cache, attr, value)
-    return Routing
 
 def ParseRoutingStatic(Routing):
     if not isinstance(Routing, str):
@@ -135,7 +128,7 @@ def ParseRoutingStatic(Routing):
         else:
             InList.append(_Input[0])
     param.In = InList
-    param.InNamed = InDict
+    param.InDict = InDict
 
     if Out=="":
         param.Out = []
@@ -163,11 +156,6 @@ def ParseRoutingStatic(Routing):
 
     EnsureAttrs(param, "RepeatTime", value=1)
     param.cache.RepeatTime = param.RepeatTime
-    param.OnlineParseAttrs = []
-    for attr, value in ListAttrsAndValues(param):
-        if isinstance(value, str):
-            if value[0]=="%": # Dynamic Parse
-                param.OnlineParseAttrs.append(attr)
 
     EnsureAttrs(param, "Condition", value=True)
     if param.Condition is None:
@@ -177,3 +165,69 @@ def ParseRoutingStatic(Routing):
     if param.InheritStates is None:
         param.InheritStates = False
     return param
+
+def SetOnlineParseAttrsForRouter(routing):
+    routing.OnlineParseAttrs = {}
+    for attr, value in ListAttrsAndValues(routing):
+        if isinstance(value, str):
+            if value.startswith("%"): # Dynamic Parse
+                routing.OnlineParseAttrs[attr] = value[1:]
+
+    routing.InDictOnlineParseAttrs = {}
+    for Key, Value in routing.InDict.items():
+        if Value.startswith("%"):
+            routing.InDictOnlineParseAttrs[Key] = Value[1:]
+
+    if len(routing.OnlineParseAttrs)>0 or len(routing.InDictOnlineParseAttrs)>0:
+        routing.HasOnlineParseAttrs = True
+    else:
+        routing.HasOnlineParseAttrs = False
+        delattr(routing, "OnlineParseAttrs")
+        delattr(routing, "InDictOnlineParseAttrs")
+
+def ParseRoutingAttrsOnline(routing, States):
+    #utils_torch.parse.RedirectPyObj(Routing, States)
+    for attr, value in routing.OnlineParseAttrs.items():
+        value = GetAttrs(routing, attr)    
+        #value = re.sub("(%\w+)", lambda matchedStr:"getattr(States, %s)"%matchedStr[1:], value)
+        value = eval(value.replace("%", "States."))
+        setattr(routing.cache, attr, value)
+    for attr, value in routing.InDictOnlineParseAttrs.items():
+        routing.cache.InDict[attr] = States[value]
+    return routing
+
+import re
+
+import utils_torch
+from utils_torch.attrs import *
+
+# class Router:
+#     def __init__(self, param=None, data=None, **kw):
+#         if param is not None:
+#             self.param = param
+#     def InitFromParam(self, param):
+#         utils_torch.parse.ParseRoutingStr(param.Routings)
+#     def forward(self, **kw):
+#         param = self.param
+#         States = utils_torch.EmptyPyObj()
+#         for name in param.In:
+#             setattr(States, name, kw[name])
+#         for Routing in param.Routings:
+#             utils_torch.parse.ParseRouterDynamic(Routing, States)
+#             for TimeIndex in range(Routing.RepeatTime):
+#                 InputDict = utils_torch.parse.FilterFromPyObj(States, Routing.In)
+#                 OutObj = Routing.Module(InputDict)
+#                 utils_torch.parse.Register2PyObj(OutObj, States, Routing.Out)
+#         OutDict = {}
+#         for name in param.Out:
+#             OutDict[name] = getattr(States, name)
+#         return OutDict
+
+# def BuildRouter(param):
+#     return utils_torch.Router.Router(param)
+
+class RouterStatic(utils_torch.PyObj):
+    def FromPyObj(self, Obj):
+        self.FromPyObj(utils_torch.router.ParseRouterStatic(Obj, InPlace=False))
+    def ToRouterDynamic(self, **kw):
+        return utils_torch.router.ParseRouterDynamic(self, **kw)

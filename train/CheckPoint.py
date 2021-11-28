@@ -19,7 +19,7 @@ class CheckPointForEpochBatchTrain:
             cache.CheckPointList = self.CalculateCheckPointList(param)
             cache.CheckPointNextIndex = 0
             cache.CheckPointNext = self.CheckPointList[self.CheckPointNextIndex]
-            self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointStatic
+            self.AddBatch = self.AddBatchStatic
         elif param.CalculateCheckPointMode in ["Online"]:
             # No need to know BatchNum in advance
             EnsureAttrs(param, "Interval.IncreaseCoefficient", value=1.5)
@@ -29,20 +29,22 @@ class CheckPointForEpochBatchTrain:
             cache.IntervalIndex = 0
             cache.IntervalMax = param.Interval.Max
             cache.IntervalIncreaseCoefficient = param.Interval.IncreaseCoefficient
-            self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointOnline
+            self.AddBatch = self.AddBatchOnline
         elif param.CalculateCheckPointMode in ["Always", "EveryBatch"]:
             cache.IntervalIndex = 0
-            self.AddBatchAndReturnIsCheckPoint = self.AddBatchAndReturnIsCheckPointAlwaysTrue
+            self.AddBatch = self.AddBatchAlwaysTrue
         elif param.CalculateCheckPointMode in ["EndOfEpoch"]:
             pass
         else:
             raise Exception(param.CalculateCheckPointMode)
         
         if param.CalculateCheckPointMode in ["EndOfEpoch"]:
-            self.NotifyEndOfEpochAndReturnIsCheckPoint = lambda:True
-            self.AddBatchAndReturnIsCheckPoint = lambda:False
+            self.NotifyEndOfEpoch = self.NotifyEndOfEpochAlwaysTrue
+            self.AddBatch = self.AddBatchAlwaysFalse
         else:
-            self.NotifyEndOfEpochAndReturnIsCheckPoint = lambda:False
+            self.NotifyEndOfEpoch = self.NotifyEndOfEpochAlwaysFalse
+
+        self.AddEpoch = self.AddEpochAlwaysFalse
 
         cache.EpochIndex = 0
         cache.BatchIndex = -1
@@ -54,8 +56,6 @@ class CheckPointForEpochBatchTrain:
             ObjCurrent=self.param,
             ObjRoot=utils_torch.GetGlobalParam()
         )
-    def NotifyEndOfEpochAndReturnIsCheckPoint(self, **kw):
-        return False
     def CalculateCheckPointList(param):
         BatchNumTotal = param.Epoch.Num * param.Batch.Num
         CheckPointBatchIndices = []
@@ -69,7 +69,7 @@ class CheckPointForEpochBatchTrain:
             if Interval > param.Interval.Max:
                 Interval =param.Interval.Max
         return CheckPointBatchIndices
-    def AddBatchAndReturnIsCheckPointStatic(self, **kw):
+    def AddBatchStatic(self, **kw):
         cache = self.cache
         cache.BatchIndex += 1
         cache.BatchIndexTotal += 1
@@ -78,8 +78,8 @@ class CheckPointForEpochBatchTrain:
             IsCheckPoint = True
             cache.CheckPointNextIndex += 1
             cache.CheckPointNext = cache.CheckPointList[self.CheckPointNextIndex]
-        return IsCheckPoint
-    def AddBatchAndReturnIsCheckPointOnline(self, **kw):
+        return IsCheckPoint, self.GetMethod()
+    def AddBatchOnline(self, **kw):
         cache = self.cache
         cache.BatchIndex += 1
         cache.BatchIndexTotal += 1
@@ -90,21 +90,31 @@ class CheckPointForEpochBatchTrain:
             if cache.IntervalCurrent > cache.IntervalMax:
                 cache.IntervalCurrent = cache.IntervalMax
             cache.IntervalIndex = 0
+            return IsCheckPoint, self.GetMethod()
         else:
             IsCheckPoint = False
-        return IsCheckPoint
-    def AddBatchAndReturnIsCheckPointAlwaysTrue(self, **kw):
+            return IsCheckPoint, None
+    def AddBatchAlwaysTrue(self, **kw):
         cache = self.cache
         cache.BatchIndex += 1
         cache.BatchIndexTotal += 1
-        return True
+        return True, self.cache.Method
+    def AddBatchAlwaysFalse(self, **kw):
+        cache = self.cache
+        cache.BatchIndex += 1
+        cache.BatchIndexTotal += 1
+        return False, self.cache.Method
     def GetMethod(self):
         return self.cache.Method
-    def AddEpochAndReturnIsCheckPointAlwaysFalse(self, **kw):
+    def AddEpochAlwaysFalse(self, **kw):
         cache = self.cache
         cache.EpochIndex += 1
         cache.BatchIndex = 0
-        return
+        return False, None
+    def NotifyEndOfEpochAlwaysTrue(self, **kw):
+        return True, self.GetMethod()
+    def NotifyEndOfEpochAlwaysFalse(self, **kw):
+        return False, None
 
 CheckPointForEpochBatchTrain.IsCheckPoint = True
 utils_torch.module.SetEpochBatchMethodForModule(CheckPointForEpochBatchTrain)

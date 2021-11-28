@@ -206,35 +206,35 @@ def ScanLogPCA(ScanDir=None):
     utils_torch.SortListByCmpMethod(Logs, utils_torch.train.CmpEpochBatchObj)
     return Logs
 
-def RunBatchesAndCalculatePCA(ContextObj):
-    GlobalParam = utils_torch.GetGlobalParam()
-    Trainer = ContextObj.Trainer
-    agent = Trainer.agent
-    Dataset = Trainer.world
-    BatchParam = GlobalParam.param.task.Train.BatchParam
-    Dataset.PrepareBatches(BatchParam, "Test")
-    log = utils_torch.log.LogForEpochBatchTrain()
-    log.SetEpochIndex(0)
-    TestBatchNum = ContextObj.setdefault("TestBatchNum", 10)
-    logPCA = LogForPCA()
-    for TestBatchIndex in range(TestBatchNum):
-        utils_torch.AddLog("Epoch%d-Index%d-TestBatchIndex-%d"%(ContextObj.EpochIndex, ContextObj.BatchIndex, TestBatchIndex))
-        log.SetBatchIndex(TestBatchIndex)
-        InList = [
-            Trainer.GetBatchParam(), Trainer.GetOptimizeParam(), log
-        ]
-        # InList = utils_torch.parse.ParsePyObjDynamic(
-        #     utils_torch.PyObj([
-        #         "&^param.task.Train.BatchParam",
-        #         "&^param.task.Train.OptimizeParam",
-        #         #"&^param.task.Train.NotifyEpochBatchList"
-        #         log,
-        #     ]),
-        #     ObjRoot=GlobalParam
-        # )
-        utils_torch.CallGraph(agent.Dynamics.TestBatchRandom, InList=InList)
-        logPCA.Log(
-            log.GetLogValueByName("agent.model.FiringRates")[:, -1, :],
-        )
-    logPCA.ApplyPCA()
-    return logPCA
+# def RunBatchesAndCalculatePCA(ContextObj):
+#     GlobalParam = utils_torch.GetGlobalParam()
+#     Trainer = ContextObj.Trainer
+#     agent = Trainer.agent
+#     Dataset = Trainer.world
+#     BatchParam = GlobalParam.param.task.Train.BatchParam
+#     Dataset.CreateFlow(BatchParam, "Test")
+#     log = utils_torch.log.LogForEpochBatchTrain()
+#     log.SetEpochIndex(0)
+#     TestBatchNum = ContextObj.setdefault("TestBatchNum", 10)
+#     logPCA = LogForPCA()
+#     for TestBatchIndex in range(TestBatchNum):
+#         utils_torch.AddLog("Epoch%d-Index%d-TestBatchIndex-%d"%(ContextObj.EpochIndex, ContextObj.BatchIndex, TestBatchIndex))
+#         log.SetBatchIndex(TestBatchIndex)
+#         InList = [
+#             Trainer.GetBatchParam(), Trainer.GetOptimizeParam(), log
+#         ]
+#         # InList = utils_torch.parse.ParsePyObjDynamic(
+#         #     utils_torch.PyObj([
+#         #         "&^param.task.Train.BatchParam",
+#         #         "&^param.task.Train.OptimizeParam",
+#         #         #"&^param.task.Train.NotifyEpochBatchList"
+#         #         log,
+#         #     ]),
+#         #     ObjRoot=GlobalParam
+#         # )
+#         utils_torch.CallGraph(agent.Dynamics.RunTestBatch, InList=InList)
+#         logPCA.Log(
+#             log.GetLogValueByName("agent.model.FiringRates")[:, -1, :],
+#         )
+#     logPCA.ApplyPCA()
+#     return logPCA
