@@ -37,8 +37,8 @@ def BuildModuleFromType(param, **kw):
 
     elif param.Type in ["GradientDescend"]:
         return utils_torch.optimize.GradientDescend(param, **kw)
-    elif param.Type in ["CheckPointForEpochBatchTraining"]:
-        return utils_torch.train.CheckPointForEpochBatchTraining(param, **kw)
+    elif param.Type in ["CheckPointForEpochBatchTrain"]:
+        return utils_torch.train.CheckPointForEpochBatchTrain(param, **kw)
     elif hasattr(param, "ModulePath"):
         Module = utils_torch.ImportModule(param.ModulePath)
         Obj = Module.__MainClass__(param, **kw)
