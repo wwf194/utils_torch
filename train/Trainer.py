@@ -1,4 +1,5 @@
 import utils_torch
+from utils_torch.attrs import *
 class TrainerForEpochBatchTrain:
     def __init__(self, param, **kw):
         utils_torch.module.InitForNonModel(self, param, **kw)

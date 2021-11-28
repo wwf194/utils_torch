@@ -1,7 +1,13 @@
 import torch
 import utils_torch
+from utils_torch.attrs import *
 
 from collections import defaultdict
+
+def ParseOptimizeParamEpochBatch(param):
+    EnsureAttrs(param, "Nesterov", value=False)
+    EnsureAttrs(param, "Dampening", value=0.0)
+    EnsureAttrs(param, "Momentum", value=0.0)
 
 class GradientDescend:
     def __init__(self, param=None, data=None, **kw):

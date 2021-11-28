@@ -64,42 +64,11 @@ def ParseOptimizeParamEpochBatch(param):
     EnsureAttrs(param, "Dampening", value=0.0)
     EnsureAttrs(param, "Momentum", value=0.0)
 
-
 def ClearGrad(weights):
     for name, weight in weights.items():
         if weight.grad is not None:
                 weight.grad.detach_()
                 weight.grad.zero_()
-
-def evaluate(net, testloader, criterion, scheduler, augment, device):
-    net.eval()
-    count=0
-    labels_count=0
-    correct_count=0
-    labels_count=0
-    loss_total=0.0
-    #torch.cuda.empty_cache()
-    for data in testloader:
-        #print("\r","progress:%d/%d "%(count,len(testloader)), end="", flush=True)
-        count=count+1
-        inputs, labels = data
-        inputs=inputs.to(device)
-        labels=labels.to(device)
-        if(augment==True):
-            bs, ncrops, c, h, w = inputs.size()
-            outputs = net(inputs.view(-1, c, h, w))
-            outputs = outputs.view(bs, ncrops, -1).mean(1)
-        else:
-            outputs = net(inputs) 
-            outputs = outputs.to(device)
-        loss_total += criterion(outputs, labels).item()
-        correct_count += (torch.max(outputs, 1)[1]==labels).sum().item()
-        labels_count += labels.size(0)
-    #print("\n")
-    val_loss=loss_total/count
-    val_acc=correct_count/labels_count
-    net.train()
-    return val_loss, val_acc
 
 def GetEpochFloat(EpochIndex, BatchIndex, BatchNum):
     return EpochIndex + BatchIndex / BatchNum * 1.0

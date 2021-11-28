@@ -1,4 +1,3 @@
-from re import L
 import utils_torch
 
 def CheckAttrs(Obj, attrs=[], *args, **kw):
@@ -239,7 +238,5 @@ def _ParseAttrs(attrs, *args):
         else:
             attrs = [*attrs, attr]
     return attrs
-
-
 
 _parse_attrs = _ParseAttrs
