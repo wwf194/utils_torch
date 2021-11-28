@@ -90,7 +90,7 @@ def LogList2EpochsFloat(Log, **kw):
     # for _Log in Log:
     #     EpochIndices.append(_Log[0])
     #     BatchIndices.append(_Log[1])
-    if ("EpochFloat" in Log) and len(Log["EpochFloat"])==len(Log["Epoch"]):
+    if "EpochFloat" in Log and len(Log["EpochFloat"])==len(Log["Epoch"]):
         pass
     else:
         Log["EpochFloat"] = utils_torch.train.EpochBatchIndices2EpochsFloat(Log["Epoch"], Log["Batch"], **kw)
@@ -149,6 +149,19 @@ class LogForEpochBatchTrain:
         log["Epoch"].append(cache.EpochIndex)
         log["Batch"].append(cache.BatchIndex),
         log["Value"].append(Value)
+    def AddLogsOfType(self, Logs, Type):
+        cache = self.cache
+        data = self.data
+        for Name, Log in Logs.items():
+            if "Value" in Log:
+                self.AddLogList(
+                    Name, Log["Value"], Type
+                )
+            else:
+                _Log = utils_torch.DeleteKeysIfExist(dict(Log), ["Epoch", "Batch"])
+                self.AddLogDict(
+                    Name, _Log, Type
+                )
     def AddLogDict(self, Name, Dict, Type=None):
         data = self.data
         cache = self.cache
@@ -158,6 +171,8 @@ class LogForEpochBatchTrain:
                 data.logType[Name] = Type
         Log = data.log[Name]
         for key, value in Dict.items():
+            # if key in ["Epoch", "Batch"]:
+            #     continue
             Log[key].append(value)
         Log["Epoch"].append(cache.EpochIndex)
         Log["Batch"].append(cache.BatchIndex)
@@ -170,6 +185,7 @@ class LogForEpochBatchTrain:
             "Batch":cache.BatchIndex,
             "Value":Data
         }
+
     def RegisterLog(self, Name, Type="List"):
         data = self.data
         if Type in ["List"]:
@@ -435,6 +451,8 @@ def GetAllSubSaveDirsEpochBatch(Name, SaveDir=None, GlobalParam=None):
     for Index, SaveDir in enumerate(SaveDirs):
         SaveDirs[Index] = utils_torch.GetMainSaveDir(GlobalParam) + Name + "/" + SaveDir # SaveDir already ends with "/"
     return SaveDirs
+
+
 
 def GetDataLog():
     return utils_torch.GlobalParam.log.Data

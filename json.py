@@ -405,9 +405,15 @@ class PyObj(object):
     def ToList(self):
         assert self.IsListLike(), "Only ListLike PyObj supports ToList()"
         return self.__value__
+    def RemoveAttrsIfExist(self, *Attrs):
+        for Attr in Attrs:
+            if hasattr(self, Attr):
+                delattr(self, Attr)
+        return self
     def append(self, content):
         assert self.IsListLike(), "Only ListLike PyObj supports append()"
         self.__value__.append(content)
+        return self
     def SetResolveBase(self, value=True):
         if value:
             self.__ResolveBase__ = True

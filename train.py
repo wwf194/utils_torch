@@ -328,14 +328,14 @@ def CmpEpochBatch(EpochIndex1, BatchIndex1, EpochIndex2, BatchIndex2):
         else:
             return 0   
 
-def CmpEpochBachData(data1, data2):
+def CmpEpochBatchData(data1, data2):
     EpochIndex1 = data1.EpochIndex
     BatchIndex1 = data1.BatchIndex
     EpochIndex2 = data2.EpochIndex
     BatchIndex2 = data2.BatchIndex
     return CmpEpochBatch(EpochIndex1, BatchIndex1, EpochIndex2, BatchIndex2)
 
-def CmpEpochBachDict(Dict1, Dict2):
+def CmpEpochBatchDict(Dict1, Dict2):
     EpochIndex1 = Dict1["Epoch"]
     BatchIndex1 = Dict1["Batch"]
     EpochIndex2 = Dict2["Epoch"]
@@ -348,3 +348,19 @@ def CmpEpochBatchObj(Obj1, Obj2):
     EpochIndex2 = Obj2.GetEpochIndex()
     BatchIndex2 = Obj2.GetBatchIndex()
     return CmpEpochBatch(EpochIndex1, BatchIndex1, EpochIndex2, BatchIndex2)
+
+def GetEpochBatchIndexFromPyObj(Obj):
+    if hasattr(Obj, "Epoch"):
+        EpochIndex = Obj.Epoch
+    elif hasattr(Obj, "EpochIndex"):
+        EpochIndex = Obj.EpochIndex
+    else:
+        raise Exception()
+    
+    if hasattr(Obj, "Batch"):
+        BatchIndex = Obj.Batch
+    elif hasattr(Obj, "BatchIndex"):
+        BatchIndex = Obj.BatchIndex
+    else:
+        raise Exception()
+    return EpochIndex, BatchIndex

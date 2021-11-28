@@ -1324,7 +1324,7 @@ def SetXTicksFloatFromData(ax, data, **kw):
                 lambda x:np.nanmin(x), data
             ))
         )
-        Max = min(
+        Max = max(
             list(map(
                 lambda x:np.nanmax(x), data
             ))
@@ -1343,7 +1343,7 @@ def SetYTicksFloatFromData(ax, data, **kw):
                 lambda x:np.nanmin(x), data
             ))
         )
-        Max = min(
+        Max = max(
             list(map(
                 lambda x:np.nanmax(x), data
             ))

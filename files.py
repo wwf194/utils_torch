@@ -6,28 +6,33 @@ import utils_torch
 from utils_torch.attrs import *
 import warnings
 
-def RemoveAllFiles(path, verbose=True):
-    if not os.path.exists(path):
-        raise Exception()
-    if not os.path.isdir(path):
-        raise Exception()
-    for file in GetAllFiles(path):
-        file_path = os.path.join(path, file)
-        os.remove(file_path)
-        utils_torch.AddLog("utils_pytorch: removed file: %s"%file_path)
+def RemoveFiles(FilesPath):
+    for FilePath in FilesPath:
+        RemoveFile(FilePath)
 
-def RemoveAllFilesAndDirs(path, verbose=True):
-    if not os.path.exists(path):
-        raise Exception()
-    if not os.path.isdir(path):
-        raise Exception()
-    Files, Dirs= GetAllFilesAndDirs(path)
+def RemoveFile(FilePath):
+    if not ExistsFile(FilePath):
+        utils_torch.AddWarning("No such file: %s"%FilePath)
+    else:
+        os.remove(FilePath)
+
+def RemoveAllFilesUnderDir(DirPath, verbose=True):
+    assert ExistsDir(DirPath)
+    for FileName in GetAllFiles(DirPath):
+        #FilePath = os.path.join(DirPath, FileName)
+        FilePath = DirPath + FileName
+        os.remove(FilePath)
+        utils_torch.AddLog("utils_pytorch: removed file: %s"%FilePath)
+
+def RemoveAllFilesAndDirsUnderDir(DirPath, verbose=True):
+    assert ExistsDir(DirPath)
+    Files, Dirs= GetAllFilesAndDirs(DirPath)
     for FileName in Files:
-        FilePath = os.path.join(path, FileName)
+        FilePath = os.path.join(DirPath, FileName)
         os.remove(FilePath)
         utils_torch.AddLog("utils_torch: removed file: %s"%FilePath)
     for DirName in Dirs:
-        DirPath = os.path.join(path, DirName)
+        DirPath = os.path.join(DirPath, DirName)
         #os.removedirs(DirPath) # Cannot delete subfolders
         import shutil
         shutil.rmtree(DirPath)
@@ -82,7 +87,7 @@ def ListFiles(DirPath):
 
 ListAllFiles = GetAllFiles = ListFiles
 
-def GetAllDirs(DirPath):
+def ListDirs(DirPath):
     if not os.path.exists(DirPath):
         raise Exception()
     if not os.path.isdir(DirPath):
@@ -94,11 +99,14 @@ def GetAllDirs(DirPath):
             Dir = Name + "/"
             Dirs.append(Dir)
     return Dirs
-ListAllDirs = GetAllDirs
+ListAllDirs = GetAllDirs = ListDirs
 
 def ExistsFile(FilePath):
     return os.path.isfile(FilePath)
 FileExists = ExistsFile
+
+def ExistsDir(DirPath):
+    return os.path.isdir(DirPath)
 
 def CheckFileExists(FilePath):
     if not utils_torch.ExistsFile(FilePath):
@@ -591,5 +599,5 @@ def _CopyTree(SourceDir, DestDir, **kw):
         EnsureDir(DestDir + Dir)
         _CopyTree(SourceDir + Dir, DestDir + Dir, **kw)
 
-
-    
+from utils_torch.json import PyObj2DataFile, DataFile2PyObj, PyObj2JsonFile, \
+    JsonFile2PyObj, JsonFile2JsonObj, JsonObj2JsonFile, DataFile2JsonObj, JsonObj2DataFile

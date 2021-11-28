@@ -816,6 +816,57 @@ def SetMethodForNonModelClass(Class, **kw):
     if not hasattr(Class, "ParseRouters"):
         Class.ParseRouters = ParseRoutersForModule
 
+def ToFileForLogClassDataOnly(self, FilePath):
+    if not FilePath.endswith(".data"):
+        FilePath += ".data"
+    utils_torch.files.PyObj2DataFile(self.data, FilePath)
+    return self
+
+def FromFileForLogClassDataOnly(self, FilePath):
+    assert FilePath.endswith(".data")
+    self.data = utils_torch.files.DataFile2PyObj(FilePath)
+    return self
+
+def ToFileForLogClass(self, SaveName=None, SaveDir=None):
+    if SaveName is None:
+        SaveName = self.param.FullName
+    utils_torch.files.PyObj2DataFile(self.data,  SaveDir + SaveName + ".data")
+    utils_torch.files.PyObj2JsonFile(self.param, SaveDir + SaveName + ".jsonc")
+    return self
+
+def FromFileForLogClass(self, SaveName, SaveDir):
+    self.data  = utils_torch.files.DataFile2PyObj(SaveDir + SaveName + ".data")
+    self.param = utils_torch.files.JsonFile2PyObj(SaveDir + SaveName + ".jsonc")
+    self.cache = utils_torch.EmptyPyObj()
+    return self
+
+def SetMethodForLogClass(Class, **kw):
+    SaveDataOnly = kw.setdefault("SaveDataOnly", False)
+    MountLocation = kw.setdefault("MountLocation", "data")
+    if SaveDataOnly:
+        if not hasattr(Class, "ToFile"):
+            Class.ToFile = ToFileForLogClassDataOnly
+        if not hasattr(Class, "FromFile"):
+            Class.FromFile = FromFileForLogClassDataOnly
+    else:
+        if not hasattr(Class, "ToFile"):
+            Class.ToFile = ToFileForLogClass
+        if not hasattr(Class, "FromFile"):
+            Class.FromFile = FromFileForLogClass
+    # if MountLocation in ["Data", "data"]:
+    #     Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleData
+    # elif MountLocation in ["Cache", "cache"]:
+    #     Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleCache
+    SetEpochBatchMethodForModule(Class, **kw)
+
+def SetEpochBatchIndexForModuleData(self, EpochIndex, BatchIndex):
+    self.data.EpochIndex = EpochIndex
+    self.data.BatchIndex = BatchIndex
+
+def SetEpochBatchIndexForModuleCache(self, EpochIndex, BatchIndex):
+    self.cache.EpochIndex = EpochIndex
+    self.cache.BatchIndex = BatchIndex
+
 # def SetEpochIndexForModule(self, EpochIndex):
 #     self.cache.EpochIndex = EpochIndex
 
@@ -864,5 +915,7 @@ def SetEpochBatchMethodForModule(Class, **kw):
             Class.GetEpochNum = lambda self:self.data.EpochNum
         if not hasattr(Class, "GetBatchNum"):
             Class.GetBatchNum = lambda self:self.data.BatchNum
+        if not hasattr(Class, "SetEpochBatchIndex"):
+            Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleData
     else:
         raise Exception(MountLocation)

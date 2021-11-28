@@ -145,7 +145,7 @@ def CopyProjectFolderAndRunSameCommand(Dir):
     CopyProjectFolder2Dir(Dir)
 
 def CleanLog():
-    utils_torch.files.RemoveAllFilesAndDirs("./log/")
+    utils_torch.files.RemoveAllFilesAndDirsUnderDir("./log/")
 
 def CleanFigure():
     utils_torch.files.RemoveMatchedFiles("./", r".*\.png")
@@ -641,6 +641,12 @@ def ToGivenDataTypeTorch(data, DataType=torch.float32):
     else:
         return data.to(DataType)
 Tensor2GivenDataType = ToGivenDataTypeTorch
+
+def DeleteKeysIfExist(Dict, Keys):
+    for Key in Keys:
+        if Key in Dict:
+            Dict.pop(Key)
+    return Dict
 
 def ParseDataTypeNp(DataType):
     if isinstance(DataType, str):
