@@ -261,12 +261,17 @@ class PyObj(object):
     def __repr__(self):
         return str(self.ToDict())
     def __setitem__(self, key, value):
-        if hasattr(self, "__value__") and isinstance(self.__value__, list):
+        if self.IsListLike():
             self.__value__[key] = value
         else:
             self.__dict__[key] = value
+    def __contains__(self, item): # to support in operator
+        if self.IsListLike():
+            return item in self.__value
+        else:
+            return item in self.__dict__
     def __getitem__(self, index):
-        if hasattr(self, "__value__") and isinstance(self.__value__, list):
+        if self.IsListLike():
             return self.__value__[index]
         else:
             return self.__dict__[index]
@@ -305,7 +310,7 @@ class PyObj(object):
             raise Exception()
     def __call__(self, *Args, **kw):
         return utils_torch.functions.CallGraph(
-            self, Args, **kw
+            self, *Args, **kw
         )
     def Update(self, Dict):
         self.FromDict(Dict)
@@ -399,7 +404,7 @@ class PyObj(object):
         Dict = dict(self.__dict__)
         Dict.pop("cache")
         return Dict
-    def items(self):
+    def Items(self):
         assert self.IsDictLike(), "Only DictLike PyObj supports items()"
         return ListAttrsAndValues(self)
     def ToList(self):
@@ -410,7 +415,7 @@ class PyObj(object):
             if hasattr(self, Attr):
                 delattr(self, Attr)
         return self
-    def append(self, content):
+    def Append(self, content):
         assert self.IsListLike(), "Only ListLike PyObj supports append()"
         self.__value__.append(content)
         return self
@@ -425,5 +430,11 @@ class PyObj(object):
             if self.__ResolveBase__==True or self.__ResolveBase__ in ["here"]:
                 return True
         return False
-PyObj.Append = PyObj.append
-PyObj.Items = PyObj.items
+    def Keys(self):
+        return self.__dict__.keys()
+    def Values(self):
+        return self.__dict__.values()
+PyObj.append = PyObj.Append
+PyObj.items = PyObj.Items
+PyObj.keys = PyObj.Keys
+PyObj.values = PyObj.Values

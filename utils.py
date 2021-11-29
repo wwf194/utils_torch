@@ -307,21 +307,28 @@ def DoTask(Task, **kw):
         utils_torch.AddWarning("Unknown Task.Type: %s"%TaskType)
         raise Exception(TaskType)
 
-def SetTensorLocation(Args):
-    EnsureAttrs(Args, "Method", default="Auto")
-    GlobalParam = utils_torch.GetGlobalParam()
-    if HasAttrs(GlobalParam, "system.TensorLocation"):
-        Location = GlobalParam.system.TensorLocation
+def GetTensorLocation(Method="auto"):
+    if Method in ["Auto", "auto"]:
+        Location = utils_torch.GetGPUWithLargestUseableMemory()
     else:
-        if Args.Method in ["Auto", "auto"]:
-            Location = utils_torch.GetGPUWithLargestUseableMemory()
-        else:
-            raise Exception()
+        raise Exception()
+    return Location
 
-    for Obj in utils_torch.ListValues(utils_torch.GetGlobalParam().object):
-        if hasattr(Obj, "SetTensorLocation"):
-            Obj.SetTensorLocation(Location)
-    SetAttrs(utils_torch.GetGlobalParam(), "system.TensorLocation", Location)
+# def SetTensorLocation(Args):
+#     EnsureAttrs(Args, "Method", default="Auto")
+#     GlobalParam = utils_torch.GetGlobalParam()
+#     if HasAttrs(GlobalParam, "system.TensorLocation"):
+#         Location = GlobalParam.system.TensorLocation
+#     else:
+#         if Args.Method in ["Auto", "auto"]:
+#             Location = utils_torch.GetGPUWithLargestUseableMemory()
+#         else:
+#             raise Exception()
+
+#     for Obj in utils_torch.ListValues(utils_torch.GetGlobalParam().object):
+#         if hasattr(Obj, "SetTensorLocation"):
+#             Obj.SetTensorLocation(Location)
+#     SetAttrs(utils_torch.GetGlobalParam(), "system.TensorLocation", Location)
 
 def BuildObjFromParam(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
@@ -705,6 +712,14 @@ def ToList(Obj):
         raise Exception()
     else:
         return [Obj]
+
+def ToDict(Obj):
+    if isinstance(Obj, dict):
+        return dict(Obj)
+    elif isinstance(Obj, utils_torch.PyObj):
+        return Obj.ToDict()
+    else:
+        raise Exception(type(Obj))
 
 import functools
 def SortListByCmpMethod(List, CmpMethod):

@@ -446,9 +446,13 @@ def InitForModule(self, param=None, data=None, ClassPath=None, **kw):
     if param is None:
         param = utils_torch.EmptyPyObj()
     
-    if not hasattr(param, "FullName"):
-        param.FullName = FullName
+    EnsureAttrs(param, "FullName", default=FullName)
+
     param.cache.__object__ = self
+    if hasattr(param, "Modules"):
+        param.Modules.SetResolveBase()
+    if hasattr(param, "Dynamics"):
+        param.Dynamics.SetResolveBase()
 
     if data is None:
         if LoadDir is not None:
@@ -919,3 +923,6 @@ def SetEpochBatchMethodForModule(Class, **kw):
             Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleData
     else:
         raise Exception(MountLocation)
+
+def ParseParamForModule(self, **kw):
+    utils_torch.parse.ParseObjStatic(self.param, ObjCurrent=self.param, ObjRoot=GlobalParam)

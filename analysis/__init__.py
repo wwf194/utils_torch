@@ -101,7 +101,6 @@ def PlotAllLossEpochBatch(Logs, SaveDir, SaveName=None, ContextObj=None):
     utils_torch.files.Table2TextFileDict(LossDict, SavePath=SaveDir + SaveName + ".txt")
     return
 
-
 def PlotTotalLossEpochBatch(LogTrain, LogTest=None, SaveDir=None, SaveName=None, ContextObj=None):
     if SaveName is None:
         SaveName = "TotalLoss~Epoch"
