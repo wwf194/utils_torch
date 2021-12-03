@@ -65,11 +65,32 @@ class DataManagerForEpochBatchTrain:
     def InitFromParam(self, IsLoad=False):
         utils_torch.module.InitFromParamForNonModel(self, IsLoad)
         cache = self.cache
+        param = self.param
         cache.Flows = utils_torch.EmptyPyObj()
         # self.CreateFlowRandom("DefaultTest", "Test")
         # self.CreateFlowRandom("DefaultTrain", "Train")
+        self.PrepareData()
         return
-    def ApplyTransformOnData(self, TransformParam="Auto", Type=["Train", "Test"]):
+    def PrepareData(self):
+        param = self.param
+        cache = self.cache
+        UseCachedDataTransform = False
+        if HasAttrs(param, "Data.Transform.Md5"):
+            Md5s = utils_torch.files.ListFilesAndCalculateMd5("./cache/", Md5InKeys=True)
+            if param.Data.Transform.Md5 in Md5s.keys():
+                FileName = Md5s[param.Data.Transform.Md5]
+                cache.Data = utils_torch.DataFile2PyObj("./cache/" + FileName)
+                UseCachedDataTransform = True
+        if not UseCachedDataTransform:
+            self.LoadData(Dir="Auto")
+            self.ApplyTransformOnData()
+    def GetInputOutputShape(self):
+        cache = self.cache
+        InputShape = cache.Data.Train.Images[0].shape
+        if len(InputShape) == 1:
+            InputShape = InputShape[0]
+        return InputShape, 10 # InputShape, OutputShape
+    def ApplyTransformOnData(self, TransformParam="Auto", Type=["Train", "Test"], Save=True):
         utils_torch.AddLog("Applying transformation on dataset images...")
         param = self.param
         cache = self.cache
@@ -96,6 +117,15 @@ class DataManagerForEpochBatchTrain:
                     raise Exception(Transform.Type)
             SetAttrs(Data, "Images", value=Images)        
         utils_torch.AddLog("Applied transformation on dataset images.")
+        if Save:
+            SavePath = utils_torch.RenameFileIfExists("./" + "cache/" + "Cifar10-Transformed-Cached.data")
+            utils_torch.PyObj2DataFile(
+                cache.Data,
+                SavePath
+            )
+            Md5 = utils_torch.File2Md5(SavePath)
+            utils_torch.AddLog("Saved transformed data. Md5:%s"%Md5)
+            SetAttrs(param, "Data.Transform.Md5")
     def Labels2ClassNames(self, Labels):
         ClassNames = []
         for Label in Labels:
@@ -107,7 +137,7 @@ class DataManagerForEpochBatchTrain:
     def LoadData(self, Dir="Auto"):
         cache = self.cache
         if Dir in ["Auto", "auto"]:
-            Dir = utils_torch.GetDatasetDir("CIFAR10")
+            Dir = utils_torch.dataset.GetDatasetPath("CIFAR10")
         DataFile = Dir + "CIFAR10-Data"
         cache.Data = utils_torch.json.DataFile2PyObj(DataFile)
         return

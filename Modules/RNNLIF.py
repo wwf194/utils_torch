@@ -37,7 +37,6 @@ class RNNLIF(nn.Module):
         cache.NeuronNum = Neurons.Recurrent.Num
 
         self.SetIterationTime()
-
         self.BuildModules()
         self.InitModules()
         self.DoInitTasks()
@@ -47,6 +46,10 @@ class RNNLIF(nn.Module):
             utils_torch.AddLog("RNNLIF: Initialized.")
         else:
             utils_torch.AddLog("RNNLIF: Loaded.")
+    def SetNeuronsNum(self, InputNum, OutputNum, HiddenNeuronsNum=None):
+        param = self.param
+        SetAttrs(param, "Neurons.Input.Num", value=InputNum)
+        SetAttrs(param, "Neurons.Output.Num", value=OutputNum)
     def GenerateZeroInitState(self, RefInput):
         data = self.data
         cache = self.cache

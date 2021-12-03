@@ -30,4 +30,20 @@ def CalculateBatchNum(BatchSize, SampleNum):
         BatchNum += 1
     return BatchNum
 
+config = utils_torch.files.JsonFile2PyObj(
+    utils_torch.files.GetFileDir(__file__) + "config.jsonc"
+)
+
+def GetDatasetPath(Name):
+    if Name in ["CIFAR10", "cifar10"]:
+        Name = "cifar10"
+    elif Name in ["MNIST", "mnist"]:
+        Name = "mnist"
+    else:
+        raise Exception(Name)
+
+    assert hasattr(config, Name)
+    return getattr(config, Name).path
+
+
 

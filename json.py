@@ -398,7 +398,9 @@ class PyObj(object):
     def IsDictLike(self):
         return not self.IsListLike()
     def IsListLike(self):
-        return hasattr(self, "__value__") and isinstance(self.__value__, list)
+        return hasattr(self, "__value__") and (
+            isinstance(self.__value__, list) or isinstance(self.__value__, np.ndarray)
+        )
     def ToDict(self):
         assert self.IsDictLike(), "Only DictLike PyObj supports ToDict()"
         Dict = dict(self.__dict__)
@@ -431,10 +433,10 @@ class PyObj(object):
                 return True
         return False
     def Keys(self):
-        return self.__dict__.keys()
+        return list(self.__dict__.keys())
     def Values(self):
         return self.__dict__.values()
 PyObj.append = PyObj.Append
 PyObj.items = PyObj.Items
-PyObj.keys = PyObj.Keys
+PyObj.ListKeys = PyObj.keys = PyObj.Keys
 PyObj.values = PyObj.Values

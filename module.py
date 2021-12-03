@@ -24,8 +24,6 @@ def BuildModule(param, **kw):
         raise Exception()
 
 def BuildModuleFromType(param, **kw):
-    # if param.Type in ["GradientDescend"]:
-    #     print("aaa")
     if utils_torch.Modules.IsLegalModuleType(param.Type):
         return utils_torch.Modules.BuildModule(param, **kw)
     elif utils_torch.Loss.IsLegalModuleType(param.Type):
@@ -34,7 +32,6 @@ def BuildModuleFromType(param, **kw):
         utils_torch.dataset.BuildObj(param)
     elif utils_torch.Modules.Operators.IsLegalModuleType(param.Type):
         return utils_torch.Modules.Operators.BuildModule(param, **kw)
-
     elif param.Type in ["GradientDescend"]:
         return utils_torch.optimize.GradientDescend(param, **kw)
     elif param.Type in ["CheckPointForEpochBatchTrain"]:
@@ -417,7 +414,8 @@ def InitFromParamForModule(self, IsLoad):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
-    utils_torch.parse.ParsePyObjStatic(self.param)
+    param = self.param
+    utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param)
 
 def InitFromParamForNonModel(self, IsLoad):
     cache = self.cache
@@ -925,4 +923,9 @@ def SetEpochBatchMethodForModule(Class, **kw):
         raise Exception(MountLocation)
 
 def ParseParamForModule(self, **kw):
-    utils_torch.parse.ParseObjStatic(self.param, ObjCurrent=self.param, ObjRoot=GlobalParam)
+    GlobalParam = utils_torch.GetGlobalParam()
+    utils_torch.parse.ParsePyObjStatic(self.param, ObjCurrent=self.param, ObjRoot=GlobalParam)
+
+class Module:
+    def OverwriteParamForModule(self, ParamPath, Value):
+        SetAttrs(self.param, ParamPath, value=Value)

@@ -412,6 +412,8 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
         pass
 
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
+    if Obj in ["$Loss.Prediction"]:
+        print("aaa")
     # if Obj in ["$Batch.Size"]:
     #     print("aaa")
     kw["RecurDepth"] += 1
@@ -487,7 +489,8 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
     else:
         while "$" in sentence:
             sentence = sentence.replace("$^", "ObjRoot.")
-            sentence = sentence.replace("$~", "parent.")
+            #sentence = sentence.replace("$~", "parent.")
+            sentence = sentence.replace("$~", "ObjCurrent.cache.__ParentRef__.")
             sentence = sentence.replace("$*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("$", "ObjCurrent.")
             while "~" in sentence or "*" in sentence:

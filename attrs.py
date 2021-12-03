@@ -220,6 +220,7 @@ def GetAttrs(Obj, attrs=[], *args):
     
     if isinstance(Obj, dict) and Obj.get("__value__") is not None:
         return Obj["__value__"]
+
     if hasattr(Obj, "__dict__") and hasattr(Obj, "__value__"):
         return Obj.__value__
     return Obj
