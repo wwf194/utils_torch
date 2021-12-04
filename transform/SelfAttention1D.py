@@ -8,10 +8,10 @@ from utils_torch.attrs import *
 class SelfAttention1D(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(SelfAttention1D, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.Bias", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.Bias", **kw)
 
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -29,9 +29,9 @@ class SelfAttention1D(nn.Module):
             raise Exception()
 
         if cache.IsInit:
-            data.Input2Query = utils_torch.module.CreateWeight2D(param.Weight.Input2Query)
-            data.Input2Key = utils_torch.module.CreateWeight2D(param.Weight.Input2Key)
-            data.Input2Value = utils_torch.module.CreateWeight2D(param.Weight.Input2Value)
+            data.Input2Query = utils_torch.transform.CreateWeight2D(param.Weight.Input2Query)
+            data.Input2Key = utils_torch.transform.CreateWeight2D(param.Weight.Input2Key)
+            data.Input2Value = utils_torch.transform.CreateWeight2D(param.Weight.Input2Value)
         else:
             data.Input2Query = utils_torch.ToTorchTensor(data.Input2Query)
             data.Input2Key   = utils_torch.ToTorchTensor(data.Input2Key)
@@ -91,4 +91,4 @@ class SelfAttention1D(nn.Module):
             self.LogCache("Output", Output, "Activity", log=log)
             return Output
 __MainClass__ = SelfAttention1D
-utils_torch.module.SetMethodForModuleClass(__MainClass__)
+utils_torch.transform.SetMethodForModuleClass(__MainClass__)

@@ -7,11 +7,11 @@ from utils_torch.attrs import *
 class L2Loss():
     def __init__(self, param=None, data=None, **kw):
         super(L2Loss, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.loss.L2Loss", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.loss.L2Loss", **kw)
     def __call__(self, Input, *Args):
         return self.forward(Input, *Args)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -72,4 +72,4 @@ class L2Loss():
         return self.cache.Coefficient
 
 __MainClass__ = L2Loss
-utils_torch.module.SetMethodForModuleClass(__MainClass__)
+utils_torch.transform.SetMethodForModuleClass(__MainClass__)

@@ -60,10 +60,10 @@ def ProcessOriginalDataDict(Dict, FileNameList):
 
 class DataManagerForEpochBatchTrain:
     def __init__(self, param, **kw):
-        utils_torch.module.InitForNonModel(self, param, **kw)
+        utils_torch.transform.InitForNonModel(self, param, **kw)
         return
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForNonModel(self, IsLoad)
+        utils_torch.transform.InitFromParamForNonModel(self, IsLoad)
         cache = self.cache
         param = self.param
         cache.Flows = utils_torch.EmptyPyObj()
@@ -239,7 +239,7 @@ class DataManagerForEpochBatchTrain:
         cache = self.cache
         flow = getattr(cache.Flows, Name)
         return flow.BatchNum
-utils_torch.module.SetMethodForNonModelClass(DataManagerForEpochBatchTrain, HasTensor=True)
+utils_torch.transform.SetMethodForNonModelClass(DataManagerForEpochBatchTrain, HasTensor=True)
 
 def ProcessCIFAR10(dataset_dir,  norm=True, augment=False, batch_size=64, download=False):
     if(augment==True):

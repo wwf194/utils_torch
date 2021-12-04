@@ -21,7 +21,7 @@ def ParseOptimizeParamEpochBatch(param):
 
 class GradientDescend:
     def __init__(self, param=None, data=None, **kw):
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.optimize.GradientDescend")
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.optimize.GradientDescend")
     def InitFromParam(self, IsLoad=False):
         cache = self.cache
         cache.IsLoad = IsLoad
@@ -68,7 +68,7 @@ class GradientDescend:
             # else:
             # if LogWeightChangeRatio:
             #     utils_torch.GetDataLogger().AddLog("%s.ChangeRatio"%Name,
-            #         utils_torch.module.CalculateWeightChangeRatio(Weight, WeightChange),
+            #         utils_torch.transform.CalculateWeightChangeRatio(Weight, WeightChange),
             #         Type="WeightChangeRatio"
             #     )
             if Update:
@@ -78,7 +78,7 @@ class GradientDescend:
                 Weight.grad.zero_()
         if LogGrad:
             return GradLog
-#utils_torch.module.SetMethodForModuleClass(GradientDescend)
+#utils_torch.transform.SetMethodForModuleClass(GradientDescend)
 ModuleDict = {
     "GradientDescend": GradientDescend
 }

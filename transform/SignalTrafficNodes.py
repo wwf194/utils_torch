@@ -10,23 +10,23 @@ from utils_torch.module.AbstractModules import AbstractModule
 class SignalHolder(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
         kw.setdefault("HasTensor", False)
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.SignalHolder", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.SignalHolder", **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
     def Receive(self, Obj):
         self.cache.Content = Obj
     def Send(self):
         return self.cache.Content
     def Clear(self):
         utils_torch.attrs.RemoveAttrIfExists(self.cache, "Content")
-#utils_torch.module.SetMethodForModuleClass(SignalHolder, HasTensor=False)
+#utils_torch.transform.SetMethodForModuleClass(SignalHolder, HasTensor=False)
 
 class SerialSender(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
         #super(SerialSender, self).__init__()
-        utils_torch.module.InitForModule(self, param, data,  ClassPath="utils_torch.module.SerialSender", **kw)
+        utils_torch.transform.InitForModule(self, param, data,  ClassPath="utils_torch.transform.SerialSender", **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         cache = self.cache
         cache.ContentList = []
@@ -67,13 +67,13 @@ class SerialSender(AbstractModule):
         Content = self._Send(cache.ContentList, Index=cache.NextSendIndex)
         cache.NextSendIndex += 1
         return Content
-#utils_torch.module.SetMethodForModuleClass(SerialSender, HasTensor=False)
+#utils_torch.transform.SetMethodForModuleClass(SerialSender, HasTensor=False)
 
 class SerialReceiver(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.SerialReceiver", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.SerialReceiver", **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         cache = self.cache
         self.ContentList = []
         self.SetSendMethod()
@@ -115,4 +115,4 @@ class SerialReceiver(AbstractModule):
         return result
     def SendWithoutFlush(self):
         return self.ContentList
-#utils_torch.module.SetMethodForModuleClass(SerialReceiver, HasTensor=False)
+#utils_torch.transform.SetMethodForModuleClass(SerialReceiver, HasTensor=False)

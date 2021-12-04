@@ -315,14 +315,18 @@ def GetTensorLocation(Method="auto"):
     return Location
 
 def BuildModule(param, **kw):
-    if utils_torch.module.BuildModuleIfIsLegalType(param, **kw) is not None:
+    module = utils_torch.transform.BuildModuleIfIsLegalType(param, **kw)
+    if module is not None:
         return
-    if utils_torch.loss.IsLegalModuleType(param.Type):
-        return utils_torch.loss.BuildModule(param)
+    module = utils_torch.loss.BuildModuleIfIsLegalType(param, **kw)
+    if module is not None:
+        return
+    
+
     elif utils_torch.dataset.IsLegalModuleType(param.Type):
         utils_torch.dataset.BuildObj(param)
-    elif utils_torch.module.Operators.IsLegalModuleType(param.Type):
-        return utils_torch.module.Operators.BuildModule(param, **kw)
+    elif utils_torch.transform.Operators.IsLegalModuleType(param.Type):
+        return utils_torch.transform.Operators.BuildModule(param, **kw)
     elif utils_torch.optimize.IsLegalModuleType(param.Type):
         return utils_torch.optimize.BuildModule(param, **kw)
     else:
@@ -342,7 +346,7 @@ def BuildModule(param, **kw):
 #     for Obj in utils_torch.ListValues(utils_torch.GetGlobalParam().object):
 #         if hasattr(Obj, "SetTensorLocation"):
 #             Obj.SetTensorLocation(Location)
-#     SetAttrs(utils_torch.GetGlobalParam(), "system.TensorLocation", Location)
+#     SetAttrs(utils_torch.GetGlobalParam(), "system.TensorLocation", Location)                 
 
 def BuildObjFromParam(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):

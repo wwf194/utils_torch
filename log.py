@@ -115,10 +115,10 @@ def PlotLogList(Name, Log, SaveDir=None, **kw):
 
 class LogForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
     def __init__(self, param=None, **kw):
-        utils_torch.module.InitForNonModel(self, param, ClassPath="utils_torch.train.LogForEpochBatchTrain", **kw)
+        utils_torch.transform.InitForNonModel(self, param, ClassPath="utils_torch.train.LogForEpochBatchTrain", **kw)
         self.InitFromParam(IsLoad=False)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -269,7 +269,7 @@ class LogForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTrain)
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-#utils_torch.module.SetEpochBatchMethodForModule(LogForEpochBatchTrain)
+#utils_torch.transform.SetEpochBatchMethodForModule(LogForEpochBatchTrain)
 
 class Log:
     def __init__(self, Name, **kw):

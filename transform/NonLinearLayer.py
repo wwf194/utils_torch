@@ -10,12 +10,12 @@ def InitFromParam(param):
     model.InitFromParam(param)
     return model
 
-from utils_torch.module.SingleLayer import SingleLayer
+from utils_torch.transform.SingleLayer import SingleLayer
 
 class NonLinearLayer(SingleLayer):
     def __init__(self, param=None, data=None, **kw):
         super().__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.NonLinearLayer", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.NonLinearLayer", **kw)
     def InitFromParam(self, IsLoad=False):
         super().InitFromParam(IsLoad)
         param = self.param        
@@ -31,7 +31,7 @@ class NonLinearLayer(SingleLayer):
                 SetAttrs(param, "Bias.Size", param.Output.Num)
             self.SetWeight()
             self.SetBias()
-            self.NonLinear = utils_torch.module.GetNonLinearMethod(param.NonLinear)
+            self.NonLinear = utils_torch.transform.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()) + self.GetBias())
         elif param.Subtype in ["f(Wx)+b"]:
             if cache.IsInit:
@@ -39,13 +39,13 @@ class NonLinearLayer(SingleLayer):
                 SetAttrs(param, "Bias.Size", param.Output.Num)
             self.SetWeight()
             self.SetBias()
-            self.NonLinear = utils_torch.module.GetNonLinearMethod(param.NonLinear)
+            self.NonLinear = utils_torch.transform.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight())) + data.Bias
         elif param.Subtype in ["f(Wx)"]:
             if cache.IsInit:
                 SetAttrs(param, "Bias", False)
             self.SetWeight()
-            self.NonLinear = utils_torch.module.GetNonLinearMethod(param.NonLinear)
+            self.NonLinear = utils_torch.transform.GetNonLinearMethod(param.NonLinear)
             self.forward = lambda x:self.NonLinear(torch.mm(x, self.GetWeight()))
         elif param.Subtype in ["f(W(x+b))"]:
             if cache.IsInit:
@@ -60,4 +60,4 @@ class NonLinearLayer(SingleLayer):
             else:
                 raise Exception("NonLinearLayer: Invalid Subtype: %s"%param.Subtype)
 __MainClass__ = NonLinearLayer
-#utils_torch.module.SetMethodForModuleClass(__MainClass__)
+#utils_torch.transform.SetMethodForModuleClass(__MainClass__)

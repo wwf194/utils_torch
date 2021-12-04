@@ -7,9 +7,9 @@ from utils_torch.module.AbstractModules import AbstractModule
 class NoiseGenerator(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
         super(NoiseGenerator, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.NoiseGenerator", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.NoiseGenerator", **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         cache = self.cache
         if param.Method in ["Adaptive"]:
@@ -34,4 +34,4 @@ class NoiseGenerator(AbstractModule):
         return self.cache.TensorLocation
 
 __MainClass__ = NoiseGenerator
-# utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForModuleClass(__MainClass__)

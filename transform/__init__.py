@@ -20,10 +20,8 @@ def IsLegalModuleType(Type):
     return Type in ModuleList
 
 def BuildModuleIfIsLegalType(param, **kw):
-
-    
-    assert utils_torch.module.IsLegalModuleType(param.Type)
-    
+    if not IsLegalModuleType(param.Type):
+        return None
     if param.Type in ["LinearLayer"]:
         return LinearLayer(param, **kw)
     elif param.Type in ["NonLinearLayer"]:
@@ -51,10 +49,10 @@ def BuildModuleIfIsLegalType(param, **kw):
     elif param.Type in ["CheckPointForEpochBatchTrain"]:
         return utils_torch.train.CheckPointForEpochBatchTrain(param, **kw)
     elif param.Type in ["Internal"]:
-        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type Internal.")
+        utils_torch.AddWarning("utils_torch.transform.BuildModule does not build Module of type Internal.")
         raise Exception()
     elif param.Type in ["External"]:
-        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type External.")
+        utils_torch.AddWarning("utils_torch.transform.BuildModule does not build Module of type External.")
         raise Exception()
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
@@ -779,7 +777,7 @@ def ParseRoutersForModule(self):
     
     ObjRefList = [
         cache.Modules, cache.Dynamics, cache,
-        param, self, utils_torch.module.Operators,
+        param, self, utils_torch.transform.Operators,
     ]
     if hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
         ObjRefList += GlobalParam.cache.AdditionalObjRefListForParseRouters
@@ -946,22 +944,27 @@ def SetMethodForLogClass(Class, **kw):
 # def SetBatchNumForModule(self, BatchNum):
 #     self.cache.BatchNum = BatchNum
 
-
-
 def ParseParamForModule(self, **kw):
     GlobalParam = utils_torch.GetGlobalParam()
     utils_torch.parse.ParsePyObjStatic(self.param, ObjCurrent=self.param, ObjRoot=GlobalParam)
 
-from utils_torch.module.MLP import MLP
-from utils_torch.module.SignalTrafficNodes import SerialReceiver
-from utils_torch.module.SignalTrafficNodes import SerialSender
-from utils_torch.module.SignalTrafficNodes import SignalHolder
-from utils_torch.module.LambdaLayer import LambdaLayer
-from utils_torch.module.RecurrentLIFLayer import RecurrentLIFLayer
-from utils_torch.module.NoiseGenerator import NoiseGenerator
-from utils_torch.module.Bias import Bias
-import utils_torch.module.Operators as Operators
-from utils_torch.module.SingleLayer import SingleLayer
-from utils_torch.module.NonLinearLayer import NonLinearLayer
-from utils_torch.module.LinearLayer import LinearLayer
+from utils_torch.transform.MLP import MLP
+from utils_torch.transform.SignalTrafficNodes import SerialReceiver
+from utils_torch.transform.SignalTrafficNodes import SerialSender
+from utils_torch.transform.SignalTrafficNodes import SignalHolder
+from utils_torch.transform.LambdaLayer import LambdaLayer
+from utils_torch.transform.RecurrentLIFLayer import RecurrentLIFLayer
+from utils_torch.transform.NoiseGenerator import NoiseGenerator
+from utils_torch.transform.Bias import Bias
+import utils_torch.transform.Operators as Operators
+from utils_torch.transform.SingleLayer import SingleLayer
+from utils_torch.transform.NonLinearLayer import NonLinearLayer
+from utils_torch.transform.LinearLayer import LinearLayer
 from utils_torch.module.AbstractModules import SetEpochBatchMethodForModule
+
+ModuleDict = {
+    "MLP": MLP, "mlp": MLP,
+    "SerialReceiver": SerialReceiver, "SerialSend": SerialSender, "SignalHolder": SignalHolder,
+    "SingalLayer": SingleLayer, "LinearLayer": LinearLayer, "NonLinearLayer": NonLinearLayer,
+    "LambbdaLayer": LambdaLayer,
+}

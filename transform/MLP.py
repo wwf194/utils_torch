@@ -12,13 +12,13 @@ def load_model(param):
     return
 
 from utils_torch.module.AbstractModules import AbstractModuleWithTensor
-#from utils_torch.module.__init__ import AbstractModuleWithTensor
+#from utils_torch.transform.__init__ import AbstractModuleWithTensor
 class MLP(AbstractModuleWithTensor):
     def __init__(self, param=None, data=None, **kw):
         super(MLP, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.MLP", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.MLP", **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -65,7 +65,7 @@ class MLP(AbstractModuleWithTensor):
         cache.Layers = []
         for LayerIndex in range(param.Layers.Num):
             LayerParam = GetAttrs(param, "Modules.Layer%d"%LayerIndex)
-            Layer = utils_torch.module.BuildModule(LayerParam, LoadDir=cache.LoadDir)
+            Layer = utils_torch.transform.BuildModule(LayerParam, LoadDir=cache.LoadDir)
             SetAttrs(cache, "Modules.Layer%d"%LayerIndex, Layer)
             cache.Layers.append(Layer)             
             self.add_module("Layer%d"%LayerIndex, Layer)
@@ -84,4 +84,4 @@ class MLP(AbstractModuleWithTensor):
         ]
 
 __MainClass__ = MLP
-# utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForModuleClass(__MainClass__)

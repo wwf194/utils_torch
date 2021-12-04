@@ -52,8 +52,8 @@ def FunctionsOutputs2List(Functions):
 from utils_torch.module.AbstractModules import AbstractModule
 class FunctionsOutputs(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
-        utils_torch.module.InitForModule(self, param, data, 
-            ClassPath="utils_torch.module.Operators.FunctionsOutputs", **kw)
+        utils_torch.transform.InitForModule(self, param, data, 
+            ClassPath="utils_torch.transform.Operators.FunctionsOutputs", **kw)
     def InitFromParam(self, IsLoad=False):
         param = self.param
         cache = self.cache
@@ -70,7 +70,7 @@ class FunctionsOutputs(AbstractModule):
         return self.forward()
     def forward(self):
         return FunctionsOutputs2List(self.cache.Functions)
-#utils_torch.module.SetMethodForModuleClass(FunctionsOutputs)
+#utils_torch.transform.SetMethodForModuleClass(FunctionsOutputs)
 OperatorList.append("FunctionsOutputs")
 
 def CalculateGradient(loss):
@@ -90,7 +90,7 @@ def PlotDistribution(Activity, Name="UnNamed"):
     utils_torch.plot.PlotDistribution1D(activity, Name=Name)
 
 def LogStat(data, Name):
-    data = ToNpArray(data)
+    data = utils_torch.ToNpArray(data)
     statistics = utils_torch.math.NpStatistics(data, ReturnType="Dict")
     utils_torch.GetDataLogger().AddLogDict({statistics})
 
@@ -102,7 +102,6 @@ def Tensor2Statistics2File(data, Name, FilePath=None):
     statistics = utils_torch.math.TorchTensorStat(data)
     utils_torch.Data2TextFile(statistics, FilePath=FilePath)
 
-from utils_torch.utils import Data2TextFile, ToNpArray
 OperatorList.append("Data2TextFile")
 
 from utils_torch.plot import CompareDensityCurve
@@ -114,5 +113,5 @@ OperatorList.append("CompareDensityCurve")
 # from utils_torch.train import Probability2MostProbableIndex
 # OperatorList.append("Probability2MostProbableIndex")
 
-from utils_torch.module import LogAccuracyForSingleClassPrediction
+from utils_torch.transform import LogAccuracyForSingleClassPrediction
 OperatorList.append("LogAccuracyForSingleClassPrediction")

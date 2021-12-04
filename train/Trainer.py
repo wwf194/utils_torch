@@ -3,9 +3,9 @@ from utils_torch.attrs import *
 
 class TrainerForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
     def __init__(self, param, **kw):
-        utils_torch.module.InitForNonModel(self, param, **kw)
+        utils_torch.transform.InitForNonModel(self, param, **kw)
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         cache = self.cache
         data = self.data
@@ -80,5 +80,5 @@ class TrainerForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTr
         cache = self.cache
         utils_torch.AddLog("Epoch%d-Batch%d"%(cache.EpochIndex, cache.BatchIndex))
 
-#utils_torch.module.SetMethodForNonModelClass(TrainerForEpochBatchTrain)
-#utils_torch.module.SetEpochBatchMethodForModule(TrainerForEpochBatchTrain)
+#utils_torch.transform.SetMethodForNonModelClass(TrainerForEpochBatchTrain)
+#utils_torch.transform.SetEpochBatchMethodForModule(TrainerForEpochBatchTrain)

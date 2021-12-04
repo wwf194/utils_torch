@@ -4,12 +4,12 @@ import torch.nn.functional as F
 
 import utils_torch
 from utils_torch.attrs import *
-from utils_torch.module import AbstractModuleWithTensor
+from utils_torch.transform import AbstractModuleWithTensor
 class SingleLayer(AbstractModuleWithTensor):
     def __init__(self):
         super(SingleLayer, self).__init__()
     def InitFromParam(self, IsLoad=False):
-        utils_torch.module.InitFromParamForModule(self, IsLoad)
+        utils_torch.transform.InitFromParamForModule(self, IsLoad)
         param = self.param
         cache = self.cache
         
@@ -45,7 +45,7 @@ class SingleLayer(AbstractModuleWithTensor):
                 {"Method":"KaimingUniform", "Coefficient":1.0})
             )
         if cache.IsInit:
-            data.Weight = utils_torch.module.CreateWeight2D(param.Weight)
+            data.Weight = utils_torch.transform.CreateWeight2D(param.Weight)
             
             # Log and plot for debugging.
             SaveDir = utils_torch.GetMainSaveDir() + "Weight-Init/"
@@ -75,11 +75,11 @@ class SingleLayer(AbstractModuleWithTensor):
         if param.IsExciInhi:
             param.Weight.IsExciInhi = param.IsExciInhi
             if cache.IsInit:
-                utils_torch.module.ParseExciInhiNum(param.Weight)
+                utils_torch.transform.ParseExciInhiNum(param.Weight)
                 EnsureAttrs(param.Weight, "ConstraintMethod", value="AbsoluteValue")
-            cache.WeightConstraintMethod = utils_torch.module.GetConstraintFunction(param.Weight.ConstraintMethod)
+            cache.WeightConstraintMethod = utils_torch.transform.GetConstraintFunction(param.Weight.ConstraintMethod)
             GetWeightFunction.append(cache.WeightConstraintMethod)
-            ExciInhiMask = utils_torch.module.CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.Excitatory.Num, param.Weight.Inhibitory.Num)
+            ExciInhiMask = utils_torch.transform.CreateExcitatoryInhibitoryMask(*param.Weight.Size, param.Weight.Excitatory.Num, param.Weight.Inhibitory.Num)
             cache.ExciInhiMask = utils_torch.NpArray2Tensor(ExciInhiMask)
             cache.Tensors.append([cache, "ExciInhiMask", cache.ExciInhiMask])
             GetWeightFunction.append(lambda Weight:Weight * cache.ExciInhiMask)
@@ -92,7 +92,7 @@ class SingleLayer(AbstractModuleWithTensor):
         if GetAttrs(param.Weight.NoSelfConnection):
             if param.Weight.Size[0] != param.Weight.Size[1]:
                 raise Exception("NoSelfConnection requires Weight to be square matrix.")
-            SelfConnectionMask = utils_torch.module.CreateSelfConnectionMask(param.Weight.Size[0])
+            SelfConnectionMask = utils_torch.transform.CreateSelfConnectionMask(param.Weight.Size[0])
             cache.SelfConnectionMask = utils_torch.NpArray2Tensor(SelfConnectionMask)
             cache.Tensors.append([cache, "SelfConnectionMask", cache.SelfConnectionMask])
             GetWeightFunction.append(lambda Weight:Weight * cache.SelfConnectionMask)
@@ -147,4 +147,4 @@ class SingleLayer(AbstractModuleWithTensor):
 
         return cache.PlotWeight
 __MainClass__ = SingleLayer
-# utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForModuleClass(__MainClass__)

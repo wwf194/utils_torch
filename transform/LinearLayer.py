@@ -4,11 +4,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils_torch.attrs import *
-from utils_torch.module.SingleLayer import SingleLayer
+from utils_torch.transform.SingleLayer import SingleLayer
 class LinearLayer(SingleLayer):
     def __init__(self, param=None, data=None, **kw):
         super().__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.LinearLayer", **kw)
+        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.LinearLayer", **kw)
     def InitFromParam(self, param=None, IsLoad=False):
         super().InitFromParam(IsLoad)
         param = self.param
@@ -37,4 +37,4 @@ class LinearLayer(SingleLayer):
             raise Exception("LinearLayer: Invalid Subtype: %s"%param.Subtype)
 
 __MainClass__ = LinearLayer
-# utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForModuleClass(__MainClass__)

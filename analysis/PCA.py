@@ -34,7 +34,7 @@ class LogForPCA(utils_torch.module.AbstractModuleForEpochBatchTrain):
             log.data = np.concatenate(log.data, axis=0)
             log.PCATransform = utils_torch.math.PCA(log.data)
         return
-#utils_torch.module.SetEpochBatchMethodForModule(LogForPCA, MountLocation="data")
+#utils_torch.transform.SetEpochBatchMethodForModule(LogForPCA, MountLocation="data")
 
 class LogForPCAAlongTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
     def __init__(self, EpochNum, BatchNum):
