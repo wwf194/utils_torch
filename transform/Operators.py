@@ -4,7 +4,14 @@ from matplotlib import pyplot as plt
 from collections import defaultdict
 import utils_torch
 #Operators = utils_torch.PyObj()
-OperatorList = []
+
+ModuleList = []
+
+def BuildModuleIfIsLegalType(param, **kw):
+    if IsLegalModuleType(param.Type):
+        return BuildModule(param, **kw)
+    else:
+        return None
 
 def BuildModule(param, **kw):
     if param.Type in ["FunctionsOutputs"]:
@@ -13,18 +20,18 @@ def BuildModule(param, **kw):
         raise Exception(param.Type)
 
 def IsLegalModuleType(Type):
-    if Type in OperatorList:
+    if Type in ModuleList:
         return True
     else:
         return False
 
 def Add(*Args):
     return sum(Args)
-OperatorList.append(["Add"])
+ModuleList.append(["Add"])
 
 def FilterFromDict(Dict, Name):
     return Dict[Name]
-OperatorList.append(["FilterFromDict"])
+ModuleList.append(["FilterFromDict"])
 
 def Split(Args):
     if isinstance(Args, list):
@@ -34,11 +41,11 @@ def Split(Args):
     else:
         raise Exception
 # Operators.Split = Split
-OperatorList.append(["Split"])
+ModuleList.append(["Split"])
 
 def Merge(*Args):
     return Args
-OperatorList.append(["Merge"])
+ModuleList.append(["Merge"])
 
 def FunctionsOutputs2List(Functions):
     Outputs = []
@@ -70,20 +77,20 @@ class FunctionsOutputs(AbstractModule):
         return self.forward()
     def forward(self):
         return FunctionsOutputs2List(self.cache.Functions)
-#utils_torch.transform.SetMethodForModuleClass(FunctionsOutputs)
-OperatorList.append("FunctionsOutputs")
+#utils_torch.transform.SetMethodForTransformModule(FunctionsOutputs)
+ModuleList.append("FunctionsOutputs")
 
 def CalculateGradient(loss):
     loss.backward()
     return
 # Operators.CalculateGradient = CalculateGradient
-OperatorList.append(["CalculateGradient"])
+ModuleList.append(["CalculateGradient"])
 
 
 
 def CreateDataLogger():
     return utils_torch.log.DataLogger()
-OperatorList.append("CreateDataLogger")
+ModuleList.append("CreateDataLogger")
 
 def PlotDistribution(Activity, Name="UnNamed"):
     activity = utils_torch.ToNpArray(Activity)
@@ -102,16 +109,16 @@ def Tensor2Statistics2File(data, Name, FilePath=None):
     statistics = utils_torch.math.TorchTensorStat(data)
     utils_torch.Data2TextFile(statistics, FilePath=FilePath)
 
-OperatorList.append("Data2TextFile")
+ModuleList.append("Data2TextFile")
 
 from utils_torch.plot import CompareDensityCurve
-OperatorList.append("CompareDensityCurve")
+ModuleList.append("CompareDensityCurve")
 
 # from utils_torch.train import ClearGrad
-# OperatorList.append("ClearGrad")
+# ModuleList.append("ClearGrad")
 
 # from utils_torch.train import Probability2MostProbableIndex
-# OperatorList.append("Probability2MostProbableIndex")
+# ModuleList.append("Probability2MostProbableIndex")
 
 from utils_torch.transform import LogAccuracyForSingleClassPrediction
-OperatorList.append("LogAccuracyForSingleClassPrediction")
+ModuleList.append("LogAccuracyForSingleClassPrediction")

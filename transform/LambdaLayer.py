@@ -18,4 +18,4 @@ class LambdaLayer(AbstractModule):
         utils_torch.transform.SetFullNameForModule(self, FullName)
 
 __MainClass__ = LambdaLayer
-#utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+#utils_torch.transform.SetMethodForTransformModule(__MainClass__)

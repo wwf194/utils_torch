@@ -70,7 +70,7 @@ def AnalyzeStatAlongTrainEpochBatch(Logs, SaveDir, ContextObj):
         )
         plt.tight_layout()
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s~Epoch.svg"%Name)
-        utils_torch.files.Table2TextFileDict(Log, SavePath=SaveDir + "%s~Epoch.txt"%Name)
+        utils_torch.file.Table2TextFileDict(Log, SavePath=SaveDir + "%s~Epoch.txt"%Name)
     return
 
 def PlotLogDictStatistics(self, Name, Log, SaveDir=None):
@@ -98,7 +98,7 @@ def PlotAllLossEpochBatch(Logs, SaveDir, SaveName=None, ContextObj=None):
         SaveName = "Loss~Epoch"
     
     utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + ".svg")
-    utils_torch.files.Table2TextFileDict(LossDict, SavePath=SaveDir + SaveName + ".txt")
+    utils_torch.file.Table2TextFileDict(LossDict, SavePath=SaveDir + SaveName + ".txt")
     return
 
 def PlotTotalLossEpochBatch(LogTrain, LogTest=None, SaveDir=None, SaveName=None, ContextObj=None):
@@ -116,7 +116,7 @@ def PlotTotalLossEpochBatch(LogTrain, LogTest=None, SaveDir=None, SaveName=None,
     )
     XsData.append(EpochsFloat)
     YsData.append(Loss)
-    utils_torch.files.Table2TextFileDict(LogTrain, SavePath=SaveDir + SaveName + "(Train).txt")
+    utils_torch.file.Table2TextFileDict(LogTrain, SavePath=SaveDir + SaveName + "(Train).txt")
 
     if LogTest is not None:
         EpochsFloat = utils_torch.log.LogList2EpochsFloat(LogTest, BatchNum=ContextObj["BatchNum"])
@@ -128,7 +128,7 @@ def PlotTotalLossEpochBatch(LogTrain, LogTest=None, SaveDir=None, SaveName=None,
         )
         XsData.append(EpochsFloat)
         YsData.append(Loss)
-        utils_torch.files.Table2TextFileDict(LogTest, SavePath=SaveDir + SaveName + "(Test).txt")
+        utils_torch.file.Table2TextFileDict(LogTest, SavePath=SaveDir + SaveName + "(Test).txt")
 
     utils_torch.plot.SetXTicksFloatFromData(ax, XsData)
     utils_torch.plot.SetYTicksFloatFromData(ax, YsData)

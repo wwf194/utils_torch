@@ -84,4 +84,4 @@ class MLP(AbstractModuleWithTensor):
         ]
 
 __MainClass__ = MLP
-# utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForTransformModule(__MainClass__)

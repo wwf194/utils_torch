@@ -21,7 +21,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 # from inspect import getframeinfo, stack
 from utils_torch.attrs import *
-from utils_torch.files import *
+from utils_torch.file import *
 
 import argparse
 import traceback
@@ -125,9 +125,9 @@ def Main(**kw):
 
 def _StartEndTime2File():
     GlobalParam = utils_torch.GetGlobalParam()
-    utils_torch.files.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-0-Time-Start:%s"%GlobalParam.time.EndTime)
-    utils_torch.files.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-1-Time- End :%s"%GlobalParam.time.StartTime)
-    utils_torch.files.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-2-Time-Duration:%s"%GlobalParam.time.DurationTime)
+    utils_torch.file.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-0-Time-Start:%s"%GlobalParam.time.EndTime)
+    utils_torch.file.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-1-Time- End :%s"%GlobalParam.time.StartTime)
+    utils_torch.file.EmptyFile(utils_torch.GetMainSaveDir() + "AAA-2-Time-Duration:%s"%GlobalParam.time.DurationTime)
 
 def ParsedArgs2CmdArgs(ParsedArgs, Exceptions=[]):
     CmdArgsList = []
@@ -138,17 +138,17 @@ def ParsedArgs2CmdArgs(ParsedArgs, Exceptions=[]):
 
 def CopyProjectFolder2Dir(DestDir):
     EnsureDir(DestDir)
-    utils_torch.files.CopyFolder2DestDir("./", DestDir)
+    utils_torch.file.CopyFolder2DestDir("./", DestDir)
     return
 
 def CopyProjectFolderAndRunSameCommand(Dir):
     CopyProjectFolder2Dir(Dir)
 
 def CleanLog():
-    utils_torch.files.RemoveAllFilesAndDirsUnderDir("./log/")
+    utils_torch.file.RemoveAllFilesAndDirsUnderDir("./log/")
 
 def CleanFigure():
-    utils_torch.files.RemoveMatchedFiles("./", r".*\.png")
+    utils_torch.file.RemoveMatchedFiles("./", r".*\.png")
 
 def ParseTaskList(TaskList, InPlace=True, **kw):
     TaskListParsed = []
@@ -313,24 +313,6 @@ def GetTensorLocation(Method="auto"):
     else:
         raise Exception()
     return Location
-
-def BuildModule(param, **kw):
-    module = utils_torch.transform.BuildModuleIfIsLegalType(param, **kw)
-    if module is not None:
-        return
-    module = utils_torch.loss.BuildModuleIfIsLegalType(param, **kw)
-    if module is not None:
-        return
-    
-
-    elif utils_torch.dataset.IsLegalModuleType(param.Type):
-        utils_torch.dataset.BuildObj(param)
-    elif utils_torch.transform.Operators.IsLegalModuleType(param.Type):
-        return utils_torch.transform.Operators.BuildModule(param, **kw)
-    elif utils_torch.optimize.IsLegalModuleType(param.Type):
-        return utils_torch.optimize.BuildModule(param, **kw)
-    else:
-        raise Exception()
 
 # def SetTensorLocation(Args):
 #     EnsureAttrs(Args, "Method", default="Auto")
@@ -1219,19 +1201,15 @@ def GetDimensionNum(data):
 def ToLowerStr(Str):
     return Str.lower()
 
-from utils_torch.files import Str2File
+from utils_torch.file import Str2File
 
 def GetSavePathFromName(Name, Suffix=""):
     if not Suffix.startswith("."):
         Suffix = "." + Suffix
     FilePath = utils_torch.GetMainSaveDir() + Name + Suffix
-    FilePath = utils_torch.files.RenameIfFileExists(FilePath)
+    FilePath = utils_torch.file.RenameIfFileExists(FilePath)
     return FilePath
 
-def Data2TextFile(data, Name=None, FilePath=None):
-    if FilePath is None:
-        FilePath = GetSavePathFromName(Name, Suffix=".txt")
-    utils_torch.Str2File(str(data), FilePath)
 
 def Float2StrDisplay(Float):
     if np.isinf(Float):
@@ -1301,26 +1279,6 @@ def Bytes2Str(Bytes, Format="utf-8"):
 def Str2Bytes(Str, Format="utf-8"):
     return Str.decode(Format)
 
-
-KB = 1024
-MB = 1048576
-GB = 1073741824
-TB = 1099511627776
-
-
-def ByteNum2Str(ByteNum):
-    if ByteNum < KB:
-        Str = "%d B"%ByteNum
-    elif ByteNum < MB:
-        Str = "%.3f KB"%(1.0 * ByteNum / KB)
-    elif ByteNum < GB:
-        Str = "%.3f MB"%(1.0 * ByteNum / MB)
-    elif ByteNum < TB:
-        Str = "%.3f GB"%(1.0 * ByteNum / GB)
-    else:
-        Str = "%.3f TB"%(1.0 * ByteNum / TB)
-    return Str
-
 def Unzip(Lists):
     return zip(*Lists)
 
@@ -1339,3 +1297,5 @@ from collections import defaultdict
 def CreateDefaultDict(GetDefaultMethod):
     return defaultdict(GetDefaultMethod)
 GetDefaultDict = CreateDefaultDict
+
+from utils_torch.format import *

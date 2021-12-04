@@ -68,5 +68,5 @@ def PlotAccuracyEpochBatch(LogTrain, LogTest=None, SaveDir=None, SaveName=None, 
         SaveName = "Accuracy~Epoch"
 
     utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + SaveName + ".svg")
-    utils_torch.files.Table2TextFileDict(LogTrain, SavePath=SaveDir + SaveName + ".txt")
+    utils_torch.file.Table2TextFileDict(LogTrain, SavePath=SaveDir + SaveName + ".txt")
     return

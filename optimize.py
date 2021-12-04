@@ -78,7 +78,7 @@ class GradientDescend:
                 Weight.grad.zero_()
         if LogGrad:
             return GradLog
-#utils_torch.transform.SetMethodForModuleClass(GradientDescend)
+#utils_torch.transform.SetMethodForTransformModule(GradientDescend)
 ModuleDict = {
     "GradientDescend": GradientDescend
 }

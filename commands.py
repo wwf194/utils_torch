@@ -24,11 +24,11 @@ def main():
 
 def CleanLog():
     import utils_torch
-    utils_torch.files.RemoveAllFilesAndDirs("./log/")
+    utils_torch.file.RemoveAllFilesAndDirs("./log/")
 
 def CleanFigures():
     import utils_torch
-    utils_torch.files.RemoveMatchedFiles("./", r".*\.png")
+    utils_torch.file.RemoveMatchedFiles("./", r".*\.png")
 
 if __name__=="__main__":
     main()

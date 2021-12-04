@@ -4,18 +4,18 @@ import torch
 import utils_torch
 from utils_torch.attrs import *
 
-DatasetConfigFile = utils_torch.files.GetFileDir(__file__) + "cifar10.jsonc"
+DatasetConfigFile = utils_torch.file.GetFileDir(__file__) + "cifar10.jsonc"
 DatasetConfig = utils_torch.json.JsonFile2PyObj(DatasetConfigFile)
 
 def LoadOriginalFiles(Dir):
-    Files = utils_torch.files.ListFiles(Dir)
+    Files = utils_torch.file.ListFiles(Dir)
     FileMD5s = DatasetConfig.Original.Files.MD5.ToDict()
     FileNames = DatasetConfig.Original.Files.Train + DatasetConfig.Original.Files.Test
     Dict = {}
     for File in Files:
         if File in FileNames:
             assert utils_torch.File2MD5(Dir + File) == FileMD5s[File]
-            DataDict = utils_torch.files.LoadBinaryFilePickle(Dir + File)
+            DataDict = utils_torch.file.LoadBinaryFilePickle(Dir + File)
             keys, values = utils_torch.Unzip(DataDict.items()) # items() cause logic error if altering dict in items() for-loop.
             for key, value in zip(keys, values):
                 if isinstance(key, bytes):
@@ -76,7 +76,7 @@ class DataManagerForEpochBatchTrain:
         cache = self.cache
         UseCachedDataTransform = False
         if HasAttrs(param, "Data.Transform.Md5"):
-            Md5s = utils_torch.files.ListFilesAndCalculateMd5("./cache/", Md5InKeys=True)
+            Md5s = utils_torch.file.ListFilesAndCalculateMd5("./cache/", Md5InKeys=True)
             if param.Data.Transform.Md5 in Md5s.keys():
                 FileName = Md5s[param.Data.Transform.Md5]
                 cache.Data = utils_torch.DataFile2PyObj("./cache/" + FileName)

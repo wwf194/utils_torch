@@ -24,4 +24,4 @@ class Bias(AbstractModuleWithTensor):
         return self.data.Bias
 
 __MainClass__ = Bias
-# utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForTransformModule(__MainClass__)

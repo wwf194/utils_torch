@@ -13,7 +13,7 @@ from matplotlib import pyplot as plt
 from utils_torch.attrs import *
 import utils_torch
 
-class RNNLIF(nn.Module):
+class RNNLIF(utils_torch.module.AbstractTransformModule):
     # Singel-Layer Recurrent Neural Network with Leaky Integrate-and-Fire Dynamics
     def __init__(self, param=None, data=None, **kw):
         super(RNNLIF, self).__init__()
@@ -152,4 +152,4 @@ class RNNLIF(nn.Module):
         # ]
 
 __MainClass__ = RNNLIF
-utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+#utils_torch.transform.SetMethodForTransformModule(__MainClass__)

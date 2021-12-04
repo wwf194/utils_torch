@@ -4,24 +4,32 @@ import torch.nn.functional as F
 
 import utils_torch
 
-from utils_torch.module.AbstractModules import AbstractModule, AbstractModuleWithTensor, AbstractModuleForEpochBatchTrain
+from utils_torch.module.AbstractModules import \
+    AbstractModule, AbstractTransformModuleWithTensor, AbstractModuleForEpochBatchTrain
 
 ModuleList = [
     "LinearLayer", "NonLinearLayer",
     "NoiseGenerator",
-    "RecurrentLIFLayer",
+    "RecurrentLIFLayer", "RNNLIF",
     "LambdaLayer", "Lambda",
-    "MLP",
+    "MLP", 
     "SerialSender", "SerialReceiver", "SignalHolder",
     "NonLinear", # NonLinear Function
     "Bias",
 ]
 def IsLegalModuleType(Type):
-    return Type in ModuleList
+    return Type in ModuleList or utils_torch.transform.Operators.IsLegalModuleType(Type)
 
 def BuildModuleIfIsLegalType(param, **kw):
+    module = utils_torch.transform.Operators.BuildModuleIfIsLegalType(param, **kw)
+    if module is not None:
+        return module
+
     if not IsLegalModuleType(param.Type):
         return None
+    if ModuleDict.get(param.Type) is not None:
+        ModuleClass = ModuleDict[param.Type]
+        return ModuleClass(param, **kw)
     if param.Type in ["LinearLayer"]:
         return LinearLayer(param, **kw)
     elif param.Type in ["NonLinearLayer"]:
@@ -56,6 +64,8 @@ def BuildModuleIfIsLegalType(param, **kw):
         raise Exception()
     else:
         raise Exception("BuildModule: No such module: %s"%param.Type)
+
+
 
 
 def GetNonLinearMethod(param, **kw):
@@ -133,7 +143,6 @@ def BuildModule(param, **kw):
         return BuildModuleFromType(param, **kw)
     else:
         raise Exception()
-
 
 def CalculateWeightChangeRatio(Weight, WeightChange):
     Weight = utils_torch.ToNpArray(Weight)
@@ -390,22 +399,7 @@ def PrintStateDict(optimizer):
         print('%s: %s'%(key, value))
 
 
-def SetTrainWeightForModule(self):
-    ClearTrainWeightForModule(self)
-    cache = self.cache
-    cache.TrainWeight = {}
-    if hasattr(cache, "Modules"):
-        for ModuleName, Module in utils_torch.ListAttrsAndValues(cache.Modules):
-            if hasattr(Module, "SetTrainWeight"):
-                TrainWeight = Module.SetTrainWeight()
-                for name, weight in TrainWeight.items():
-                    cache.TrainWeight[ModuleName + "." + name] = weight
-            else:
-                if isinstance(Module, nn.Module):
-                    utils_torch.AddWarning("Module %s is instance of nn.Module, but has not implemented GetTrainWeight method."%Module)
-        return cache.TrainWeight
-    else:
-        return {}
+
 
 def GetPlotWeightForModule(self):
     cache = self.cache
@@ -655,8 +649,6 @@ def ProcessLogData(data):
     return data
 
 
-def GetTrainWeightForModule(self):
-    return self.cache.TrainWeight
 
 def PlotWeightForModule(self, SaveDir=None):
     if SaveDir is None:
@@ -669,29 +661,7 @@ def PlotWeightForModule(self, SaveDir=None):
             if hasattr(Module,"PlotWeight"):
                 Module.PlotWeight(SaveDir)
 
-def BuildModulesForModule(self):
-    # initialize modules
-    # for module in ListAttrs(param.modules):
-    param = self.param
-    cache = self.cache
-    for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveBase__"]):
-        ModuleParam.Name = Name
-        ModuleParam.FullName = param.FullName + "." + Name
 
-        if not HasAttrs(ModuleParam, "Type"):
-            if HasAttrs(ModuleParam, "Name"):
-                SetAttrs(ModuleParam, "Type", GetAttrs(ModuleParam.Name))
-            else:
-                raise Exception()
-        if ModuleParam.Type in ["Internal", "External"]:
-            continue
-        if cache.IsInit:
-            Module = BuildModule(ModuleParam)
-        else:
-            Module = BuildModule(ModuleParam, LoadDir=cache.LoadDir)
-        if isinstance(Module, nn.Module) and isinstance(self, nn.Module):
-            self.add_module(Name, Module)
-        setattr(cache.Modules, Name, Module)
 
 def LoadFromFileForModule(self, LoadDir, Name, **kw):
     utils_torch.RemoveAttrIfExists(self, "cache")
@@ -821,16 +791,9 @@ def SaveForModule(self, SaveDir, Name=None, IsRoot=True):
             if HasAttrs(module, "Save"):
                 module.Save(SaveDir, IsRoot=False)
 
-def ToNpArrayIfIsTensor(data):
-    if isinstance(data, torch.Tensor):
-        return utils_torch.ToNpArray(data), False
-    else:
-        return data, True
+from utils_torch.module import AbstractTransformModuleWithTensor
 
-def Interest():
-    return
-
-def SetMethodForModuleClass(Class, **kw):
+def SetMethodForTransformModule(Class, **kw):
     HasTensor = kw.setdefault("HasTensor", True)
     Class.Log = LogForModule
     Class.PlotWeight = PlotWeightForModule
@@ -839,12 +802,12 @@ def SetMethodForModuleClass(Class, **kw):
     Class.RegisterExternalMethod = RegisterExternalMethodForModule
     Class.DoInitTasks = DoInitTasksForModule
     if HasTensor:
-        Class.SetTensorLocation = AbstractModuleWithTensor.SetTensorLocation
-        Class.GetTensorLocation = AbstractModuleWithTensor.GetTensorLocation
+        Class.SetTensorLocation = AbstractTransformModuleWithTensor.SetTensorLocation
+        Class.GetTensorLocation = AbstractTransformModuleWithTensor.GetTensorLocation
         if not hasattr(Class, "SetTrainWeight"):
-            Class.SetTrainWeight = SetTrainWeightForModule
+            Class.SetTrainWeight = AbstractTransformModuleWithTensor.SetTrainWeight
         if not hasattr(Class, "GetTrainWeight"):
-            Class.GetTrainWeight = GetTrainWeightForModule
+            Class.GetTrainWeight = AbstractTransformModuleWithTensor.GetTrainWeight
         if not hasattr(Class, "ClearTrainWeight"):
             Class.ClearTrainWeight = ClearTrainWeightForModule
         if not hasattr(Class, "SetPlotWeight"):
@@ -858,7 +821,7 @@ def SetMethodForModuleClass(Class, **kw):
     if not hasattr(Class, "LoadFromFile"):
         Class.LoadFromFile = LoadFromFileForModule
     Class.InitModules = InitModulesForModule
-    Class.BuildModules = BuildModulesForModule
+    Class.BuildModules = utils_torch.module.AbstractTransformModule.BuildModules
     if not hasattr(Class, "ParseRouters"):
         Class.ParseRouters = ParseRoutersForModule
     Class.LogTimeVaryingActivity = LogTimeVaryingActivityForModule
@@ -881,55 +844,13 @@ def SetMethodForNonModelClass(Class, **kw):
     Class.LoadFromParam = LoadFromParamForModule
     Class.RegisterExternalMethod = RegisterExternalMethodForModule
     if HasTensor:
-        Class.SetTensorLocation = AbstractModuleWithTensor.SetTensorLocation
-        Class.GetTensorLocation = AbstractModuleWithTensor.GetTensorLocation
+        Class.SetTensorLocation = AbstractTransformModuleWithTensor.SetTensorLocation
+        Class.GetTensorLocation = AbstractTransformModuleWithTensor.GetTensorLocation
     Class.InitModules = InitModulesForModule
-    Class.BuildModules = BuildModulesForModule
+    Class.BuildModules = AbstractTransformModuleWithTensor.BuildModules
     if not hasattr(Class, "ParseRouters"):
         Class.ParseRouters = ParseRoutersForModule
 
-def ToFileForLogClassDataOnly(self, FilePath):
-    if not FilePath.endswith(".data"):
-        FilePath += ".data"
-    utils_torch.files.PyObj2DataFile(self.data, FilePath)
-    return self
-
-def FromFileForLogClassDataOnly(self, FilePath):
-    assert FilePath.endswith(".data")
-    self.data = utils_torch.files.DataFile2PyObj(FilePath)
-    return self
-
-def ToFileForLogClass(self, SaveName=None, SaveDir=None):
-    if SaveName is None:
-        SaveName = self.param.FullName
-    utils_torch.files.PyObj2DataFile(self.data,  SaveDir + SaveName + ".data")
-    utils_torch.files.PyObj2JsonFile(self.param, SaveDir + SaveName + ".jsonc")
-    return self
-
-def FromFileForLogClass(self, SaveName, SaveDir):
-    self.data  = utils_torch.files.DataFile2PyObj(SaveDir + SaveName + ".data")
-    self.param = utils_torch.files.JsonFile2PyObj(SaveDir + SaveName + ".jsonc")
-    self.cache = utils_torch.EmptyPyObj()
-    return self
-
-def SetMethodForLogClass(Class, **kw):
-    SaveDataOnly = kw.setdefault("SaveDataOnly", False)
-    MountLocation = kw.setdefault("MountLocation", "data")
-    if SaveDataOnly:
-        if not hasattr(Class, "ToFile"):
-            Class.ToFile = ToFileForLogClassDataOnly
-        if not hasattr(Class, "FromFile"):
-            Class.FromFile = FromFileForLogClassDataOnly
-    else:
-        if not hasattr(Class, "ToFile"):
-            Class.ToFile = ToFileForLogClass
-        if not hasattr(Class, "FromFile"):
-            Class.FromFile = FromFileForLogClass
-    # if MountLocation in ["Data", "data"]:
-    #     Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleData
-    # elif MountLocation in ["Cache", "cache"]:
-    #     Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleCache
-    SetEpochBatchMethodForModule(Class, **kw)
 
 
 # def SetEpochIndexForModule(self, EpochIndex):
@@ -957,14 +878,16 @@ from utils_torch.transform.RecurrentLIFLayer import RecurrentLIFLayer
 from utils_torch.transform.NoiseGenerator import NoiseGenerator
 from utils_torch.transform.Bias import Bias
 import utils_torch.transform.Operators as Operators
+
 from utils_torch.transform.SingleLayer import SingleLayer
 from utils_torch.transform.NonLinearLayer import NonLinearLayer
 from utils_torch.transform.LinearLayer import LinearLayer
-from utils_torch.module.AbstractModules import SetEpochBatchMethodForModule
+from utils_torch.transform.RNNLIF import RNNLIF
 
 ModuleDict = {
     "MLP": MLP, "mlp": MLP,
     "SerialReceiver": SerialReceiver, "SerialSend": SerialSender, "SignalHolder": SignalHolder,
     "SingalLayer": SingleLayer, "LinearLayer": LinearLayer, "NonLinearLayer": NonLinearLayer,
     "LambbdaLayer": LambdaLayer,
+    "RNNLIF": RNNLIF
 }

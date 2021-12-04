@@ -90,4 +90,4 @@ class RecurrentLIFLayer(AbstractModuleWithTensor):
         cache = self.cache
         return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])  
 __MainClass__ = RecurrentLIFLayer
-# utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForTransformModule(__MainClass__)

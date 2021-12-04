@@ -34,4 +34,4 @@ class NoiseGenerator(AbstractModule):
         return self.cache.TensorLocation
 
 __MainClass__ = NoiseGenerator
-# utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+# utils_torch.transform.SetMethodForTransformModule(__MainClass__)

@@ -137,7 +137,7 @@ def EnsureFileDirectory(FilePath):
 EnsureFileDir = EnsureFileDirectory
 
 def GetFileDir(FilePath):
-    assert utils_torch.files.IsFile(FilePath)
+    assert utils_torch.file.IsFile(FilePath)
     return os.path.dirname(FilePath) + "/"
 
 def EnsurePath(path, isFolder=False): # check if given path exists. if not, create it.
@@ -434,11 +434,11 @@ def ListFilesAndCalculateMd5(DirPath, Md5InKeys=False):
     Dict = {}
     if Md5InKeys:
         for FileName in Files:
-            Md5 = utils_torch.files.File2Md5(DirPath + FileName)
+            Md5 = utils_torch.file.File2Md5(DirPath + FileName)
             Dict[Md5] = FileName      
     else:
         for FileName in Files:
-            Md5 = utils_torch.files.File2Md5(DirPath + FileName)
+            Md5 = utils_torch.file.File2Md5(DirPath + FileName)
             Dict[FileName] = Md5
     return Dict
 
@@ -527,12 +527,12 @@ def VisitTreeAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw)
     filepaths=[]
     abspath = os.path.abspath(path) # relative path also works well
 
-    Files = utils_torch.files.ListAllFiles(DirPath)
+    Files = utils_torch.file.ListAllFiles(DirPath)
     for File in Files:
         Method(DirPath + File, **kw)
     
     if Recur:
-        Dirs = utils_torch.files.ListAllDirs(DirPath)
+        Dirs = utils_torch.file.ListAllDirs(DirPath)
     for name in os.listdir(abspath):
         FilePath = os.path.join(abspath, name)
         if os.path.isdir(FilePath):
@@ -604,6 +604,12 @@ def _CopyTree(SourceDir, DestDir, **kw):
     for Dir in Dirs:
         EnsureDir(DestDir + Dir)
         _CopyTree(SourceDir + Dir, DestDir + Dir, **kw)
+
+
+def Data2TextFile(data, Name=None, FilePath=None):
+    if FilePath is None:
+        FilePath = utils_torch.GetSavePathFromName(Name, Suffix=".txt")
+    utils_torch.Str2File(str(data), FilePath)
 
 from utils_torch.json import PyObj2DataFile, DataFile2PyObj, PyObj2JsonFile, \
     JsonFile2PyObj, JsonFile2JsonObj, JsonObj2JsonFile, DataFile2JsonObj, JsonObj2DataFile

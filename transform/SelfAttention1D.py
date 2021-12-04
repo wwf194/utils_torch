@@ -91,4 +91,4 @@ class SelfAttention1D(nn.Module):
             self.LogCache("Output", Output, "Activity", log=log)
             return Output
 __MainClass__ = SelfAttention1D
-utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+utils_torch.transform.SetMethodForTransformModule(__MainClass__)

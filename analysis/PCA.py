@@ -79,7 +79,7 @@ class LogForPCAAlongTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
         BatchNum = self.data.BatchNum
         Data.sort(key=lambda Item:Item.EpochIndex + Item.BatchIndex * 1.0 / BatchNum)
         #SCacheSavePath = SaveDir + "Data/" + "EffectiveDimNums.data"
-        # if utils_torch.files.ExistsFile(CacheSavePath):
+        # if utils_torch.file.ExistsFile(CacheSavePath):
         #     EffectiveDimNums = utils_torch.json.DataFile2PyObj(CacheSavePath)
         # else:
         for _Data in Data:
@@ -191,7 +191,7 @@ def PlotPCAAlongTrain(LogsPCA, DataDir=None, SaveDir=None, ContextObj=None):
 def ScanLogPCA(ScanDir=None):
     if ScanDir is None:
         ScanDir = utils_torch.GetMainSaveDir() + "PCA-Analysis-Along-Train-Test/" + "cache/"
-    DataFiles = utils_torch.files.ListFiles(ScanDir)
+    DataFiles = utils_torch.file.ListFiles(ScanDir)
     Logs = []
     for FileName in DataFiles:
         assert FileName.endswith(".data")

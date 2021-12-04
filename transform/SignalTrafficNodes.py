@@ -19,7 +19,7 @@ class SignalHolder(AbstractModule):
         return self.cache.Content
     def Clear(self):
         utils_torch.attrs.RemoveAttrIfExists(self.cache, "Content")
-#utils_torch.transform.SetMethodForModuleClass(SignalHolder, HasTensor=False)
+#utils_torch.transform.SetMethodForTransformModule(SignalHolder, HasTensor=False)
 
 class SerialSender(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
@@ -67,7 +67,7 @@ class SerialSender(AbstractModule):
         Content = self._Send(cache.ContentList, Index=cache.NextSendIndex)
         cache.NextSendIndex += 1
         return Content
-#utils_torch.transform.SetMethodForModuleClass(SerialSender, HasTensor=False)
+#utils_torch.transform.SetMethodForTransformModule(SerialSender, HasTensor=False)
 
 class SerialReceiver(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
@@ -115,4 +115,4 @@ class SerialReceiver(AbstractModule):
         return result
     def SendWithoutFlush(self):
         return self.ContentList
-#utils_torch.transform.SetMethodForModuleClass(SerialReceiver, HasTensor=False)
+#utils_torch.transform.SetMethodForTransformModule(SerialReceiver, HasTensor=False)

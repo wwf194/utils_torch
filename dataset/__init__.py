@@ -8,6 +8,17 @@ ModuleList = [
     "MSCOCO",
 ]
 
+def BuildModuleIfIsLegalType(param, **kw):
+    if IsLegalModuleType(param.Type):
+        if param.Type in ["cifar10", "CIFAR10"]:
+            return cifar10.DataManagerForEpochBatchTrain(param, **kw)
+        elif param.Type in ["MNIST", "mnist"]:
+            return 
+        else:
+            raise Exception(param.Type)
+    else:
+        return None
+
 def IsLegalModuleType(Type):
     return Type in ModuleList
 
@@ -30,8 +41,8 @@ def CalculateBatchNum(BatchSize, SampleNum):
         BatchNum += 1
     return BatchNum
 
-config = utils_torch.files.JsonFile2PyObj(
-    utils_torch.files.GetFileDir(__file__) + "config.jsonc"
+config = utils_torch.file.JsonFile2PyObj(
+    utils_torch.file.GetFileDir(__file__) + "config.jsonc"
 )
 
 def GetDatasetPath(Name):

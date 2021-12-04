@@ -147,4 +147,4 @@ class ConvolutionLayer(nn.Module):
 
         return cache.PlotWeight
 __MainClass__ = ConvolutionLayer
-utils_torch.transform.SetMethodForModuleClass(__MainClass__)
+utils_torch.transform.SetMethodForTransformModule(__MainClass__)
