@@ -113,7 +113,7 @@ def PlotLogList(Name, Log, SaveDir=None, **kw):
         SavePath=SaveDir + "%s-Epoch.txt"%Name
     )
 
-class LogForEpochBatchTrain:
+class LogForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
     def __init__(self, param=None, **kw):
         utils_torch.module.InitForNonModel(self, param, ClassPath="utils_torch.train.LogForEpochBatchTrain", **kw)
         self.InitFromParam(IsLoad=False)
@@ -269,7 +269,7 @@ class LogForEpochBatchTrain:
                 self.PlotLogList(self, Name, Log, SaveDir)
             else:
                 continue
-utils_torch.module.SetEpochBatchMethodForModule(LogForEpochBatchTrain)
+#utils_torch.module.SetEpochBatchMethodForModule(LogForEpochBatchTrain)
 
 class Log:
     def __init__(self, Name, **kw):

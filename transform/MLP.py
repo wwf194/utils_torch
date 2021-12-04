@@ -11,10 +11,12 @@ def InitFromParam(param):
 def load_model(param):
     return
 
-class MLP(torch.nn.Module):
+from utils_torch.module.AbstractModules import AbstractModuleWithTensor
+#from utils_torch.module.__init__ import AbstractModuleWithTensor
+class MLP(AbstractModuleWithTensor):
     def __init__(self, param=None, data=None, **kw):
         super(MLP, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.MLP", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.MLP", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.module.InitFromParamForModule(self, IsLoad)
         param = self.param
@@ -82,4 +84,4 @@ class MLP(torch.nn.Module):
         ]
 
 __MainClass__ = MLP
-utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.module.SetMethodForModuleClass(__MainClass__)

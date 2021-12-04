@@ -7,7 +7,7 @@ from utils_torch.attrs import *
 class L2Loss():
     def __init__(self, param=None, data=None, **kw):
         super(L2Loss, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Loss.L2Loss", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.loss.L2Loss", **kw)
     def __call__(self, Input, *Args):
         return self.forward(Input, *Args)
     def InitFromParam(self, IsLoad=False):

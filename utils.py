@@ -314,6 +314,20 @@ def GetTensorLocation(Method="auto"):
         raise Exception()
     return Location
 
+def BuildModule(param, **kw):
+    if utils_torch.module.BuildModuleIfIsLegalType(param, **kw) is not None:
+        return
+    if utils_torch.loss.IsLegalModuleType(param.Type):
+        return utils_torch.loss.BuildModule(param)
+    elif utils_torch.dataset.IsLegalModuleType(param.Type):
+        utils_torch.dataset.BuildObj(param)
+    elif utils_torch.module.Operators.IsLegalModuleType(param.Type):
+        return utils_torch.module.Operators.BuildModule(param, **kw)
+    elif utils_torch.optimize.IsLegalModuleType(param.Type):
+        return utils_torch.optimize.BuildModule(param, **kw)
+    else:
+        raise Exception()
+
 # def SetTensorLocation(Args):
 #     EnsureAttrs(Args, "Method", default="Auto")
 #     GlobalParam = utils_torch.GetGlobalParam()

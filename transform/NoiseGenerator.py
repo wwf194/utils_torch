@@ -3,11 +3,11 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from utils_torch.attrs import *
-
-class NoiseGenerator(nn.Module):
+from utils_torch.module.AbstractModules import AbstractModule
+class NoiseGenerator(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
         super(NoiseGenerator, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.NoiseGenerator", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.NoiseGenerator", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.module.InitFromParamForModule(self, IsLoad)
         param = self.param
@@ -34,4 +34,4 @@ class NoiseGenerator(nn.Module):
         return self.cache.TensorLocation
 
 __MainClass__ = NoiseGenerator
-utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.module.SetMethodForModuleClass(__MainClass__)

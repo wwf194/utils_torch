@@ -8,7 +8,7 @@ from utils_torch.attrs import *
 class SelfAttention1D(nn.Module):
     def __init__(self, param=None, data=None, **kw):
         super(SelfAttention1D, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.Bias", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.Bias", **kw)
 
     def InitFromParam(self, IsLoad=False):
         utils_torch.module.InitFromParamForModule(self, IsLoad)

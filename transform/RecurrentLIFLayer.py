@@ -15,10 +15,11 @@ DefaultRoutings = [
     "membranePotential |--> &MembranePotentialDecay |--> membranePotential"
 ]
 
-class RecurrentLIFLayer(nn.Module):
+from utils_torch.module.AbstractModules import AbstractModuleWithTensor
+class RecurrentLIFLayer(AbstractModuleWithTensor):
     def __init__(self, param=None, data=None, **kw):
         super(RecurrentLIFLayer, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.RecurrentLIFLayer", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.RecurrentLIFLayer", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.module.InitFromParamForModule(self, IsLoad)
         param = self.param
@@ -89,4 +90,4 @@ class RecurrentLIFLayer(nn.Module):
         cache = self.cache
         return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])  
 __MainClass__ = RecurrentLIFLayer
-utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.module.SetMethodForModuleClass(__MainClass__)

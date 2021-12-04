@@ -1,6 +1,7 @@
 import utils_torch
 from utils_torch.attrs import *
 
+from utils_torch.module.AbstractModules import AbstractModule
 class CheckPointForEpochBatchTrain:
     def __init__(self, param, **kw):
         utils_torch.module.InitForNonModel(self, param, ClassPath="utils_torch.Train.CheckPointForEpochBatchTrain", **kw)
@@ -117,4 +118,4 @@ class CheckPointForEpochBatchTrain:
         return False, None
 
 CheckPointForEpochBatchTrain.IsCheckPoint = True
-utils_torch.module.SetEpochBatchMethodForModule(CheckPointForEpochBatchTrain)
+#utils_torch.module.SetEpochBatchMethodForModule(CheckPointForEpochBatchTrain)

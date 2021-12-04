@@ -4,7 +4,7 @@ import torch.nn.functional as F
 import utils_torch
 from utils_torch.attrs import *
 
-from utils_torch.Loss.L2Loss import L2Loss
+from utils_torch.loss.L2Loss import L2Loss
 
 ModuleList = [
     "L2Loss",
@@ -12,6 +12,11 @@ ModuleList = [
     "MeanSquareError", "MSE",
 ]
 
+def BuildModuleIfIsLegalType(param, **kw):
+    if IsLegalModuleType(param.Type):
+        BuildModule(param, **kw)
+    else:
+        return None
 def IsLegalModuleType(Type):
     return Type in ModuleList
 def BuildModule(param, **kw):

@@ -4,8 +4,8 @@ import torch.nn.functional as F
 
 import utils_torch
 from utils_torch.attrs import *
-
-class SingleLayer(nn.Module):
+from utils_torch.module import AbstractModuleWithTensor
+class SingleLayer(AbstractModuleWithTensor):
     def __init__(self):
         super(SingleLayer, self).__init__()
     def InitFromParam(self, IsLoad=False):
@@ -147,4 +147,4 @@ class SingleLayer(nn.Module):
 
         return cache.PlotWeight
 __MainClass__ = SingleLayer
-utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.module.SetMethodForModuleClass(__MainClass__)

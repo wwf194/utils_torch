@@ -4,6 +4,16 @@ from utils_torch.attrs import *
 
 from collections import defaultdict
 
+def IsLegalModuleType(Type):
+    return Type in ModuleDict
+
+def BuildModuleIfIsLegalType(param, **kw):
+    if IsLegalModuleType(param.Type):
+        if param.Type in ["GradientDescend"]:
+            return GradientDescend(param, **kw)
+    else:
+        return None
+
 def ParseOptimizeParamEpochBatch(param):
     EnsureAttrs(param, "Nesterov", value=False)
     EnsureAttrs(param, "Dampening", value=0.0)
@@ -68,6 +78,7 @@ class GradientDescend:
                 Weight.grad.zero_()
         if LogGrad:
             return GradLog
-
-
-utils_torch.module.SetMethodForModuleClass(GradientDescend)
+#utils_torch.module.SetMethodForModuleClass(GradientDescend)
+ModuleDict = {
+    "GradientDescend": GradientDescend
+}

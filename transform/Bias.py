@@ -5,10 +5,11 @@ import torch.nn.functional as F
 import utils_torch
 from utils_torch.attrs import *
 
-class Bias(nn.Module):
+from utils_torch.module.AbstractModules import AbstractModuleWithTensor
+class Bias(AbstractModuleWithTensor):
     def __init__(self, param=None, data=None, **kw):
         super(Bias, self).__init__()
-        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.Modules.Bias", **kw)
+        utils_torch.module.InitForModule(self, param, data, ClassPath="utils_torch.module.Bias", **kw)
     def InitFromParam(self, IsLoad=False):
         utils_torch.module.InitFromParamForModule(self, IsLoad)
         param = self.param
@@ -23,4 +24,4 @@ class Bias(nn.Module):
         return self.data.Bias
 
 __MainClass__ = Bias
-utils_torch.module.SetMethodForModuleClass(__MainClass__)
+# utils_torch.module.SetMethodForModuleClass(__MainClass__)

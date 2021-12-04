@@ -1,3 +1,116 @@
+import torch.optim as optim
+import torch.nn as nn
+import torch.nn.functional as F
+
+import utils_torch
+
+from utils_torch.module.AbstractModules import AbstractModule, AbstractModuleWithTensor, AbstractModuleForEpochBatchTrain
+
+ModuleList = [
+    "LinearLayer", "NonLinearLayer",
+    "NoiseGenerator",
+    "RecurrentLIFLayer",
+    "LambdaLayer", "Lambda",
+    "MLP",
+    "SerialSender", "SerialReceiver", "SignalHolder",
+    "NonLinear", # NonLinear Function
+    "Bias",
+]
+def IsLegalModuleType(Type):
+    return Type in ModuleList
+
+def BuildModuleIfIsLegalType(param, **kw):
+
+    
+    assert utils_torch.module.IsLegalModuleType(param.Type)
+    
+    if param.Type in ["LinearLayer"]:
+        return LinearLayer(param, **kw)
+    elif param.Type in ["NonLinearLayer"]:
+        return NonLinearLayer(param, **kw)
+    elif param.Type in ["MLP", "MultiLayerPerceptron", "mlp"]:
+        return MLP(param, **kw)
+    elif param.Type in ["SerialReceiver"]:
+        return SerialReceiver(param, **kw)
+    elif param.Type in ["SerialSender"]:
+        return SerialSender(param, **kw)
+    elif param.Type in ["SignalHolder"]:
+        return SignalHolder(param, **kw)
+    elif param.Type in ["Lambda", "LambdaLayer"]:
+        return LambdaLayer(param, **kw)
+    elif param.Type in ["RecurrentLIFLayer"]:
+        return RecurrentLIFLayer(param, **kw)
+    elif param.Type in ["NoiseGenerator"]:
+        return NoiseGenerator(param, **kw)
+    elif param.Type in ["Bias"]:
+        return Bias(param, **kw)
+    elif param.Type in ["NonLinear"]:
+        return GetNonLinearMethod(param, **kw)
+    elif param.Type in ["GradientDescend"]:
+        return utils_torch.optimize.GradientDescend(param, **kw)
+    elif param.Type in ["CheckPointForEpochBatchTrain"]:
+        return utils_torch.train.CheckPointForEpochBatchTrain(param, **kw)
+    elif param.Type in ["Internal"]:
+        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type Internal.")
+        raise Exception()
+    elif param.Type in ["External"]:
+        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type External.")
+        raise Exception()
+    else:
+        raise Exception("BuildModule: No such module: %s"%param.Type)
+
+
+def GetNonLinearMethod(param, **kw):
+    param = ParseNonLinearMethod(param)
+    if param.Type in ["NonLinear"]:
+        if hasattr(param, "Subtype"):
+            Type = param.Subtype
+    else:
+        Type = param.Type
+
+    if Type in ["relu", "ReLU"]:
+        if param.Coefficient==1.0:
+            return F.relu
+        else:
+            return lambda x:param.Coefficient * F.relu(x)
+    elif Type in ["tanh", "Tanh"]:
+        if param.Coefficient==1.0:
+            return F.tanh
+        else:
+            return lambda x:param.Coefficient * F.tanh(x)       
+    elif Type in ["sigmoid", "Sigmoid"]:
+        if param.Coefficient==1.0:
+            return F.tanh
+        else:
+            return lambda x:param.Coefficient * F.tanh(x)         
+    else:
+        raise Exception("GetNonLinearMethod: Invalid nonlinear function Type: %s"%param.Type)
+GetActivationFunction = GetNonLinearMethod
+
+def ParseNonLinearMethod(param):
+    if isinstance(param, str):
+        param = utils_torch.PyObj({
+            "Type": param,
+            "Coefficient": 1.0
+        })
+    elif isinstance(param, list):
+        if len(param)==2:
+            param = utils_torch.PyObj({
+                "Type": param[0],
+                "Coefficient": param[1]
+            })
+        else:
+            # to be implemented
+            pass
+    elif isinstance(param, utils_torch.PyObj):
+        if not hasattr(param, "Coefficient"):
+            param.Coefficient = 1.0
+    else:
+        raise Exception("ParseNonLinearMethod: invalid param Type: %s"%type(param))
+    return param
+
+ModuleList = set(ModuleList)
+
 
 import re
 import torch
@@ -23,31 +136,6 @@ def BuildModule(param, **kw):
     else:
         raise Exception()
 
-def BuildModuleFromType(param, **kw):
-    if utils_torch.Modules.IsLegalModuleType(param.Type):
-        return utils_torch.Modules.BuildModule(param, **kw)
-    elif utils_torch.Loss.IsLegalModuleType(param.Type):
-        return utils_torch.Loss.BuildModule(param)
-    elif utils_torch.dataset.IsLegalModuleType(param.Type):
-        utils_torch.dataset.BuildObj(param)
-    elif utils_torch.Modules.Operators.IsLegalModuleType(param.Type):
-        return utils_torch.Modules.Operators.BuildModule(param, **kw)
-    elif param.Type in ["GradientDescend"]:
-        return utils_torch.optimize.GradientDescend(param, **kw)
-    elif param.Type in ["CheckPointForEpochBatchTrain"]:
-        return utils_torch.train.CheckPointForEpochBatchTrain(param, **kw)
-    elif hasattr(param, "ModulePath"):
-        Module = utils_torch.ImportModule(param.ModulePath)
-        Obj = Module.__MainClass__(param, **kw)
-        return Obj
-    elif param.Type in ["Internal"]:
-        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type Internal.")
-        raise Exception()
-    elif param.Type in ["External"]:
-        utils_torch.AddWarning("utils_torch.module.BuildModule does not build Module of type External.")
-        raise Exception()
-    else:
-        raise Exception("BuildModule: No such module: %s"%param.Type)
 
 def CalculateWeightChangeRatio(Weight, WeightChange):
     Weight = utils_torch.ToNpArray(Weight)
@@ -303,20 +391,6 @@ def PrintStateDict(optimizer):
     for key, value in dict_.items():
         print('%s: %s'%(key, value))
 
-def SetTensorLocationForModule(self, Location):
-    cache = self.cache
-    cache.TensorLocation = Location
-    if hasattr(cache, "Tensors"):
-        for ParamIndex in cache.Tensors:
-            setattr(ParamIndex[0], ParamIndex[1], ParamIndex[2].to(Location).detach().requires_grad_(True))
-
-    if hasattr(cache, "Modules"):
-        for name, module in ListAttrsAndValues(cache.Modules):
-            if hasattr(module, "SetTensorLocation"):
-                module.SetTensorLocation(Location)
-            else:
-                if isinstance(module, nn.Module):
-                    utils_torch.AddWarning("%s is an instance of nn.Module, but has not implemented SetTensorLocation method."%name)
 
 def SetTrainWeightForModule(self):
     ClearTrainWeightForModule(self)
@@ -582,8 +656,6 @@ def ProcessLogData(data):
         data = utils_torch.Tensor2NumpyOrFloat(data)
     return data
 
-def GetTensorLocationForModule(self):
-    return self.cache.TensorLocation
 
 def GetTrainWeightForModule(self):
     return self.cache.TrainWeight
@@ -707,7 +779,7 @@ def ParseRoutersForModule(self):
     
     ObjRefList = [
         cache.Modules, cache.Dynamics, cache,
-        param, self, utils_torch.Modules.Operators,
+        param, self, utils_torch.module.Operators,
     ]
     if hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
         ObjRefList += GlobalParam.cache.AdditionalObjRefListForParseRouters
@@ -769,8 +841,8 @@ def SetMethodForModuleClass(Class, **kw):
     Class.RegisterExternalMethod = RegisterExternalMethodForModule
     Class.DoInitTasks = DoInitTasksForModule
     if HasTensor:
-        Class.SetTensorLocation = SetTensorLocationForModule
-        Class.GetTensorLocation = GetTensorLocationForModule
+        Class.SetTensorLocation = AbstractModuleWithTensor.SetTensorLocation
+        Class.GetTensorLocation = AbstractModuleWithTensor.GetTensorLocation
         if not hasattr(Class, "SetTrainWeight"):
             Class.SetTrainWeight = SetTrainWeightForModule
         if not hasattr(Class, "GetTrainWeight"):
@@ -811,8 +883,8 @@ def SetMethodForNonModelClass(Class, **kw):
     Class.LoadFromParam = LoadFromParamForModule
     Class.RegisterExternalMethod = RegisterExternalMethodForModule
     if HasTensor:
-        Class.SetTensorLocation = SetTensorLocationForModule
-        Class.GetTensorLocation = GetTensorLocationForModule
+        Class.SetTensorLocation = AbstractModuleWithTensor.SetTensorLocation
+        Class.GetTensorLocation = AbstractModuleWithTensor.GetTensorLocation
     Class.InitModules = InitModulesForModule
     Class.BuildModules = BuildModulesForModule
     if not hasattr(Class, "ParseRouters"):
@@ -861,13 +933,6 @@ def SetMethodForLogClass(Class, **kw):
     #     Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleCache
     SetEpochBatchMethodForModule(Class, **kw)
 
-def SetEpochBatchIndexForModuleData(self, EpochIndex, BatchIndex):
-    self.data.EpochIndex = EpochIndex
-    self.data.BatchIndex = BatchIndex
-
-def SetEpochBatchIndexForModuleCache(self, EpochIndex, BatchIndex):
-    self.cache.EpochIndex = EpochIndex
-    self.cache.BatchIndex = BatchIndex
 
 # def SetEpochIndexForModule(self, EpochIndex):
 #     self.cache.EpochIndex = EpochIndex
@@ -881,51 +946,22 @@ def SetEpochBatchIndexForModuleCache(self, EpochIndex, BatchIndex):
 # def SetBatchNumForModule(self, BatchNum):
 #     self.cache.BatchNum = BatchNum
 
-def SetEpochBatchMethodForModule(Class, **kw):
-    MountLocation = kw.setdefault("MountLocation", "cache")
-    if MountLocation in ["Cache", "cache"]:
-        if not hasattr(Class, "SetEpochIndex"):
-            Class.SetEpochIndex = lambda self, EpochIndex:setattr(self.cache, "EpochIndex", EpochIndex)
-        if not hasattr(Class, "SetBatchIndex"):
-            Class.SetBatchIndex = lambda self, EpochIndex:setattr(self.cache, "BatchIndex", EpochIndex)
-        if not hasattr(Class, "SetEpochNum"):
-            Class.SetEpochNum = lambda self, EpochNum:setattr(self.cache, "EpochNum", EpochNum)
-        if not hasattr(Class, "SetBatchNum"):
-            Class.SetBatchNum = lambda self, BatchNum:setattr(self.cache, "BatchNum", BatchNum)
-        if not hasattr(Class, "GetEpochIndex"):
-            Class.GetEpochIndex = lambda self:self.cache.EpochIndex
-        if not hasattr(Class, "GetBatchIndex"):
-            Class.GetBatchIndex = lambda self:self.cache.BatchIndex
-        if not hasattr(Class, "GetEpochNum"):
-            Class.GetEpochNum = lambda self:self.cache.EpochNum
-        if not hasattr(Class, "GetBatchNum"):
-            Class.GetBatchNum = lambda self:self.cache.BatchNum
-    elif MountLocation in ["Data", "data"]:
-        if not hasattr(Class, "SetEpochIndex"):
-            Class.SetEpochIndex = lambda self, EpochIndex:setattr(self.data, "EpochIndex", EpochIndex)
-        if not hasattr(Class, "SetBatchIndex"):
-            Class.SetBatchIndex = lambda self, EpochIndex:setattr(self.data, "BatchIndex", EpochIndex)
-        if not hasattr(Class, "SetEpochNum"):
-            Class.SetEpochNum = lambda self, EpochNum:setattr(self.data, "EpochNum", EpochNum)
-        if not hasattr(Class, "SetBatchNum"):
-            Class.SetBatchNum = lambda self, BatchNum:setattr(self.data, "BatchNum", BatchNum)
-        if not hasattr(Class, "GetEpochIndex"):
-            Class.GetEpochIndex = lambda self:self.data.EpochIndex
-        if not hasattr(Class, "GetBatchIndex"):
-            Class.GetBatchIndex = lambda self:self.data.BatchIndex
-        if not hasattr(Class, "GetEpochNum"):
-            Class.GetEpochNum = lambda self:self.data.EpochNum
-        if not hasattr(Class, "GetBatchNum"):
-            Class.GetBatchNum = lambda self:self.data.BatchNum
-        if not hasattr(Class, "SetEpochBatchIndex"):
-            Class.SetEpochBatchIndex = SetEpochBatchIndexForModuleData
-    else:
-        raise Exception(MountLocation)
+
 
 def ParseParamForModule(self, **kw):
     GlobalParam = utils_torch.GetGlobalParam()
     utils_torch.parse.ParsePyObjStatic(self.param, ObjCurrent=self.param, ObjRoot=GlobalParam)
 
-class Module:
-    def OverwriteParamForModule(self, ParamPath, Value):
-        SetAttrs(self.param, ParamPath, value=Value)
+from utils_torch.module.MLP import MLP
+from utils_torch.module.SignalTrafficNodes import SerialReceiver
+from utils_torch.module.SignalTrafficNodes import SerialSender
+from utils_torch.module.SignalTrafficNodes import SignalHolder
+from utils_torch.module.LambdaLayer import LambdaLayer
+from utils_torch.module.RecurrentLIFLayer import RecurrentLIFLayer
+from utils_torch.module.NoiseGenerator import NoiseGenerator
+from utils_torch.module.Bias import Bias
+import utils_torch.module.Operators as Operators
+from utils_torch.module.SingleLayer import SingleLayer
+from utils_torch.module.NonLinearLayer import NonLinearLayer
+from utils_torch.module.LinearLayer import LinearLayer
+from utils_torch.module.AbstractModules import SetEpochBatchMethodForModule

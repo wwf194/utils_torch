@@ -48,10 +48,12 @@ def FunctionsOutputs2List(Functions):
     return Outputs
 # Operators.FunctionsOutputs2List = FunctionsOutputs2List
 
-class FunctionsOutputs:
+
+from utils_torch.module.AbstractModules import AbstractModule
+class FunctionsOutputs(AbstractModule):
     def __init__(self, param=None, data=None, **kw):
         utils_torch.module.InitForModule(self, param, data, 
-            ClassPath="utils_torch.Modules.Operators.FunctionsOutputs", **kw)
+            ClassPath="utils_torch.module.Operators.FunctionsOutputs", **kw)
     def InitFromParam(self, IsLoad=False):
         param = self.param
         cache = self.cache
@@ -68,7 +70,7 @@ class FunctionsOutputs:
         return self.forward()
     def forward(self):
         return FunctionsOutputs2List(self.cache.Functions)
-utils_torch.module.SetMethodForModuleClass(FunctionsOutputs)
+#utils_torch.module.SetMethodForModuleClass(FunctionsOutputs)
 OperatorList.append("FunctionsOutputs")
 
 def CalculateGradient(loss):
@@ -106,11 +108,11 @@ OperatorList.append("Data2TextFile")
 from utils_torch.plot import CompareDensityCurve
 OperatorList.append("CompareDensityCurve")
 
-from utils_torch.train import ClearGrad
-OperatorList.append("ClearGrad")
+# from utils_torch.train import ClearGrad
+# OperatorList.append("ClearGrad")
 
-from utils_torch.train import Probability2MostProbableIndex
-OperatorList.append("Probability2MostProbableIndex")
+# from utils_torch.train import Probability2MostProbableIndex
+# OperatorList.append("Probability2MostProbableIndex")
 
 from utils_torch.module import LogAccuracyForSingleClassPrediction
 OperatorList.append("LogAccuracyForSingleClassPrediction")
