@@ -7,12 +7,18 @@ import utils_torch
 from utils_torch.attrs import *
 
 from utils_torch.module.AbstractModules import AbstractModule
-class SignalHolder(AbstractModule):
-    def __init__(self, param=None, data=None, **kw):
-        kw.setdefault("HasTensor", False)
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.SignalHolder", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+class SignalHolder(utils_torch.module.AbstractModuleWithoutParam):
+    # def __init__(self, param=None, data=None, **kw):
+    #     kw.setdefault("HasTensor", False)
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.SignalHolder", **kw)
+    HasTensor = False
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        return
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
+        return
+        
     def Receive(self, Obj):
         self.cache.Content = Obj
     def Send(self):
@@ -21,12 +27,15 @@ class SignalHolder(AbstractModule):
         utils_torch.attrs.RemoveAttrIfExists(self.cache, "Content")
 #utils_torch.transform.SetMethodForTransformModule(SignalHolder, HasTensor=False)
 
-class SerialSender(AbstractModule):
-    def __init__(self, param=None, data=None, **kw):
-        #super(SerialSender, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data,  ClassPath="utils_torch.transform.SerialSender", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+from utils_torch.transform import AbstractTransform
+class SerialSender(AbstractTransform):
+    # def __init__(self, param=None, data=None, **kw):
+    #     #super(SerialSender, self).__init__()
+    #     self.InitModule(self, param, data,  ClassPath="utils_torch.transform.SerialSender", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
         cache.ContentList = []
@@ -69,11 +78,13 @@ class SerialSender(AbstractModule):
         return Content
 #utils_torch.transform.SetMethodForTransformModule(SerialSender, HasTensor=False)
 
-class SerialReceiver(AbstractModule):
-    def __init__(self, param=None, data=None, **kw):
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.SerialReceiver", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+class SerialReceiver(AbstractTransform):
+    # def __init__(self, param=None, data=None, **kw):
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.SerialReceiver", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         cache = self.cache
         self.ContentList = []
         self.SetSendMethod()

@@ -6,15 +6,17 @@ import torch.nn.functional as F
 from utils_torch.attrs import *
 from utils_torch.transform.SingleLayer import SingleLayer
 class LinearLayer(SingleLayer):
-    def __init__(self, param=None, data=None, **kw):
-        super().__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.LinearLayer", **kw)
-    def InitFromParam(self, param=None, IsLoad=False):
-        super().InitFromParam(IsLoad)
+    # def __init__(self, param=None, data=None, **kw):
+    #     super().__init__()
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.LinearLayer", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, param=None, IsLoad=False):
+        self.BeforeBuild(IsLoad=IsLoad)
+        super().Build(IsLoad=IsLoad)  
         param = self.param
         data = self.data
         cache = self.cache
-
         SetAttrs(param, "Type", value="LinearLayer")
         EnsureAttrs(param, "Subtype", default="Wx+b")     
 

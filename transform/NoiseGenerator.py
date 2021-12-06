@@ -4,12 +4,16 @@ import torch.nn.functional as F
 
 from utils_torch.attrs import *
 from utils_torch.module.AbstractModules import AbstractModule
-class NoiseGenerator(AbstractModule):
-    def __init__(self, param=None, data=None, **kw):
-        super(NoiseGenerator, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.NoiseGenerator", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+class NoiseGenerator(utils_torch.module.AbstractModuleWithParam):
+    # def __init__(self, param=None, data=None, **kw):
+    #     super(NoiseGenerator, self).__init__()
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.NoiseGenerator", **kw)
+    HasTensor = False
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        return
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
         if param.Method in ["Adaptive"]:

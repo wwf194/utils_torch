@@ -5,20 +5,23 @@ import torch.nn.functional as F
 import utils_torch
 from utils_torch.attrs import GetAttrs, SetAttrs, HasAttrs, EnsureAttrs
 
-def InitFromParam(param):
+def Build(param):
     # to be implemented
     return
 def load_model(param):
     return
 
-from utils_torch.module.AbstractModules import AbstractModuleWithTensor
-#from utils_torch.transform.__init__ import AbstractModuleWithTensor
-class MLP(AbstractModuleWithTensor):
-    def __init__(self, param=None, data=None, **kw):
-        super(MLP, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.MLP", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+from utils_torch.transform import AbstractTransformWithTensor
+#from utils_torch.transform.__init__ import AbstractTransformWithTensor
+class MLP(AbstractTransformWithTensor):
+    #def __init__(self, param=None, data=None, **kw):
+        # super(MLP, self).__init__()
+        # self.InitModule(self, param, data, ClassPath="utils_torch.transform.MLP", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        return
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -70,7 +73,7 @@ class MLP(AbstractModuleWithTensor):
             cache.Layers.append(Layer)             
             self.add_module("Layer%d"%LayerIndex, Layer)
         for Layer in cache.Layers:
-            Layer.InitFromParam(IsLoad=cache.IsLoad)
+            Layer.Build(IsLoad=cache.IsLoad)
         
     def forward(self, Input):
         cache = self.cache

@@ -5,13 +5,15 @@ import torch.nn.functional as F
 import utils_torch
 from utils_torch.attrs import *
 
-from utils_torch.module.AbstractModules import AbstractModuleWithTensor
-class Bias(AbstractModuleWithTensor):
-    def __init__(self, param=None, data=None, **kw):
-        super(Bias, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.Bias", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+from utils_torch.transform import AbstractTransformWithTensor
+class Bias(AbstractTransformWithTensor):
+    # def __init__(self, param=None, data=None, **kw):
+    #     super(Bias, self).__init__()
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.Bias", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         data = self.data
         cache = self.cache

@@ -4,14 +4,15 @@ import torch.nn.functional as F
 
 from utils_torch.attrs import *
 
-class L2Loss():
-    def __init__(self, param=None, data=None, **kw):
-        super(L2Loss, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.loss.L2Loss", **kw)
+class L2Loss(utils_torch.module.AbstractModuleWithParam):
+    #def __init__(self, param=None, data=None, **kw):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        # self.InitModule(self, param, data, ClassPath="utils_torch.loss.L2Loss", **kw)
     def __call__(self, Input, *Args):
         return self.forward(Input, *Args)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
@@ -72,4 +73,4 @@ class L2Loss():
         return self.cache.Coefficient
 
 __MainClass__ = L2Loss
-utils_torch.transform.SetMethodForTransformModule(__MainClass__)
+#utils_torch.transform.SetMethodForTransformModule(__MainClass__)

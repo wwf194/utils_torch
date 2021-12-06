@@ -251,8 +251,6 @@ def _ParsePyObjDynamicMultiRefs(Obj, parent, Attr, RaiseFailedParse, **kw):
         for Attr, Value in ListAttrsAndValues(Obj, ExcludeCache=False):
             setattr(ObjParsed, Attr, _ParsePyObjDynamicMultiRefs(getattr(Obj, Attr), parent, Attr, RaiseFailedParse, **kw))
     elif isinstance(Obj, str):
-        # if Obj in ["#utils_torch.GetMainSaveDir"]:
-        #     print("aaa")
         if "#" in Obj:
             ObjParsed, success = ParseStrWithWell(Obj, Dynamic=True, **kw)
             if success:
@@ -412,7 +410,7 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
         pass
 
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
-    if Obj in ["$Loss.Prediction"]:
+    if Obj in ["$~Loss.Prediction"]:
         print("aaa")
     # if Obj in ["$Batch.Size"]:
     #     print("aaa")
@@ -589,6 +587,7 @@ def ParseStrLocal(Str, Dynamic=False, **kw):
     return Str, success 
 
 def _ParsePyObjStatic(Obj, parent, Attr, **kw):
+
 
     if isinstance(Obj, list):
         ObjParsed = []

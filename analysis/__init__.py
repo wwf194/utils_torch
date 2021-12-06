@@ -15,14 +15,14 @@ def AnalyzeTimeVaryingActivitiesEpochBatch(Logs, PlotIndex=0, SaveDir=None, Cont
         BatchIndex = activity["Batch"]
         activity = activity["Value"]
         _name = "%s-Epoch%d-Batch%d-No%d"%(name, ContextObj.EpochIndex, ContextObj.BatchIndex, PlotIndex)
-        utils_torch.analysis.AnalyzeTimeVaryingActivity(
+        utils_torch.analysis.AnalyzeActivityAlongTime(
             activity,
             PlotIndex=PlotIndex,
             Name=_name, 
             SavePath=SaveDir + "%s/%s.svg"%(name, _name),
         )
 
-def AnalyzeTimeVaryingActivity(activity, PlotIndex, Name=None, SavePath=None):
+def AnalyzeActivityAlongTime(activity, PlotIndex, Name=None, SavePath=None):
     utils_torch.plot.PlotActivityAndDistributionAlongTime(
         axes=None,
         activity=activity,

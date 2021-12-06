@@ -4,25 +4,36 @@ from utils_torch.attrs import *
 
 from collections import defaultdict
 
-def IsLegalModuleType(Type):
-    return Type in ModuleDict
-
 def BuildModuleIfIsLegalType(param, **kw):
-    if IsLegalModuleType(param.Type):
-        if param.Type in ["GradientDescend"]:
-            return GradientDescend(param, **kw)
+    if isinstance(param, str):
+        Type = param
+    else:
+        Type = param.Type
+    
+    if IsLegalModuleType(Type):
+        if Type in ["GradientDescend"]:
+            #return GradientDescend(**kw)
+            return GradientDescend(**kw)
+        else:
+            raise Exception(Type)
     else:
         return None
+
+def IsLegalModuleType(Type):
+    return Type in ModuleDict
 
 def ParseOptimizeParamEpochBatch(param):
     EnsureAttrs(param, "Nesterov", value=False)
     EnsureAttrs(param, "Dampening", value=0.0)
     EnsureAttrs(param, "Momentum", value=0.0)
 
-class GradientDescend:
-    def __init__(self, param=None, data=None, **kw):
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.optimize.GradientDescend")
-    def InitFromParam(self, IsLoad=False):
+class GradientDescend(utils_torch.module.AbstractModuleWithParam):
+    # def __init__(self, param=None, data=None, **kw):
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.optimize.GradientDescend")
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         cache = self.cache
         cache.IsLoad = IsLoad
         cache.IsInit = not IsLoad

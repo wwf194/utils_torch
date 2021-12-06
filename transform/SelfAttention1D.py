@@ -6,12 +6,15 @@ import utils_torch
 from utils_torch.attrs import *
 
 class SelfAttention1D(nn.Module):
-    def __init__(self, param=None, data=None, **kw):
-        super(SelfAttention1D, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.Bias", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        return
+    # def __init__(self, param=None, data=None, **kw):
+    #     super(SelfAttention1D, self).__init__()
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.Bias", **kw)
 
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         data = self.data
         cache = self.cache

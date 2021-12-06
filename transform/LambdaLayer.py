@@ -4,13 +4,15 @@ import torch.nn.functional as F
 
 from utils_torch.attrs import *
 
-from utils_torch.module.AbstractModules import AbstractModule
-class LambdaLayer(AbstractModule):
-    def __init__(self, param=None, data=None, **kw):
-        super(LambdaLayer, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.LambdaLayer", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+from utils_torch.transform import AbstractTransform
+class LambdaLayer(AbstractTransform):
+    # def __init__(self, param=None, data=None, **kw):
+    #     super(LambdaLayer, self).__init__()
+    #     #self.InitModule(self, param, data, ClassPath="utils_torch.transform.LambdaLayer", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         self.forward = utils_torch.parse.ResolveStr(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)
         return

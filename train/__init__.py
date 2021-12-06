@@ -33,7 +33,6 @@ def NotifyBatchNum(ObjList, BatchNum):
     for Obj in ObjList:
         Obj.NotifyBatchNum(BatchNum)
 
-                
 def ParseRoutersFromTrainParam(param, **kw):
     Routers = utils_torch.PyObj()
     for Name, RouterParam in ListAttrsAndValues(param.Batch.Routers):
@@ -87,11 +86,6 @@ def Labels2OneHotVectors(Labels, VectorSize=None):
     OneHotVectors[range(SampleNum), Labels] = 1
     return OneHotVectors
 
-def Probability2MostProbableIndex(Probability):
-    # Probability: [BatchSize, ClassNum]
-    #Max, MaxIndices = torch.max(Probability, dim=1)
-    #return utils_torch.TorchTensor2NpArray(MaxIndices) # [BatchSize]
-    return torch.argmax(Probability, axis=1)
 
 # def Probability2MaxIndex(Probability):
 #     # Probability: [BatchSize, ClassNum]
@@ -148,4 +142,72 @@ def GetEpochBatchIndexFromPyObj(Obj):
     return EpochIndex, BatchIndex
 
 from utils_torch.train.CheckPoint import CheckPointForEpochBatchTrain
-from utils_torch.train.Trainer import TrainerForEpochBatchTrain
+from utils_torch.train.Trainer import TrainerEpochBatch
+
+
+def ClearBatch(self, Obj):
+    Obj.BatchIndex = 0
+def ClearEpoch(self, Obj):
+    Obj.EpochIndex = 0
+def AddBatchIndex(self, Obj):
+    Obj.BatchIndex += 1
+def AddEpochIndex(self, Obj):
+    Obj.EpochIndex += 1
+    
+def SetEpochBatchMethodForModule(Class, **kw):
+    MountLocation = kw.setdefault("MountLocation", "cache")
+    if MountLocation in ["Cache", "cache"]:
+        if not hasattr(Class, "SetEpochIndex"):
+            Class.SetEpochIndex = lambda self, EpochIndex:setattr(self.cache, "EpochIndex", EpochIndex)
+        if not hasattr(Class, "SetBatchIndex"):
+            Class.SetBatchIndex = lambda self, BatchIndex:setattr(self.cache, "BatchIndex", BatchIndex)
+        if not hasattr(Class, "SetEpochNum"):
+            Class.SetEpochNum = lambda self, EpochNum:setattr(self.cache, "EpochNum", EpochNum)
+        if not hasattr(Class, "SetBatchNum"):
+            Class.SetBatchNum = lambda self, BatchNum:setattr(self.cache, "BatchNum", BatchNum)
+        if not hasattr(Class, "GetEpochIndex"):
+            Class.GetEpochIndex = lambda self:self.cache.EpochIndex
+        if not hasattr(Class, "GetBatchIndex"):
+            Class.GetBatchIndex = lambda self:self.cache.BatchIndex
+        if not hasattr(Class, "GetEpochNum"):
+            Class.GetEpochNum = lambda self:self.cache.EpochNum
+        if not hasattr(Class, "GetBatchNum"):
+            Class.GetBatchNum = lambda self:self.cache.BatchNum
+        if not hasattr(Class, "ClearBatch"):
+            Class.ClearBatch = lambda self:ClearBatch(self, self.cache)
+        if not hasattr(Class, "ClearEpoch"):
+            Class.ClearBatch = lambda self:ClearEpoch(self, self.cache)
+        if not hasattr(Class, "AddBatchIndex"):
+            Class.ClearBatch = lambda self:AddBatchIndex(self, self.cache)
+        if not hasattr(Class, "AddEpochIndex"):
+            Class.ClearBatch = lambda self:AddEpochIndex(self, self.cache)
+
+    elif MountLocation in ["Data", "data"]:
+        if not hasattr(Class, "SetEpochIndex"):
+            Class.SetEpochIndex = lambda self, EpochIndex:setattr(self.data, "EpochIndex", EpochIndex)
+        if not hasattr(Class, "SetBatchIndex"):
+            Class.SetBatchIndex = lambda self, BatchIndex:setattr(self.data, "BatchIndex", BatchIndex)
+        if not hasattr(Class, "SetEpochNum"):
+            Class.SetEpochNum = lambda self, EpochNum:setattr(self.data, "EpochNum", EpochNum)
+        if not hasattr(Class, "SetBatchNum"):
+            Class.SetBatchNum = lambda self, BatchNum:setattr(self.data, "BatchNum", BatchNum)
+        if not hasattr(Class, "GetEpochIndex"):
+            Class.GetEpochIndex = lambda self:self.data.EpochIndex
+        if not hasattr(Class, "GetBatchIndex"):
+            Class.GetBatchIndex = lambda self:self.data.BatchIndex
+        if not hasattr(Class, "GetEpochNum"):
+            Class.GetEpochNum = lambda self:self.data.EpochNum
+        if not hasattr(Class, "GetBatchNum"):
+            Class.GetBatchNum = lambda self:self.data.BatchNum
+        if not hasattr(Class, "ClearBatch"):
+            Class.ClearBatch = lambda self:ClearBatch(self, self.data)
+        if not hasattr(Class, "ClearEpoch"):
+            Class.ClearBatch = lambda self:ClearEpoch(self, self.data)
+        if not hasattr(Class, "AddBatchIndex"):
+            Class.ClearBatch = lambda self:AddBatchIndex(self, self.data)
+        if not hasattr(Class, "AddEpochIndex"):
+            Class.ClearBatch = lambda self:AddEpochIndex(self, self.data)
+
+    else:
+        raise Exception(MountLocation)
+#SetEpochBatchMethodForModule(AbstractModuleForEpochBatchTrain)

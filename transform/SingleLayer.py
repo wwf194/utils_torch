@@ -4,12 +4,13 @@ import torch.nn.functional as F
 
 import utils_torch
 from utils_torch.attrs import *
-from utils_torch.module import AbstractModuleWithTensor
-class SingleLayer(AbstractModuleWithTensor):
-    def __init__(self):
-        super(SingleLayer, self).__init__()
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+from utils_torch.transform import AbstractTransformWithTensor
+class SingleLayer(AbstractTransformWithTensor):
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        return
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
         

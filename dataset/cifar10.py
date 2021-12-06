@@ -58,12 +58,12 @@ def ProcessOriginalDataDict(Dict, FileNameList):
     SetAttrs(DataObj, "Images.Num", value=ImageNum)
     return DataObj
 
-class DataManagerForEpochBatchTrain:
-    def __init__(self, param, **kw):
-        utils_torch.transform.InitForNonModel(self, param, **kw)
+class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
+    def __init__(self):
+        #utils_torch.transform.InitForNonModel(self, param, **kw)
         return
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForNonModel(self, IsLoad)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         cache = self.cache
         param = self.param
         cache.Flows = utils_torch.EmptyPyObj()
@@ -145,7 +145,6 @@ class DataManagerForEpochBatchTrain:
         cache = self.cache
         Data = getattr(cache.Data, Type)
         return utils_torch.dataset.CalculateBatchNum(BatchSize, Data.Images.Num)
-    #def CreateFlow(self, Name, BatchParam, Type="Train"):
     def HasFlow(self, Name):
         return hasattr(self.cache.Flows, Name)
     def GetFlow(self, Name):
@@ -175,6 +174,8 @@ class DataManagerForEpochBatchTrain:
             flow.RandomBatchIndex = 0
         else:
             flow.IsRandom = False
+        
+        self.ResetFlow(flow)
         return flow
     def CreateFlowRandom(self, BatchParam, Name, Type):
         return self.CreateFlow(BatchParam, Name, Type, IsRandom=True)
@@ -185,9 +186,9 @@ class DataManagerForEpochBatchTrain:
             delattr(cache.Flows, Name)
         else:
             utils_torch.AddWarning("No such flow: %s"%Name)
-    def GetBatch(self, Name):
-        self.GetBatch(self, self.GetFlow(Name))
-    def GetBatchFromFlow(self, flow):
+    # def GetBatch(self, Name):
+    #     self.GetBatch(self, self.GetFlow(Name))
+    def GetBatch(self, flow):
         flow.BatchIndex += 1
         assert flow.BatchIndex < flow.BatchNum
         if flow.IsRandom:
@@ -197,6 +198,8 @@ class DataManagerForEpochBatchTrain:
         IndexEnd = min(IndexStart + flow.BatchSize, flow.IndexMax)
         DataBatch = self.GetBatchFromIndex(flow, IndexStart, IndexEnd)
         flow.IndexCurrent = IndexEnd
+        if flow.IndexCurrent >= flow.IndexMax:
+            flow.IsEnd = True
         return DataBatch
     def GetData(self, Type):
         return getattr(self.cache.Data, Type)
@@ -235,11 +238,12 @@ class DataManagerForEpochBatchTrain:
         flow = self.GetFlow(Name)
         flow.IndexCurrent = 0
         flow.BatchIndex = -1
+        flow.IsEnd = False
     def GetBatchNum(self, Name="Train"):
         cache = self.cache
         flow = getattr(cache.Flows, Name)
         return flow.BatchNum
-utils_torch.transform.SetMethodForNonModelClass(DataManagerForEpochBatchTrain, HasTensor=True)
+#utils_torch.transform.SetMethodForNonModelClass(DataManagerForEpochBatchTrain, HasTensor=True)
 
 def ProcessCIFAR10(dataset_dir,  norm=True, augment=False, batch_size=64, download=False):
     if(augment==True):

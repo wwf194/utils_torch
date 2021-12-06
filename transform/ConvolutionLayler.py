@@ -8,8 +8,8 @@ from utils_torch.attrs import *
 class ConvolutionLayer(nn.Module):
     def __init__(self):
         super(ConvolutionLayer, self).__init__()
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
         

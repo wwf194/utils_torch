@@ -5,8 +5,8 @@ from utils_torch.module.AbstractModules import AbstractModule
 class CheckPointForEpochBatchTrain:
     def __init__(self, param, **kw):
         utils_torch.transform.InitForNonModel(self, param, ClassPath="utils_torch.Train.CheckPointForEpochBatchTrain", **kw)
-    def InitFromParam(self, IsLoad):
-        utils_torch.transform.InitFromParamForNonModel(self, IsLoad)
+    def Build(self, IsLoad):
+        utils_torch.transform.BuildForNonModel(self, IsLoad)
         # Intervals are calculated in batches, not epochs.
         param = self.param
         cache = self.cache

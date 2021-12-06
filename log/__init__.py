@@ -16,7 +16,8 @@ from inspect import getframeinfo, stack
 import utils_torch
 from utils_torch.attrs import *
 
-from utils_torch.log.AbstractLog import AbstractLogAlongEpochBatchTrain
+import utils_torch.log.AbstractLog as AbstractLog
+from utils_torch.log.AbstractLog import AbstractLogAlongEpochBatchTrain, AbstractLogAlongBatch
 
 def SetMethodForLogClass(Class, **kw):
     SaveDataOnly = kw.setdefault("SaveDataOnly", False)
@@ -134,12 +135,15 @@ def PlotLogList(Name, Log, SaveDir=None, **kw):
         SavePath=SaveDir + "%s-Epoch.txt"%Name
     )
 
-class LogForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
-    def __init__(self, param=None, **kw):
-        utils_torch.transform.InitForNonModel(self, param, ClassPath="utils_torch.train.LogForEpochBatchTrain", **kw)
-        self.InitFromParam(IsLoad=False)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
+    # def __init__(self, param=None, **kw):
+    #     super().__init__(**kw)
+    #     utils_torch.transform.InitForNonModel(self, param, ClassPath="utils_torch.train.LogAlongEpochBatchTrain", **kw)
+    #     self.Build(IsLoad=False)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         data = self.data
         cache = self.cache

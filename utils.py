@@ -416,9 +416,6 @@ def _BuildObj(Args, **kw):
     MountPathList = utils_torch.ToList(Args.MountPath)
 
     for ModulePath, MountPath in zip(ModulePathList, MountPathList):
-        # Module = utils_torch.ImportModule(_ModulePath)
-        #Obj = Module.__MainClass__()
-        # Class = eval(ModulePath)
         Class = utils_torch.parse.ParseClass(ModulePath)
         Obj = Class()
 

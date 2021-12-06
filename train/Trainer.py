@@ -1,11 +1,25 @@
 import utils_torch
 from utils_torch.attrs import *
 
-class TrainerForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
+class AbstractModuleAlongEpochBatchTrain(utils_torch.module.AbstractModule):
+    # Child Class: trainer, log
+    def __init__(self, ChildClass, **kw):
+        MountLocation = kw.setdefault("MountLocation", "data")
+        super().__init__(**kw)
+        utils_torch.train.SetEpochBatchMethodForModule(ChildClass, **kw)
+    def SetEpochBatchIndexData(self, EpochIndex, BatchIndex):
+        self.data.EpochIndex = EpochIndex
+        self.data.BatchIndex = BatchIndex
+    def SetEpochBatchIndexCache(self, EpochIndex, BatchIndex):
+        self.cache.EpochIndex = EpochIndex
+        self.cache.BatchIndex = BatchIndex
+
+class TrainerEpochBatch(AbstractModuleAlongEpochBatchTrain):
     def __init__(self, param, **kw):
+        super().__init__(self.__class__, MountLocation="data")
         utils_torch.transform.InitForNonModel(self, param, **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
         data = self.data
@@ -35,14 +49,7 @@ class TrainerForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTr
                 self.cache.CheckPointList.append(Module)
                 if hasattr(Module, "SetBatchNum") and hasattr(cache, "BatchNum"):
                     Module.SetBatchNum(cache.BatchNum)
-    def ClearBatch(self):
-        self.cache.BatchIndex = 0
-    def ClearEpoch(self):
-        self.cache.EpochIndex = 0
-    def AddBatchIndex(self):
-        self.cache.BatchIndex += 1
-    def AddEpochIndex(self):
-        self.cache.EpochIndex += 1
+
     def NotifyEpochIndex(self):
         cache = self.cache
         for Obj in self.cache.NotifyEpochBatchList:
@@ -80,5 +87,5 @@ class TrainerForEpochBatchTrain(utils_torch.module.AbstractModuleForEpochBatchTr
         cache = self.cache
         utils_torch.AddLog("Epoch%d-Batch%d"%(cache.EpochIndex, cache.BatchIndex))
 
-#utils_torch.transform.SetMethodForNonModelClass(TrainerForEpochBatchTrain)
-#utils_torch.transform.SetEpochBatchMethodForModule(TrainerForEpochBatchTrain)
+#utils_torch.transform.SetMethodForNonModelClass(TrainerEpochBatch)
+#utils_torch.transform.SetEpochBatchMethodForModule(TrainerEpochBatch)

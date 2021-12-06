@@ -15,13 +15,16 @@ DefaultRoutings = [
     "membranePotential |--> &MembranePotentialDecay |--> membranePotential"
 ]
 
-from utils_torch.module.AbstractModules import AbstractModuleWithTensor
-class RecurrentLIFLayer(AbstractModuleWithTensor):
-    def __init__(self, param=None, data=None, **kw):
-        super(RecurrentLIFLayer, self).__init__()
-        utils_torch.transform.InitForModule(self, param, data, ClassPath="utils_torch.transform.RecurrentLIFLayer", **kw)
-    def InitFromParam(self, IsLoad=False):
-        utils_torch.transform.InitFromParamForModule(self, IsLoad)
+from utils_torch.transform import AbstractTransformWithTensor
+class RecurrentLIFLayer(AbstractTransformWithTensor):
+    # def __init__(self, param=None, data=None, **kw):
+    #     super(RecurrentLIFLayer, self).__init__()
+    #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.RecurrentLIFLayer", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+        return
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         data = self.data
         cache = self.cache

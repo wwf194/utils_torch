@@ -8,16 +8,26 @@ import utils_torch
 ModuleList = []
 
 def BuildModuleIfIsLegalType(param, **kw):
-    if IsLegalModuleType(param.Type):
+    if isinstance(param, str):
+        Type = param
+    else:
+        Type = param.Type
+
+    if IsLegalModuleType(Type):
         return BuildModule(param, **kw)
     else:
         return None
 
 def BuildModule(param, **kw):
-    if param.Type in ["FunctionsOutputs"]:
-        return FunctionsOutputs(param)
+    if isinstance(param, str):
+        Type = param
     else:
-        raise Exception(param.Type)
+        Type = param.Type
+        
+    if Type in ["FunctionsOutputs"]:
+        return FunctionsOutputs()
+    else:
+        raise Exception(Type)
 
 def IsLegalModuleType(Type):
     if Type in ModuleList:
@@ -55,13 +65,15 @@ def FunctionsOutputs2List(Functions):
     return Outputs
 # Operators.FunctionsOutputs2List = FunctionsOutputs2List
 
-
-from utils_torch.module.AbstractModules import AbstractModule
-class FunctionsOutputs(AbstractModule):
-    def __init__(self, param=None, data=None, **kw):
-        utils_torch.transform.InitForModule(self, param, data, 
-            ClassPath="utils_torch.transform.Operators.FunctionsOutputs", **kw)
-    def InitFromParam(self, IsLoad=False):
+from utils_torch.transform import AbstractTransform
+class FunctionsOutputs(AbstractTransform):
+    # def __init__(self, param=None, data=None, **kw):
+    #     self.InitModule(self, param, data, 
+    #         ClassPath="utils_torch.transform.operator.FunctionsOutputs", **kw)
+    def __init__(self, **kw):
+        super().__init__(**kw)
+    def Build(self, IsLoad=False):
+        self.BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
         cache.IsLoad = IsLoad
@@ -120,5 +132,5 @@ ModuleList.append("CompareDensityCurve")
 # from utils_torch.train import Probability2MostProbableIndex
 # ModuleList.append("Probability2MostProbableIndex")
 
-from utils_torch.transform import LogAccuracyForSingleClassPrediction
-ModuleList.append("LogAccuracyForSingleClassPrediction")
+# from utils_torch.transform import LogAccuracyForSingleClassPrediction
+# ModuleList.append("LogAccuracyForSingleClassPrediction")

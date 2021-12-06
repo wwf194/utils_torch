@@ -9,13 +9,18 @@ ModuleList = [
 ]
 
 def BuildModuleIfIsLegalType(param, **kw):
-    if IsLegalModuleType(param.Type):
-        if param.Type in ["cifar10", "CIFAR10"]:
-            return cifar10.DataManagerForEpochBatchTrain(param, **kw)
-        elif param.Type in ["MNIST", "mnist"]:
+    if isinstance(param, str):
+        Type = param
+    else:
+        Type = param.Type
+
+    if IsLegalModuleType(Type):
+        if Type in ["cifar10", "CIFAR10"]:
+            return cifar10.DataManagerForEpochBatchTrain()
+        elif Type in ["MNIST", "mnist"]:
             return 
         else:
-            raise Exception(param.Type)
+            raise Exception(Type)
     else:
         return None
 

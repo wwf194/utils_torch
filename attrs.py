@@ -161,7 +161,12 @@ def GetAttr(Obj, Attr):
 def RemoveAttrIfExists(Obj, Attr):
     if hasattr(Obj, Attr):
         delattr(Obj, Attr)
-    return 
+    return
+
+def SetAttrIfNotExists(Obj, Attr, Value):
+    if not hasattr(Obj, Attr):
+        setattr(Obj, Attr, Value)
+    return
 
 def HasAttrs(Obj, attrs, *args, false_if_none=True):
     attrs = _ParseAttrs(attrs, *args)

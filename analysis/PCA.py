@@ -3,8 +3,9 @@ import collections
 
 import utils_torch
 
-class LogForPCA(utils_torch.module.AbstractModuleForEpochBatchTrain):
-    def __init__(self, EpochIndex=None, BatchIndex=None):
+class LogForPCA(utils_torch.log.AbstractLogAlongBatch):
+    def __init__(self, EpochIndex=None, BatchIndex=None, **kw):
+        super.__init__(**kw)
         self.cache = utils_torch.EmptyPyObj()
         self.data = utils_torch.EmptyPyObj()
         cache = self.cache
@@ -36,8 +37,9 @@ class LogForPCA(utils_torch.module.AbstractModuleForEpochBatchTrain):
         return
 #utils_torch.transform.SetEpochBatchMethodForModule(LogForPCA, MountLocation="data")
 
-class LogForPCAAlongTrain(utils_torch.module.AbstractModuleForEpochBatchTrain):
-    def __init__(self, EpochNum, BatchNum):
+class LogForPCAAlongTrain(utils_torch.log.AbstractLogAlongEpochBatchTrain):
+    def __init__(self, EpochNum, BatchNum, **kw):
+        super.__init__(**kw)
         #ConnectivityPattern = utils_torch.EmptyPyObj()
         data = self.data = utils_torch.EmptyPyObj()
         data.EpochNum = EpochNum

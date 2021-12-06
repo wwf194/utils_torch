@@ -13,20 +13,30 @@ ModuleList = [
 ]
 
 def BuildModuleIfIsLegalType(param, **kw):
-    if IsLegalModuleType(param.Type):
-        BuildModule(param, **kw)
+    if isinstance(param, str):
+        Type = param
+    else:
+        Type = param.Type
+    
+    if IsLegalModuleType(Type):
+        return BuildModule(param, **kw)
     else:
         return None
 def IsLegalModuleType(Type):
     return Type in ModuleList
+
 def BuildModule(param, **kw):
-    if param.Type in ["MeanSquareError", "MSE"]:
+    if isinstance(param, str):
+        Type = param
+    else:
+        Type = param.Type
+    if Type in ["MeanSquareError", "MSE"]:
         Coefficient = param.Coefficient
         if Coefficient == 1.0:
             return F.mse_loss
         else:
             return lambda x, xTarget: Coefficient * F.mse_loss(x, xTarget)
-    elif param.Type in ["CrossEntropyLossForSingleClassPrediction", "CrossEntropyLossForLabels"]:
+    elif Type in ["CrossEntropyLossForSingleClassPrediction", "CrossEntropyLossForLabels"]:
         # By convention, softmax is included in the loss function.
         # Hard labels. Input: [SampleNum, ClassNum]. Target: Labels in shape of [SampleNum]
         Coefficient = param.Coefficient
@@ -34,7 +44,7 @@ def BuildModule(param, **kw):
             return F.cross_entropy
         else:
             return lambda Output, ProbabilitiesTarget:Coefficient * F.cross_entropy(Output, ProbabilitiesTarget)
-    elif param.Type in ["CrossEntropyLoss", "CEL"]:
+    elif Type in ["CrossEntropyLoss", "CEL"]:
         # By convention, softmax is included in the loss function.
         # Soft labels. Input: [SampleNum, ClassNum]. Target: Probabilities in shape of [SampleNum, ClassNum]
         Coefficient = param.Coefficient
@@ -42,10 +52,10 @@ def BuildModule(param, **kw):
             return CrossEntropyLossForTargetProbability
         else:
             return lambda Output, ProbabilitiesTarget:Coefficient * CrossEntropyLossForTargetProbability(Output, ProbabilitiesTarget)
-    elif param.Type in ["L2Loss"]:
-        return L2Loss(param, **kw)
+    elif Type in ["L2Loss"]:
+        return L2Loss(**kw)
     else:
-        raise Exception(param.Type)
+        raise Exception(Type)
 GetLossMethod = BuildModule
 
 def CrossEntropyLossForTargetProbability(Output, ProbabilityTarget, Method='Average'):
