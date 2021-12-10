@@ -35,6 +35,7 @@ class RecurrentLIFLayer(AbstractTransformWithTensor):
         self.SetInternalMethods()
         self.ParseRouters()
 
+        return self
     def SetInternalMethods(self):
         param = self.param
         cache = self.cache
@@ -91,6 +92,34 @@ class RecurrentLIFLayer(AbstractTransformWithTensor):
                 MembranePotential + Modules.ProcessTotalInput(TotalInput)
     def forward(self, MembranePotential, RecurrentInput, Input):
         cache = self.cache
-        return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])  
+        return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])
+    def Run(self, recurrentInput, membranePotential, input, log=None):
+        Modules = self.Modules
+        bias = Modules.GetBias()
+        noise = Modules.GenerateNoise()
+        inputTotal = recurrentInput + input + bias + noise
+        membranePotential = self.ProcessMembranePotentialAndTotalInput(inputTotal, membranePotential)
+        firingRate = Modules.NonLinear(membranePotential)
+        output = Modules.FiringRate2Output(firingRate)
+        recurrentInputNext = Modules.FiringRate2RecurrentInput(firingRate)
+        membranePotentialNext = Modules.MembranePotentialDecay(membranePotential)
+        return recurrentInputNext, membranePotentialNext, firingRate, output
+        # "Main":{
+        #     "In": ["recurrentInput", "membranePotential", "input"],
+        #     "Out": ["recurrentInputNext", "membranePotentialNext", "firingRate", "output"],
+        #     "Routings":[
+        #         "                       &GetBias                   |--> bias",
+        #         "recurrentInput, input, bias |--> &Add             |--> inputTotal",
+        #         "inputTotal        |--> &NoiseGenerator            |--> noise",
+        #         "inputTotal, noise |--> &Add                       |--> inputTotal",
+        #         "inputTotal, membranePotential |--> &ProcessMembranePotentialAndTotalInput |--> membranePotential",
+        #         "membranePotential |--> &NonLinear                 |--> firingRate",
+        #         "firingRate        |--> &FiringRate2RecurrentInput |--> recurrentInputNext",
+        #         "firingRate        |--> &FiringRate2Output         |--> output",
+        #         "membranePotential |--> &MembranePotentialDecay    |--> membranePotentialNext",
+        #     ]
+        # },
+    def __call__(self, *Args, **Kw):
+        return self.Run(*Args, **Kw)
 __MainClass__ = RecurrentLIFLayer
 # utils_torch.transform.SetMethodForTransformModule(__MainClass__)

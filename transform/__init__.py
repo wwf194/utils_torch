@@ -355,22 +355,6 @@ def PrintStateDict(optimizer):
     for key, value in dict_.items():
         print('%s: %s'%(key, value))
 
-
-# def Setlog(self, log):
-#     cache = self.cache
-#     cache.log = log
-#     if hasattr(cache, "Modules"):   
-#         for Name, Module in ListAttrsAndValues(self.cache.Modules):
-#             if hasattr(Module, "Setlog"):
-#                 Module.SetLog(utils_torch.log.Datalog().SetParent(log, prefix=Name + "."))
-
-# def GetLog(self):
-#     cache = self.cache
-#     if hasattr(cache, "log"):
-#         return cache.log
-#     else:
-#         return None
-
 def Build(self, IsLoad):
     cache = self.cache
     cache.IsLoad = IsLoad
@@ -608,7 +592,7 @@ from utils_torch.transform.SignalTrafficNodes import SerialSender
 from utils_torch.transform.SignalTrafficNodes import SignalHolder
 from utils_torch.transform.LambdaLayer import LambdaLayer
 from utils_torch.transform.RecurrentLIFLayer import RecurrentLIFLayer
-from utils_torch.transform.NoiseGenerator import NoiseGenerator
+from utils_torch.transform.noise import GaussianNoise
 from utils_torch.transform.Bias import Bias
 
 from utils_torch.transform.SingleLayer import SingleLayer
@@ -621,5 +605,6 @@ ModuleDict = {
     "SerialReceiver": SerialReceiver, "SerialSend": SerialSender, "SignalHolder": SignalHolder,
     "SingalLayer": SingleLayer, "LinearLayer": LinearLayer, "NonLinearLayer": NonLinearLayer,
     "LambbdaLayer": LambdaLayer,
-    "RNNLIF": RNNLIF
+    "RNNLIF": RNNLIF,
+    "GaussianNoise": GaussianNoise,
 }

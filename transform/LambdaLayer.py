@@ -15,7 +15,7 @@ class LambdaLayer(AbstractTransform):
         self.BeforeBuild(IsLoad)
         param = self.param
         self.forward = utils_torch.parse.ResolveStr(param.Lambda, ObjCurrent=param.cache.__ResolveRef__)
-        return
+        return self
     def SetFullName(self, FullName):
         utils_torch.transform.SetFullNameForModule(self, FullName)
 

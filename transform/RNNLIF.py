@@ -48,6 +48,9 @@ class RNNLIF(AbstractTransformWithTensor):
             utils_torch.AddLog("RNNLIF: Initialized.")
         else:
             utils_torch.AddLog("RNNLIF: Loaded.")
+
+
+        return self
     def SetNeuronsNum(self, InputNum, OutputNum, HiddenNeuronsNum=None):
         param = self.param
         SetAttrs(param, "Neurons.Input.Num", value=InputNum)
@@ -69,7 +72,7 @@ class RNNLIF(AbstractTransformWithTensor):
             pass
         else:
             raise Exception(param.Iteration.Time)
-    def Train(self, TrainData, TrainParam, log):
+    def Train(self, TrainData, OptimizeParam, log):
         Dynamics = self.Dynamics
         input = TrainData.input
         outputTarget = TrainData.outputTarget
@@ -85,16 +88,16 @@ class RNNLIF(AbstractTransformWithTensor):
         log.output = outputs.outputSeries
         log.outputTarget = outputTarget
 
-        Dynamics.Optimize(outputTarget, outputs.output, TrainParam, log=log)
+        Dynamics.Optimize(outputTarget, outputs.output, OptimizeParam, log=log)
         return
         # "Train":{
-        #     "In":["input", "outputTarget", "trainParam"],
+        #     "In":["input", "outputTarget", "OptimizeParam"],
         #     "Out":[],
         #     "Routings":[
         #         "input |--> &Split |--> inputInit, inputSeries, time",
         #         "inputInit, inputSeries, time |--> &Run |--> outputSeries, recurrentInputSeries, membranePotentialSeries, firingRateSeries",
         #         "recurrentInputSeries, membranePotentialSeries, firingRateSeries |--> &Merge |--> activity",
-        #         "outputSeries, outputTarget, activity, trainParam |--> &Optimize",
+        #         "outputSeries, outputTarget, activity, OptimizeParam |--> &Optimize",
 
         #         "recurrentInputSeries, Name=HiddenStates,  logger=DataTrain |--> &LogActivityAlongTime",
         #         "membranePotentialSeries,   Name=MembranePotential,    logger=DataTrain |--> &LogActivityAlongTime",
@@ -106,49 +109,54 @@ class RNNLIF(AbstractTransformWithTensor):
         #     ]
         # },
     
-    def Optimize(self, output, outputTarget, activity, trainParam):
+    def Optimize(self, output, outputTarget, activity, OptimizeParam):
         return
-    def Iterate(self, recurrentInput, membranePotential, log):
+    def Iterate(self, input, recurrentInput, membranePotential, log):
         # recurrentInput: recurrent input from last time step
         Modules = self.Modules
-        Modules.Recurrent(recurrentInput, membranePotential, inputProcessed)
-        Modules.LogRecurrentInput.Receive(recurrentInput)
-        Modules.LogCellState.Receive(membranePotential)
-        Modules.LogFiringRate.Receive(firingRate)
-    def Run(self, input, IterationTime, log:utils_torch.log.LogAlongEpochBatchTrain):
+        return Modules.RecurrentLIFNeurons(recurrentInput, membranePotential, input)
+    def Run(self, Input, IterationTime, log:utils_torch.log.LogAlongEpochBatchTrain):
         cache = self.cache
         Modules = self.Modules
         Dynamics = self.Dynamics
         if IterationTime is None:
             IterationTime = cache.IterationTime
-        
-        Modules.InputManager.Receive(input)
-        initState = self.GenerateZeroInitState(RefInput=input)
+        Modules.InputList.Receive(Input)
+        initState = self.GenerateZeroInitState(RefInput=Input)
         #recurrentInput, membranePotential = Modules.SplitHiddenAndCellState(initState)
         
         recurrentInput = initState[:, cache.NeuronNum] # Initial recurrentInput
         membranePotential = initState[:, cache.NeuronNum] # Initial membranePotential
 
+        Modules.InputHolder.Receive(Input)
         for TimeIndex in range(IterationTime):
-            recurrentInput, membranePotential = Dynamics.Iterate(recurrentInput, membranePotential)
+            input = Modules.InputHolder.Send()        
+            Modules.InputList.Receive(input)
+            inputTransformed = Modules.TransformInput(input)
+            Modules.InputTransformedList.Receive(inputTransformed)
+            recurrentInput, membranePotential = Dynamics.Iterate(inputTransformed, recurrentInput, membranePotential, log=log)
 
-        outputs = Modules.OutputManager.Send()
-        recurrentInputs = Modules.HiddenStates.Send()
-        membranePotentials = Modules.MembranePotential.Send()
-        firingRates = Modules.FiringRates.Send()
+        outputList = Modules.OutputList.Send()
+        recurrentInputList = Modules.HiddenStateList.Send()
+        membranePotentialList = Modules.MembranePotentialList.Send()
+        firingRateList = Modules.FiringRateList.Send()
+        inputList = Modules.InputList.Send()
 
-        log.AddLogCache("Outputs", outputs, "ActivityAlongTime")
-        log.AddLogCache("recurrentInputs", recurrentInputs, "ActivityAlongTime")
-        log.AddLogCache("membranePotentials", membranePotentials, "ActivityAlongTime")
-        log.AddLogCache("firingRates", firingRates, "ActivityAlongTime")
-
-        return {
-            "outputs": outputs
-            # "outputSeries": outputSeries,
-            # "recurrentInputSeries": recurrentInputSeries,
-            # "membranePotentialSeries": membranePotentialSeries,
-            # "firingRateSeries": firingRateSeries,
-        }
+        log.AddLogCache("OutputList", outputList, "ActivityAlongTime")
+        log.AddLogCache("RecurrentInputList", recurrentInputList, "ActivityAlongTime")
+        log.AddLogCache("MembranePotentialList", membranePotentialList, "ActivityAlongTime")
+        log.AddLogCache("FiringRateList", firingRateList, "ActivityAlongTime")
+        log.AddLogCache("InputList", inputList, "ActivityAlongTime")
+        log.AddLogCache("InputTransformed", inputTransformed, "ActivityAlongTime")
+        
+        return outputList        
+        # return {
+        #     "outputList": outputList
+        #     # "outputSeries": outputSeries,
+        #     # "recurrentInputSeries": recurrentInputSeries,
+        #     # "membranePotentialSeries": membranePotentialSeries,
+        #     # "firingRateSeries": firingRateSeries,
+        # }
         # {
         #     "In":["input", "time", "log"],
         #     "Out":["logOutput", "logRecurrentInput", "logMembranePotential", "logFiringRate"],

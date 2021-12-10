@@ -361,7 +361,7 @@ def _LoadParamFromFile(Args, **kw):
         if not isinstance(Obj, list):
             EnsureAttrs(Args, "SetResolveBase", default=True)
             if Args.SetResolveBase:
-                setattr(Obj, "__ResolveBase__", True)
+                setattr(Obj, "__IsResolveBase__", True)
         utils_torch.MountObj(MountPath, Obj, **kw)
     return
 

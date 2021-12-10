@@ -17,7 +17,8 @@ import utils_torch
 from utils_torch.attrs import *
 
 import utils_torch.log.AbstractLog as AbstractLog
-from utils_torch.log.AbstractLog import AbstractLogAlongEpochBatchTrain, AbstractLogAlongBatch
+from utils_torch.log.AbstractLog import \
+    AbstractLogAlongEpochBatchTrain, AbstractLogAlongBatch, AbstractModuleAlongEpochBatchTrain
 
 def SetMethodForLogClass(Class, **kw):
     SaveDataOnly = kw.setdefault("SaveDataOnly", False)
@@ -144,7 +145,7 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
         super().__init__(**kw)
     def Build(self, IsLoad=False):
         self.BeforeBuild(IsLoad)
-        param = self.param
+        #param = self.param
         data = self.data
         cache = self.cache
         data.log = defaultdict(lambda:[])
@@ -153,12 +154,13 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
         self.GetLog = self.GetLogByName
         self.AddLog = self.AddLogList
         self.Get = self.GetLog
-    def UpdateEpoch(self, EpochIndex):
-        cache = self.cache
-        cache.EpochIndex = EpochIndex
-    def UpdateBatch(self, BatchIndex):
-        cache = self.cache
-        cache.BatchIndex = BatchIndex
+        return self
+    # def UpdateEpoch(self, EpochIndex):
+    #     cache = self.cache
+    #     cache.EpochIndex = EpochIndex
+    # def UpdateBatch(self, BatchIndex):
+    #     cache = self.cache
+    #     cache.BatchIndex = BatchIndex
     def AddLogList(self, Name, Value, Type=None):
         data = self.data
         cache =self.cache
@@ -171,8 +173,8 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
             if Type is not None:
                 data.logType[Name] = Type
         log = data.log[Name]
-        log["Epoch"].append(cache.EpochIndex)
-        log["Batch"].append(cache.BatchIndex),
+        log["Epoch"].append(self.GetEpochIndex())
+        log["Batch"].append(self.GetBatchIndex()),
         log["Value"].append(Value)
     def AddLogsOfType(self, Logs, Type):
         cache = self.cache
@@ -199,18 +201,17 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
             # if key in ["Epoch", "Batch"]:
             #     continue
             Log[key].append(value)
-        Log["Epoch"].append(cache.EpochIndex)
-        Log["Batch"].append(cache.BatchIndex)
+        Log["Epoch"].append(self.GetEpochIndex())
+        Log["Batch"].append(self.GetBatchIndex())
     def AddLogCache(self, Name, Data, Type="Cache"):
         cache = self.cache
         data = self.data
         data.logType[Name] = Type
         data.log[Name] = {
-            "Epoch": cache.EpochIndex,
-            "Batch":cache.BatchIndex,
-            "Value":Data
+            "Epoch": self.GetEpochIndex(),
+            "Batch": self.GetBatchIndex(),
+            "Value": Data
         }
-
     def RegisterLog(self, Name, Type="List"):
         data = self.data
         if Type in ["List"]:

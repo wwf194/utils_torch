@@ -75,6 +75,7 @@ class MLP(AbstractTransformWithTensor):
         for Layer in cache.Layers:
             Layer.Build(IsLoad=cache.IsLoad)
         
+        return self
     def forward(self, Input):
         cache = self.cache
         States = {}

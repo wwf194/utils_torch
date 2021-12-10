@@ -33,7 +33,7 @@ def ParseFunctionArg(Arg, ContextInfo):
         if Arg.startswith("__") and Arg.endswith("__"):
             return ContextInfo.get(Arg)
         elif "&" in Arg:
-            # if Arg in ["&~NotifyEpochBatchList"]:
+            # if Arg in ["&~SetEpochBatchList"]:
             #     print("AAA")
             #ArgParsed = ResolveArg, **utils_torch.json.PyObj2JsonObj(ContextInfo))
             return ResolveStr(Arg, ContextInfo)
@@ -188,7 +188,7 @@ def _ParsePyObjDynamicInPlace(Obj, parent, attr, RaiseFailedParse, **kw):
         for Key, Value in Obj.items():
             _ParsePyObjDynamicInPlace(Value, Obj, Key, RaiseFailedParse, **kw)
     elif isinstance(Obj, utils_torch.PyObj):
-        if hasattr(Obj, "__ResolveBase__"):
+        if hasattr(Obj, "__IsResolveBase__"):
             kw["ObjCurrent"] = Obj
         Sig = True
         while Sig:
@@ -598,7 +598,7 @@ def _ParsePyObjStatic(Obj, parent, Attr, **kw):
         for Key, Value in Obj.items():
             ObjParsed[Key] = _ParsePyObjStatic(Value, Obj, Key, **kw)
     elif utils_torch.IsPyObj(Obj):
-        if hasattr(Obj, "__ResolveBase__"):
+        if hasattr(Obj, "__IsResolveBase__"):
             kw["ObjCurrent"] = Obj
         ObjParsed = utils_torch.PyObj()
         Sig = True
@@ -611,8 +611,8 @@ def _ParsePyObjStatic(Obj, parent, Attr, **kw):
                     break
             Sig = False
     elif isinstance(Obj, str):
-        if hasattr(Obj, "__ResolveBase__"):
-            ObjCurrent = getattr(Obj, "__ResolveBase__")
+        if hasattr(Obj, "__IsResolveBase__"):
+            ObjCurrent = getattr(Obj, "__IsResolveBase__")
         sentence = Obj
         while type(sentence) is str and ("$" in sentence in sentence) and ("&" not in sentence):
             ObjCurrent = kw.get("ObjCurrent")

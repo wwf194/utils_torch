@@ -18,7 +18,6 @@ class SignalHolder(utils_torch.module.AbstractModuleWithoutParam):
     def Build(self, IsLoad=False):
         self.BeforeBuild(IsLoad)
         return
-        
     def Receive(self, Obj):
         self.cache.Content = Obj
     def Send(self):
@@ -81,6 +80,22 @@ class SerialSender(AbstractTransform):
 class SerialReceiver(AbstractTransform):
     # def __init__(self, param=None, data=None, **kw):
     #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.SerialReceiver", **kw)
+    def GenerateParam(self, Type):
+        if Type in ["ActivityAlongTime"]:
+            return utils_torch.PyObj({
+                "Type": "SerialReceiver",
+                "Send": {
+                    "Method": "Lambda", "Args": "lambda List:torch.stack(List, axis=1)"
+                }
+            })
+        else:
+            raise Exception(Type)
+    def LoadParam(self, param=None, Type=None):
+        if Type is not None:
+            super().LoadParam(self.GenerateParam(Type))
+        else:
+            super().LoadParam(param)
+        return self
     def __init__(self, **kw):
         super().__init__(**kw)
     def Build(self, IsLoad=False):
@@ -89,7 +104,7 @@ class SerialReceiver(AbstractTransform):
         self.ContentList = []
         self.SetSendMethod()
         self.SetReceiveMethod()
-        return
+        return self
     def SetSendMethod(self):
         param = self.param
         cache = self.cache

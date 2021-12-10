@@ -31,9 +31,9 @@ class TrainerEpochBatch(AbstractModuleAlongEpochBatchTrain):
         Modules.LogTest = utils_torch.log.LogForEpochBatchTrain()
         cache.LogTest = utils_torch.log.LogForEpochBatchTrain()    
 
-        cache.NotifyEpochBatchList = []
+        cache.SetEpochBatchList = []
         cache.CheckPointList = []
-        self.Register2NotifyEpochBatchList([cache.LogTrain, cache.LogTest])
+        self.Register2SetEpochBatchList([cache.LogTrain, cache.LogTest])
         self.BuildModules()
         self.InitModules()
         self.ParseRouters()
@@ -52,26 +52,26 @@ class TrainerEpochBatch(AbstractModuleAlongEpochBatchTrain):
 
     def NotifyEpochIndex(self):
         cache = self.cache
-        for Obj in self.cache.NotifyEpochBatchList:
+        for Obj in self.cache.SetEpochBatchList:
             Obj.SetEpochIndex(cache.EpochIndex)
     def NotifyBatchIndex(self):
         cache = self.cache
-        for Obj in self.cache.NotifyEpochBatchList:
+        for Obj in self.cache.SetEpochBatchList:
             Obj.SetBatchIndex(cache.BatchIndex)
     def NotifyEpochNum(self):
         cache = self.cache
-        for Obj in self.cache.NotifyEpochBatchList:
+        for Obj in self.cache.SetEpochBatchList:
             Obj.SetEpochNum(cache.EpochNum)
     def NotifyBatchNum(self):
         cache = self.cache
-        for Obj in self.cache.NotifyEpochBatchList:
+        for Obj in self.cache.SetEpochBatchList:
             Obj.SetBatchNum(cache.BatchNum)
-    def Register2NotifyEpochBatchList(self, List):
+    def Register2SetEpochBatchList(self, List):
         cache = self.cache
-        #cache.NotifyEpochBatchList = []
+        #cache.SetEpochBatchList = []
         for Obj in List:
             Obj = utils_torch.parse.ResolveStr(Obj)
-            cache.NotifyEpochBatchList.append(Obj)
+            cache.SetEpochBatchList.append(Obj)
     def GenerateContextInfo(self):
         cache = self.cache
         return utils_torch.PyObj({

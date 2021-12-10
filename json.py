@@ -423,13 +423,13 @@ class PyObj(object):
         return self
     def SetResolveBase(self, value=True):
         if value:
-            self.__ResolveBase__ = True
+            self.__IsResolveBase__ = True
         else:
-            if hasattr(self, "__ResolveBase__"):
-                delattr(self, "__ResolveBase__")
+            if hasattr(self, "__IsResolveBase__"):
+                delattr(self, "__IsResolveBase__")
     def IsResolveBase(self):
-        if hasattr(self, "__ResolveBase__"):
-            if self.__ResolveBase__==True or self.__ResolveBase__ in ["here"]:
+        if hasattr(self, "__IsResolveBase__"):
+            if self.__IsResolveBase__==True or self.__IsResolveBase__ in ["here"]:
                 return True
         return False
     def Keys(self):

@@ -22,8 +22,12 @@ class Bias(AbstractTransformWithTensor):
         else:
             data.Bias = utils_torch.ToTorchTensor(data.Bias)
         cache.Tensors.append([data, "Bias", data.Bias])
+
+        return self
     def forward(self):
         return self.data.Bias
+    def __call__(self, *Args, **Kw):
+        return self.forward(*Args, **Kw)
 
 __MainClass__ = Bias
 # utils_torch.transform.SetMethodForTransformModule(__MainClass__)

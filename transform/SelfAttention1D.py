@@ -45,6 +45,8 @@ class SelfAttention1D(nn.Module):
         cache.Tensors.append([data, "Input2Value", data.Input2Value])
         
         cache.AttentionCoefficient = 1.0 / param.Attention.Feature.Num ** 0.5
+
+        return self
     def SplitHead(self, Data, HeadNum):
         BatchSize = Data.shape[0]
         TokenNum = Data.shape[1]

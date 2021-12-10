@@ -22,6 +22,7 @@ class ConvolutionLayer(nn.Module):
                     SetAttrs(param, "Output.Num", param.Weight.Size[1])
                 else:
                     raise Exception()
+        return self
     def SetBias(self):
         param = self.param
         data = self.data

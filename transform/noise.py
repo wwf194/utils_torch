@@ -4,7 +4,8 @@ import torch.nn.functional as F
 
 from utils_torch.attrs import *
 from utils_torch.module.AbstractModules import AbstractModule
-class NoiseGenerator(utils_torch.module.AbstractModuleWithParam):
+
+class NoiseFromDistribution(utils_torch.module.AbstractModuleWithParam):
     # def __init__(self, param=None, data=None, **kw):
     #     super(NoiseGenerator, self).__init__()
     #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.NoiseGenerator", **kw)
@@ -12,8 +13,10 @@ class NoiseGenerator(utils_torch.module.AbstractModuleWithParam):
     def __init__(self, **kw):
         super().__init__(**kw)
         return
-    def Build(self, IsLoad=False):
-        self.BeforeBuild(IsLoad)
+    def BeforeBuild(self, IsLoad=False):
+        super().BeforeBuild(IsLoad)
+    def Build(self, IsLoad=False, **kw):
+        super().BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
         if param.Method in ["Adaptive"]:
@@ -25,17 +28,20 @@ class NoiseGenerator(utils_torch.module.AbstractModuleWithParam):
                             Std=torch.std(Input.detach()).item() * param.StdRatio,
                             Shape=tuple(Input.size()),
                         ).to(self.GetTensorLocation())
+                elif param.Distribution in ["Laplacian"]:
+                    # to be implemented
+
+                    pass
                 else:
                     raise Exception(param.Distribution)
             else:
                 raise Exception(param.SubMethod)
         else:
             raise Exception(param.Method)
-    def SetTensorLocation(self, Location):
-        cache = self.cache
-        cache.TensorLocation = Location
-    def GetTensorLocation(self):
-        return self.cache.TensorLocation
 
-__MainClass__ = NoiseGenerator
-# utils_torch.transform.SetMethodForTransformModule(__MainClass__)
+class GaussianNoise(NoiseFromDistribution):
+    def Build(self, IsLoad=False):
+        super().BeforeBuild()
+        param = self.param
+        param.Distribution = "Gaussian"
+        super().Build()

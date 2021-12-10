@@ -66,11 +66,11 @@ class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
         self.BeforeBuild(IsLoad)
         cache = self.cache
         param = self.param
-        cache.Flows = utils_torch.EmptyPyObj()
+        cache.flows = utils_torch.EmptyPyObj()
         # self.CreateFlowRandom("DefaultTest", "Test")
         # self.CreateFlowRandom("DefaultTrain", "Train")
         self.PrepareData()
-        return
+        return self
     def PrepareData(self):
         param = self.param
         cache = self.cache
@@ -146,15 +146,15 @@ class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
         Data = getattr(cache.Data, Type)
         return utils_torch.dataset.CalculateBatchNum(BatchSize, Data.Images.Num)
     def HasFlow(self, Name):
-        return hasattr(self.cache.Flows, Name)
+        return hasattr(self.cache.flows, Name)
     def GetFlow(self, Name):
-        return getattr(self.cache.Flows, Name)
-    def CreateFlow(self, BatchParam, Name, Type="Train", IsRandom=False):
+        return getattr(self.cache.flows, Name)
+    def CreateFlow(self, Name, BatchParam, Type="Train", IsRandom=False):
         cache = self.cache
         if self.HasFlow(Name):
             utils_torch.AddWarning("Overwriting existing flow: %s"%Name)
         #self.ClearFlow(Type=Type)
-        flow = SetAttr(cache.Flows, Name, utils_torch.EmptyPyObj())
+        flow = SetAttr(cache.flows, Name, utils_torch.EmptyPyObj())
         flow.IndexCurrent = 0
         flow.BatchSize = BatchParam.Batch.Size
         Data = getattr(cache.Data, Type)
@@ -182,8 +182,8 @@ class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
     #def ClearFlow(self, Type="Train"):
     def ClearFlow(self, Name):
         cache = self.cache
-        if hasattr(cache.Flows, Name):
-            delattr(cache.Flows, Name)
+        if hasattr(cache.flows, Name):
+            delattr(cache.flows, Name)
         else:
             utils_torch.AddWarning("No such flow: %s"%Name)
     # def GetBatch(self, Name):
@@ -234,14 +234,16 @@ class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
         if flow.RandomBatchIndex > flow.IndexMax:
             flow.RandomBatchIndex = 0
         return DataBatch
-    def ResetFlow(self, Name):
+    def ResetFlowFromName(self, Name):
         flow = self.GetFlow(Name)
+        self.ResetFlow(Name)
+    def ResetFlow(self, flow):
         flow.IndexCurrent = 0
         flow.BatchIndex = -1
         flow.IsEnd = False
     def GetBatchNum(self, Name="Train"):
         cache = self.cache
-        flow = getattr(cache.Flows, Name)
+        flow = getattr(cache.flows, Name)
         return flow.BatchNum
 #utils_torch.transform.SetMethodForNonModelClass(DataManagerForEpochBatchTrain, HasTensor=True)
 

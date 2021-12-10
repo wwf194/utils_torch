@@ -5,7 +5,7 @@ import utils_torch
 
 class LogForPCA(utils_torch.log.AbstractLogAlongBatch):
     def __init__(self, EpochIndex=None, BatchIndex=None, **kw):
-        super.__init__(**kw)
+        super().__init__(**kw)
         self.cache = utils_torch.EmptyPyObj()
         self.data = utils_torch.EmptyPyObj()
         cache = self.cache
@@ -212,7 +212,7 @@ def ScanLogPCA(ScanDir=None):
 #     GlobalParam = utils_torch.GetGlobalParam()
 #     Trainer = ContextObj.Trainer
 #     agent = Trainer.agent
-#     Dataset = Trainer.world
+#     dataset = Trainer.world
 #     BatchParam = GlobalParam.param.task.Train.BatchParam
 #     Dataset.CreateFlow(BatchParam, "Test")
 #     log = utils_torch.log.LogForEpochBatchTrain()
@@ -229,7 +229,7 @@ def ScanLogPCA(ScanDir=None):
 #         #     utils_torch.PyObj([
 #         #         "&^param.task.Train.BatchParam",
 #         #         "&^param.task.Train.OptimizeParam",
-#         #         #"&^param.task.Train.NotifyEpochBatchList"
+#         #         #"&^param.task.Train.SetEpochBatchList"
 #         #         log,
 #         #     ]),
 #         #     ObjRoot=GlobalParam

@@ -16,7 +16,6 @@ class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
     def __init__(self, **kw):
         kw.setdefault("DataOnly", False)
         super().__init__(**kw)
-
     def InitModules(self):
         cache = self.cache
         for name, module in ListAttrsAndValues(cache.Modules):
@@ -115,12 +114,11 @@ class AbstractTransformWithTensor(AbstractTransform):
         super().BeforeBuild(IsLoad=IsLoad)
         cache = self.cache
         cache.Tensors = utils_torch.PyObj([])
-    def GetTensorLocation(self):
-        return self.cache.TensorLocation
+
     def ClearTrainWeight(self):
         utils_torch.RemoveAttrIfExists(self.cache, "TrainWeight")
     def SetTrainWeight(self):
-        self.ClearTrainWeight(self)
+        self.ClearTrainWeight()
         cache = self.cache
         cache.TrainWeight = {}
         if hasattr(cache, "Modules"):
@@ -147,7 +145,7 @@ class AbstractTransformWithTensor(AbstractTransform):
         return weights
 
     def SetPlotWeight(self):
-        self.ClearPlotWeight(self)
+        self.ClearPlotWeight()
         cache = self.cache
         cache.PlotWeight = {}
         if hasattr(cache, "Modules"):

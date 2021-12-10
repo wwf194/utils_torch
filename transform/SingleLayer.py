@@ -23,6 +23,7 @@ class SingleLayer(AbstractTransformWithTensor):
                     SetAttrs(param, "Output.Num", param.Weight.Size[1])
                 else:
                     raise Exception()
+        return self
     def SetBias(self):
         param = self.param
         data = self.data
@@ -147,5 +148,7 @@ class SingleLayer(AbstractTransformWithTensor):
             cache.PlotWeight[Name + "Bias"] = self.GetBias
 
         return cache.PlotWeight
+    def __call__(self, Input):
+        return self.forward(Input)
 __MainClass__ = SingleLayer
 # utils_torch.transform.SetMethodForTransformModule(__MainClass__)

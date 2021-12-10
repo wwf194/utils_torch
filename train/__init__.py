@@ -33,7 +33,7 @@ def NotifyBatchNum(ObjList, BatchNum):
     for Obj in ObjList:
         Obj.NotifyBatchNum(BatchNum)
 
-def ParseRoutersFromTrainParam(param, **kw):
+def ParseRoutersFromOptimizeParam(param, **kw):
     Routers = utils_torch.PyObj()
     for Name, RouterParam in ListAttrsAndValues(param.Batch.Routers):
         Router = utils_torch.router.ParseRouterStaticAndDynamic(RouterParam, ObjRefList=[RouterParam, param], **kw)

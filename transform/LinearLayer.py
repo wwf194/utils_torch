@@ -38,5 +38,6 @@ class LinearLayer(SingleLayer):
         else:
             raise Exception("LinearLayer: Invalid Subtype: %s"%param.Subtype)
 
+        return self
 __MainClass__ = LinearLayer
 # utils_torch.transform.SetMethodForTransformModule(__MainClass__)

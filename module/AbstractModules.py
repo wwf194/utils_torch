@@ -12,7 +12,7 @@ class AbstractModule:
         if not callable(Method):
             Method = utils_torch.parse.ResolveStr(Method)
         setattr(self, Name, Method)
-    def LoadParam(self, param):
+    def LoadParam(self, param=None):
         self.param = param
         return self
     def LoadData(self, data):
@@ -27,6 +27,8 @@ class AbstractModule:
         FilePath = LoadDir = self.param.FullName + ".data"
         self.LoadDataFromFile(self, FilePath)
         return self
+    def GetTensorLocation(self):
+        return self.cache.TensorLocation
     def SetTensorLocation(self, Location):
         cache = self.cache
         cache.TensorLocation = Location
@@ -41,25 +43,47 @@ class AbstractModule:
                 # else:
                 #     if isinstance(module, nn.Module):
                 #         utils_torch.AddWarning("%s is an instance of nn.Module, but has not implemented SetTensorLocation method."%name)
-    
+    def AddModule(self, Name, Module, Type=None):
+        param = self.param
+        cache = self.cache
+        if not hasattr(param, "Modules"):
+            param.Modules = utils_torch.EmptyPyObj()
+        if hasattr(Module, "param"):
+            setattr(param.Modules, Name, Module.param)
+        else:
+            assert Type is not None and isinstance(Type, str)
+            setattr(param.Modules, Name, utils_torch.PyObj({"Type": Type}))
+        setattr(cache.Modules, Name, Module)
+    def HasModule(self, Name):
+        return hasattr(self.param.Modules, Name)
+        
 class AbstractModuleWithParam(AbstractModule):
     def __init__(self, **kw):
         return
     def BeforeBuild(self, IsLoad, ParseParam=True):
-        cache = self.cache = utils_torch.EmptyPyObj()
+        if hasattr(self, "HasBeforeBuild") and self.HasBeforeBuild is True:
+            return
+
+        if not hasattr(self, "cache"):
+            cache = self.cache = utils_torch.EmptyPyObj()
         IsInit = not IsLoad
         cache.IsLoad = IsLoad
         cache.IsInit = IsInit
         cache.__object__ = self
 
-        if IsInit:
-            data = self.data = utils_torch.EmptyPyObj()
+        if not hasattr(self, "data"):
+            if IsInit:
+                self.data = utils_torch.EmptyPyObj()            
+            else:            
+                utils_torch.AddWarning("Instance of class %s has not loaded data."%self.__class__)
+
+        #assert hasattr(self, "param")
+        if hasattr(self, "param"):
+            param = self.param
         else:
-            assert hasattr(self, "data")
-
-        assert hasattr(self, "param")
-        param = self.param
-
+            utils_torch.AddWarning("Instance of class %s has not loaded param."%self.__class__)
+            self.param = utils_torch.PyObj()
+            
         if not hasattr(param, "FullName"):
             if hasattr(self.__class__, "FullNameDefault"):
                 param.FullName = self.__class__.FullNameDefault
@@ -76,21 +100,13 @@ class AbstractModuleWithParam(AbstractModule):
         if ParseParam:
             utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param)
 
-    # def Build(self, IsLoad):
-    #     cache = self.cache
-    #     cache.IsLoad = IsLoad
-    #     cache.IsInit = not IsLoad
-    #     cache.__object__ = self
-
-    #     self.Modules = cache.Modules
-    #     self.Dynamics = cache.Dynamics
-
-    #     utils_torch.parse.ParsePyObjStatic(self.param)
+        self.HasBeforeBuild = True
+        return self
     def ParseRouters(self):
         GlobalParam = utils_torch.GetGlobalParam()
         param = self.param
         cache = self.cache
-        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveBase__", "__Entry__"]):
+        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__IsResolveBase__", "__Entry__"]):
             if isinstance(RouterParam, str) and RouterParam in ["ClassMethod", "InternalMethod"]:
                 setattr(cache.Dynamics, Name, getattr(self, Name))
                 continue
@@ -105,7 +121,7 @@ class AbstractModuleWithParam(AbstractModule):
         ]
         if hasattr(GlobalParam.cache, "AdditionalObjRefListForParseRouters"):
             ObjRefList += GlobalParam.cache.AdditionalObjRefListForParseRouters
-        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__ResolveBase__", "__Entry__"]):
+        for Name, RouterParam in ListAttrsAndValues(param.Dynamics, Exceptions=["__IsResolveBase__", "__Entry__"]):
             if isinstance(RouterParam, str) and RouterParam in ["ClassMethod", "InternalMethod"]:
                 continue
             getattr(cache.Dynamics, Name).FromPyObj(
@@ -223,10 +239,12 @@ class AbstractModuleWithParam(AbstractModule):
         # initialize modules
         # for module in ListAttrs(param.modules):
         IsInit = not IsLoad
-        
         param = self.param
         cache = self.cache
-        for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveBase__"]):
+        for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__IsResolveBase__"]):
+            if isinstance(ModuleParam, str):
+                assert ModuleParam in ["Internal", "External"]
+                continue
             ModuleParam.Name = Name
             ModuleParam.FullName = param.FullName + "." + Name
 
@@ -235,6 +253,7 @@ class AbstractModuleWithParam(AbstractModule):
                     SetAttrs(ModuleParam, "Type", GetAttrs(ModuleParam.Name))
                 else:
                     raise Exception()
+
             if ModuleParam.Type in ["Internal", "External"]:
                 continue
             module = utils_torch.module.BuildModule(ModuleParam)
@@ -254,7 +273,7 @@ class AbstractModuleWithParam(AbstractModule):
     #     # for module in ListAttrs(param.modules):
     #     param = self.param
     #     cache = self.cache
-    #     for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__ResolveBase__"]):
+    #     for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__IsResolveBase__"]):
     #         ModuleParam.Name = Name
     #         ModuleParam.FullName = param.FullName + "." + Name
 
@@ -274,8 +293,9 @@ class AbstractModuleWithParam(AbstractModule):
     #         # if isinstance(module, nn.Module) and isinstance(self, nn.Module):
     #         #     self.add_module(Name, module)
     #         setattr(cache.Modules, Name, module)
-class AbstractModuleWithoutParam(AbstractModule):
-    def __init__(self):
+
+class AbstractModuleWithoutParam(AbstractModule):    
+    def __init__(self, **kw):
         return
     def ToFile(self, FilePath):
         if not FilePath.endswith(".data"):
@@ -283,11 +303,20 @@ class AbstractModuleWithoutParam(AbstractModule):
         utils_torch.file.PyObj2DataFile(self.data, FilePath)
         return self
     def FromFile(self, FilePath):
-        assert FilePath.endswith(".data")
-        self.data = utils_torch.file.DataFile2PyObj(FilePath)
+        if self.HasData:
+            assert FilePath.endswith(".data")
+            self.data = utils_torch.file.DataFile2PyObj(FilePath)
         return self
     def BeforeBuild(self, IsLoad=False):
-        self.cache = utils_torch.EmptyPyObj()
-        return
+        if hasattr(self, "HasBeforeBuild") and self.HasBeforeBuild is True:
+            return
 
-    
+        self.cache = utils_torch.EmptyPyObj()
+        if not (hasattr(self.__class__, "HasData") and self.__class__.HasData is False) and not hasattr(self, "data"):
+            self.data = utils_torch.EmptyPyObj()
+            self.HasData = True
+        else:
+            self.HasData = False
+        
+        self.HasBeforeBuild = True
+        return self
