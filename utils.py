@@ -20,7 +20,7 @@ import torch.nn as nn
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 # from inspect import getframeinfo, stack
-from utils_torch.attrs import *
+from utils_torch.attr import *
 from utils_torch.file import *
 
 import argparse
@@ -314,21 +314,22 @@ def GetTensorLocation(Method="auto"):
         raise Exception()
     return Location
 
-# def SetTensorLocation(Args):
-#     EnsureAttrs(Args, "Method", default="Auto")
-#     GlobalParam = utils_torch.GetGlobalParam()
-#     if HasAttrs(GlobalParam, "system.TensorLocation"):
-#         Location = GlobalParam.system.TensorLocation
-#     else:
-#         if Args.Method in ["Auto", "auto"]:
-#             Location = utils_torch.GetGPUWithLargestUseableMemory()
-#         else:
-#             raise Exception()
 
-#     for Obj in utils_torch.ListValues(utils_torch.GetGlobalParam().object):
-#         if hasattr(Obj, "SetTensorLocation"):
-#             Obj.SetTensorLocation(Location)
-#     SetAttrs(utils_torch.GetGlobalParam(), "system.TensorLocation", Location)                 
+def SetTensorLocation(Location):
+    # EnsureAttrs(Args, "Method", default="Auto")
+    # GlobalParam = utils_torch.GetGlobalParam()
+    # if HasAttrs(GlobalParam, "system.TensorLocation"):
+    #     Location = GlobalParam.system.TensorLocation
+    # else:
+    #     if Args.Method in ["Auto", "auto"]:
+    #         Location = utils_torch.GetGPUWithLargestUseableMemory()
+    #     else:
+    #         raise Exception()
+
+    # for Obj in utils_torch.ListValues(utils_torch.GetGlobalParam().object):
+    #     if hasattr(Obj, "SetTensorLocation"):
+    #         Obj.SetTensorLocation(Location)
+    SetAttrs(utils_torch.GetGlobalParam(), "system.TensorLocation", Location)                 
 
 def BuildObjFromParam(Args, **kw):
     if isinstance(Args, utils_torch.PyObj):
@@ -583,6 +584,11 @@ def ToNpArray(data, DataType=np.float32):
     else:
         raise Exception(type(data))
 
+def ToPyObj(Obj):
+    if isinstance(Obj, utils_torch.json.PyObj):
+        return Obj
+    else:
+        return utils_torch.PyObj(Obj)
 
 def ToTorchTensor(data):
     if isinstance(data, np.ndarray):
@@ -1296,3 +1302,5 @@ def CreateDefaultDict(GetDefaultMethod):
 GetDefaultDict = CreateDefaultDict
 
 from utils_torch.format import *
+
+from utils_torch.str import RStrip

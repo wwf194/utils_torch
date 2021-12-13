@@ -11,16 +11,6 @@ import utils_torch.transform.operator as operator
 import utils_torch.transform.nonlinear as nonlinear
 from utils_torch.transform.nonlinear import GetNonLinearMethod
 
-ModuleList = [
-    "LinearLayer", "NonLinearLayer",
-    "NoiseGenerator",
-    "RecurrentLIFLayer", "RNNLIF",
-    "LambdaLayer", "Lambda",
-    "MLP", 
-    "SerialSender", "SerialReceiver", "SignalHolder",
-    "NonLinear", # NonLinear Function
-    "Bias",
-]
 def IsLegalModuleType(Type):
     return Type in ModuleList or utils_torch.transform.operator.IsLegalModuleType(Type)
 
@@ -53,8 +43,6 @@ def BuildModuleIfIsLegalType(param, **kw):
         return LambdaLayer(**kw)
     elif Type in ["RecurrentLIFLayer"]:
         return RecurrentLIFLayer(**kw)
-    elif Type in ["NoiseGenerator"]:
-        return NoiseGenerator(**kw)
     elif Type in ["Bias"]:
         return Bias(**kw)
     elif Type in ["NonLinear"]:
@@ -71,11 +59,7 @@ def BuildModuleIfIsLegalType(param, **kw):
         raise Exception()
     else:
         raise Exception("BuildModule: No such module: %s"%Type)
-
-
-
-ModuleList = set(ModuleList)
-
+#ModuleList = set(ModuleList)
 
 import re
 import torch
@@ -88,7 +72,7 @@ import matplotlib.pyplot as plt
 
 import utils_torch
 from utils_torch.json import *
-from utils_torch.attrs import *
+from utils_torch.attr import *
 from utils_torch.LRSchedulers import LinearLR
 
 # def BuildModule(param, **kw):
@@ -165,7 +149,7 @@ def GetConstraintFunction(Method):
 def CreateWeight2D(param, DataType=torch.float32):
     Init = param.Init
     if Init.Method in ["Kaiming", "KaimingUniform", "KaimingNormal"]:
-        if Init.Method in ["KaimingNormal"]: #U~(-bound, bound), bound = sqrt(6/(1+a^2)*FanIn)
+        if Init.Method in ["KaimingNormal"]: # U ~ [-bound, bound], bound = sqrt(6/(1+a^2)*FanIn)
             SetAttrs(Init, "Distribution", value="Normal")
         elif Init.Method in ["KaimingUniform"]:
             SetAttrs(Init, "Distribution", value="Uniform")
@@ -398,10 +382,11 @@ def Init(self, param=None, data=None, ClassPath=None, **kw):
 
     param.cache.__object__ = self
     if hasattr(param, "Modules"):
-        param.Modules.SetResolveBase()
+        #param.Modules.SetResolveBase()
+        pass
     if hasattr(param, "Dynamics"):
-        param.Dynamics.SetResolveBase()
-
+        #param.Dynamics.SetResolveBase()
+        pass
     if data is None:
         if LoadDir is not None:
             DataPath = LoadDir + param.FullName + ".data"
@@ -432,19 +417,6 @@ def Init(self, param=None, data=None, ClassPath=None, **kw):
     self.Modules = cache.Modules
     self.Dynamics = cache.Dynamics
 
-
-def LogAccuracyForSingleClassPrediction(ClassIndexPredicted, ClassIndexTruth, log):
-    #log = utils_torch.ParseLog(log)
-    ClassIndexPredicted = utils_torch.ToNpArray(ClassIndexPredicted)
-    ClassIndexTruth = utils_torch.ToNpArray(ClassIndexTruth)
-    NumCorrect, NumTotal = utils_torch.evaluate.CalculateAccuracyForSingelClassPrediction(ClassIndexPredicted, ClassIndexTruth)
-    log.AddLogDict(
-        "Accuracy",
-        {
-            "SampleNumTotal": NumTotal,
-            "SampleNumCorrect": NumCorrect,
-        }
-    )
 
 
 
@@ -592,9 +564,8 @@ from utils_torch.transform.SignalTrafficNodes import SerialSender
 from utils_torch.transform.SignalTrafficNodes import SignalHolder
 from utils_torch.transform.LambdaLayer import LambdaLayer
 from utils_torch.transform.RecurrentLIFLayer import RecurrentLIFLayer
-from utils_torch.transform.noise import GaussianNoise
+from utils_torch.transform.noise import NoiseFromDistribution, GaussianNoise
 from utils_torch.transform.Bias import Bias
-
 from utils_torch.transform.SingleLayer import SingleLayer
 from utils_torch.transform.nonlinear import NonLinearLayer
 from utils_torch.transform.LinearLayer import LinearLayer
@@ -602,9 +573,21 @@ from utils_torch.transform.RNNLIF import RNNLIF
 
 ModuleDict = {
     "MLP": MLP, "mlp": MLP,
-    "SerialReceiver": SerialReceiver, "SerialSend": SerialSender, "SignalHolder": SignalHolder,
-    "SingalLayer": SingleLayer, "LinearLayer": LinearLayer, "NonLinearLayer": NonLinearLayer,
+    "SerialReceiver": SerialReceiver,
+    "SerialSend": SerialSender,
+    "SignalHolder": SignalHolder,
+    "SingalLayer": SingleLayer,
+    "LinearLayer": LinearLayer,
+    "NonLinearLayer": NonLinearLayer,
     "LambbdaLayer": LambdaLayer,
     "RNNLIF": RNNLIF,
+    "RecurrentLIFLayer": RecurrentLIFLayer,
+    "NoiseFromDistribution": NoiseFromDistribution,
     "GaussianNoise": GaussianNoise,
+    "Lambda": LambdaLayer, "LambdaLayer": LambdaLayer
 }
+
+ModuleList = list(ModuleDict.keys())
+ModuleList += [
+    "NonLinear", "Bias"
+]

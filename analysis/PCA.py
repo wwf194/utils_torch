@@ -19,12 +19,12 @@ class LogForPCA(utils_torch.log.AbstractLogAlongBatch):
             self.data.EpochIndex = EpochIndex
         if BatchIndex is not None:
             self.data.BatchIndex = BatchIndex
-    def FromFile(self, FilePath):
-        self.data = utils_torch.json.DataFile2PyObj(FilePath)
-        return self
-    def ToFile(self, FilePath):
-        utils_torch.json.PyObj2DataFile(self.data, FilePath)
-        return self
+    # def FromFile(self, FilePath):
+    #     self.data = utils_torch.json.DataFile2PyObj(FilePath)
+    #     return self
+    # def ToFile(self, FilePath):
+    #     utils_torch.json.PyObj2DataFile(self.data, FilePath)
+    #     return self
     def LogBatch(self, Name, data):
         data = utils_torch.ToNpArray(data)
         data = data.reshape(-1, data.shape[-1]) # [SampleNum, FeatureNum]
@@ -39,7 +39,7 @@ class LogForPCA(utils_torch.log.AbstractLogAlongBatch):
 
 class LogForPCAAlongTrain(utils_torch.log.AbstractLogAlongEpochBatchTrain):
     def __init__(self, EpochNum, BatchNum, **kw):
-        super.__init__(**kw)
+        super().__init__(**kw)
         #ConnectivityPattern = utils_torch.EmptyPyObj()
         data = self.data = utils_torch.EmptyPyObj()
         data.EpochNum = EpochNum
@@ -193,11 +193,16 @@ def PlotPCAAlongTrain(LogsPCA, DataDir=None, SaveDir=None, ContextObj=None):
 def ScanLogPCA(ScanDir=None):
     if ScanDir is None:
         ScanDir = utils_torch.GetMainSaveDir() + "PCA-Analysis-Along-Train-Test/" + "cache/"
-    DataFiles = utils_torch.file.ListFiles(ScanDir)
+    FileList = utils_torch.file.ListFiles(ScanDir)
     Logs = []
-    for FileName in DataFiles:
-        assert FileName.endswith(".data")
-        Logs.append(LogForPCA().FromFile(ScanDir + FileName))
+    LoadedFileName = []
+    for FileName in FileList:
+        FileName = utils_torch.RStrip(FileName, ".data")
+        FileName = utils_torch.RStrip(FileName, ".jsonc")
+        if FileName in LoadedFileName:
+            continue
+        LoadedFileName.append(FileName)
+        Logs.append(LogForPCA().FromFile(ScanDir, FileName).Build(IsLoad=True))
         # EpochIndex, BatchIndex = utils_torch.train.ParseEpochBatchFromStr(FileName)
         # Logs.append({
         #     "Epoch": EpochIndex,

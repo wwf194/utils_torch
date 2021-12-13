@@ -4,7 +4,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 from utils_torch.module.AbstractModules import AbstractModule
 class SignalHolder(utils_torch.module.AbstractModuleWithoutParam):
@@ -23,7 +23,7 @@ class SignalHolder(utils_torch.module.AbstractModuleWithoutParam):
     def Send(self):
         return self.cache.Content
     def Clear(self):
-        utils_torch.attrs.RemoveAttrIfExists(self.cache, "Content")
+        utils_torch.attr.RemoveAttrIfExists(self.cache, "Content")
 #utils_torch.transform.SetMethodForTransformModule(SignalHolder, HasTensor=False)
 
 from utils_torch.transform import AbstractTransform
@@ -61,6 +61,7 @@ class SerialSender(AbstractTransform):
             self.Receive = eval(GetAttrs(param.Receive.Args))
         else:
             raise Exception(method)
+        self.append = self.Receive
         return
     def ReceiveDefault(self, content):
         cache = self.cache
@@ -130,6 +131,7 @@ class SerialReceiver(AbstractTransform):
             self.Receive = eval(GetAttrs(param.Receive.Args))
         else:
             raise Exception(method)
+        self.append = self.Receive
         return
     def ReceiveDefault(self, content):
         self.ContentList.append(content)

@@ -1,6 +1,6 @@
 import functools
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 def StackFunctions(FunctionList, *Functions, Inverse=False, InputNum=1):
     if isinstance(FunctionList, list):

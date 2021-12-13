@@ -1,3 +1,4 @@
+from inspect import Traceback
 import re
 import sys
 import torch
@@ -62,3 +63,8 @@ def GetTimeDifferenceFromStr(TimeStr1, TimeStr2):
     Hour = Minute // 60
     TimeDiffStr = "%d:%02d:%02d"%(Hour, _Minute, _Second)
     return TimeDiffStr
+
+import traceback
+def Stack2File(FilePath):
+    utils_torch.EnsureFileDir(FilePath)
+    traceback.print_exc(file=open(FilePath, "w"))

@@ -1,5 +1,5 @@
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 class AbstractModuleAlongEpochBatchTrain(utils_torch.module.AbstractModule):
     # Child Class: trainer, log

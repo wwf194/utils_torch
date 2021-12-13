@@ -2,7 +2,7 @@ import matplotlib as mpl
 from matplotlib import pyplot as plt
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 class LogForAccuracy:
     def __init__(self):

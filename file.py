@@ -3,7 +3,7 @@ import re
 import pandas as pd
 import shutil # sh_utils
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 import warnings
 
 def RemoveFiles(FilesPath):
@@ -291,13 +291,21 @@ def RenameFileIfExists(FilePath):
         return FilePath
 RenameIfFileExists = RenameFileIfExists
 
+def RenameDir(DirOld, DirNew):
+    if not ExistsDir(DirOld):
+        utils_torch.AddWarning("RenameDir: Dir %s does not exist."%DirOld)
+        return
+    assert not ExistsFile(DirNew.rstrip("/"))
+    os.rename(DirOld, DirNew)
+
 def RenameDirIfExists(DirPath):
     DirPath = DirPath.rstrip("/")
     MatchResult = re.match(r"^(.*)-(\d+)$", DirPath)
     Sig = True
     if MatchResult is None:
         if ExistsPath(DirPath):
-            os.rename(DirPath, DirPath + "-0") # os.rename can apply to both folders and files.
+            #os.rename(DirPath, DirPath + "-0") # os.rename can apply to both folders and files.
+            shutil.move(DirPath, DirPath + "-0")
             DirPathOrigin = DirPath
             Index = 1
         elif ExistsPath(DirPath + "-0"):
@@ -319,6 +327,7 @@ def RenameDirIfExists(DirPath):
     return DirPath
 
 def Str2File(Str, FilePath):
+    utils_torch.EnsureFileDir(FilePath)
     with open(FilePath, "w") as file:
         file.write(Str)
 

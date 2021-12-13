@@ -1,6 +1,6 @@
 import re
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 def ParseRouterStaticAndDynamic(Router, **kw):
     ParseRouterStatic(Router, InPlace=True)

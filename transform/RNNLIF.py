@@ -10,7 +10,7 @@ import torch.nn.functional as F
 import matplotlib as mpl
 from matplotlib import pyplot as plt
 
-from utils_torch.attrs import *
+from utils_torch.attr import *
 import utils_torch
 
 from utils_torch.transform import AbstractTransformWithTensor
@@ -108,69 +108,8 @@ class RNNLIF(AbstractTransformWithTensor):
         #          "firingRateSeries,  Name=FiringRates, logger=DataTrain |-->   &LogSpatialActivity",
         #     ]
         # },
-    
-    def Optimize(self, output, outputTarget, activity, OptimizeParam):
-        return
-    def Iterate(self, input, recurrentInput, membranePotential, log):
-        # recurrentInput: recurrent input from last time step
-        Modules = self.Modules
-        return Modules.RecurrentLIFNeurons(recurrentInput, membranePotential, input)
-    def Run(self, Input, IterationTime, log:utils_torch.log.LogAlongEpochBatchTrain):
-        cache = self.cache
-        Modules = self.Modules
-        Dynamics = self.Dynamics
-        if IterationTime is None:
-            IterationTime = cache.IterationTime
-        Modules.InputList.Receive(Input)
-        initState = self.GenerateZeroInitState(RefInput=Input)
-        #recurrentInput, membranePotential = Modules.SplitHiddenAndCellState(initState)
-        
-        recurrentInput = initState[:, cache.NeuronNum] # Initial recurrentInput
-        membranePotential = initState[:, cache.NeuronNum] # Initial membranePotential
 
-        Modules.InputHolder.Receive(Input)
-        for TimeIndex in range(IterationTime):
-            input = Modules.InputHolder.Send()        
-            Modules.InputList.Receive(input)
-            inputTransformed = Modules.TransformInput(input)
-            Modules.InputTransformedList.Receive(inputTransformed)
-            recurrentInput, membranePotential = Dynamics.Iterate(inputTransformed, recurrentInput, membranePotential, log=log)
 
-        outputList = Modules.OutputList.Send()
-        recurrentInputList = Modules.HiddenStateList.Send()
-        membranePotentialList = Modules.MembranePotentialList.Send()
-        firingRateList = Modules.FiringRateList.Send()
-        inputList = Modules.InputList.Send()
-
-        log.AddLogCache("OutputList", outputList, "ActivityAlongTime")
-        log.AddLogCache("RecurrentInputList", recurrentInputList, "ActivityAlongTime")
-        log.AddLogCache("MembranePotentialList", membranePotentialList, "ActivityAlongTime")
-        log.AddLogCache("FiringRateList", firingRateList, "ActivityAlongTime")
-        log.AddLogCache("InputList", inputList, "ActivityAlongTime")
-        log.AddLogCache("InputTransformed", inputTransformed, "ActivityAlongTime")
-        
-        return outputList        
-        # return {
-        #     "outputList": outputList
-        #     # "outputSeries": outputSeries,
-        #     # "recurrentInputSeries": recurrentInputSeries,
-        #     # "membranePotentialSeries": membranePotentialSeries,
-        #     # "firingRateSeries": firingRateSeries,
-        # }
-        # {
-        #     "In":["input", "time", "log"],
-        #     "Out":["logOutput", "logRecurrentInput", "logMembranePotential", "logFiringRate"],
-        #     "Routings":[
-        #         "input |--> &InputCache.Receive",
-        #         "RefInput=%input |--> &*GenerateZeroInitState |--> state",  States start from zero
-        #         "state |--> &SplitHiddenAndMembranePotential |--> recurrentInput, membranePotential",
-        #         "recurrentInput, membranePotential |--> &Iterate |--> recurrentInput, membranePotential || repeat=%time",
-        #         "&LogOutput.Send            |--> logOutput",
-        #         "&LogRecurrentInput.Send    |--> logRecurrentInput",
-        #         "&LogMembranePotential.Send |--> logMembranePotential",
-        #         "&LogFiringRate.Send        |--> logFiringRate",
-        #     ]
-        # },
 
 __MainClass__ = RNNLIF
 #utils_torch.transform.SetMethodForTransformModule(__MainClass__)

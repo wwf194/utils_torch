@@ -5,7 +5,7 @@ from typing import List
 
 import utils_torch
 from utils_torch.python import CheckIsLegalPyName
-from utils_torch.attrs import *
+from utils_torch.attr import *
 # from utils_torch.utils import ListAttrs # leads to recurrent reference.
 
 import numpy as np
@@ -258,6 +258,18 @@ class PyObj(object):
                 self.FromPyObj(param)
             else:
                 raise Exception(type(param))
+    def __hasattr__(self, Name):
+        HasAttr = Name in self.__dict__ or Name=="__dict__"
+        return HasAttr
+    def __getattr__(self, Name):
+        return PyObj().SetCreateFromGetAttr(True)
+    def SetCreateFromGetAttr(self, value=True):
+        self.cache.CreateFromGetAttr = value
+    def IsCreateFromGetAttr(self):
+        if hasattr(self.cache, "CreateFromAttr") and self.cache.CreateFromAttr is True:
+            return True
+        else:
+            return False
     def __repr__(self):
         return str(self.ToDict())
     def __setitem__(self, key, value):
@@ -406,9 +418,9 @@ class PyObj(object):
         Dict = dict(self.__dict__)
         Dict.pop("cache")
         return Dict
-    def Items(self):
+    def Items(self, Exceptions=["__IsResolveBase__"]):
         assert self.IsDictLike(), "Only DictLike PyObj supports items()"
-        return ListAttrsAndValues(self)
+        return ListAttrsAndValues(self, Exceptions=Exceptions)
     def ToList(self):
         assert self.IsListLike(), "Only ListLike PyObj supports ToList()"
         return self.__value__
@@ -427,6 +439,13 @@ class PyObj(object):
         else:
             if hasattr(self, "__IsResolveBase__"):
                 delattr(self, "__IsResolveBase__")
+    def SetResolveBaseRecur(self):
+        self.SetResolveBase()
+        if hasattr(self, "Modules"):
+            #self.Modules.SetResolveBase()
+            for ModuleName, ModuleParam in self.Modules.ListAttrsAndValues():
+                if isinstance(ModuleParam, PyObj):
+                    ModuleParam.SetResolveBaseRecur()
     def IsResolveBase(self):
         if hasattr(self, "__IsResolveBase__"):
             if self.__IsResolveBase__==True or self.__IsResolveBase__ in ["here"]:
@@ -437,6 +456,6 @@ class PyObj(object):
     def Values(self):
         return self.__dict__.values()
 PyObj.append = PyObj.Append
-PyObj.items = PyObj.Items
+PyObj.items = PyObj.ListAttrsAndValues = PyObj.Items
 PyObj.ListKeys = PyObj.keys = PyObj.Keys
 PyObj.values = PyObj.Values

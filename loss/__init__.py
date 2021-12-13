@@ -2,9 +2,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
+import utils_torch.loss.classification as classification
 
 from utils_torch.loss.L2Loss import L2Loss
+
+from utils_torch.loss.classification import Probability2MostProbableIndex, LogAccuracyForSingleClassPrediction
 
 ModuleList = [
     "L2Loss",

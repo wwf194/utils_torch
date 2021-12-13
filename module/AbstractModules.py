@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 class AbstractModule:
     def __init__(self, **kw):
@@ -13,6 +13,7 @@ class AbstractModule:
             Method = utils_torch.parse.ResolveStr(Method)
         setattr(self, Name, Method)
     def LoadParam(self, param=None):
+        param = utils_torch.ToPyObj(param)
         self.param = param
         return self
     def LoadData(self, data):
@@ -62,27 +63,30 @@ class AbstractModuleWithParam(AbstractModule):
         return
     def BeforeBuild(self, IsLoad, ParseParam=True):
         if hasattr(self, "HasBeforeBuild") and self.HasBeforeBuild is True:
-            return
+            return self
 
         if not hasattr(self, "cache"):
-            cache = self.cache = utils_torch.EmptyPyObj()
+            self.cache = utils_torch.EmptyPyObj()
+        
+        cache = self.cache
         IsInit = not IsLoad
         cache.IsLoad = IsLoad
         cache.IsInit = IsInit
         cache.__object__ = self
 
         if not hasattr(self, "data"):
-            if IsInit:
-                self.data = utils_torch.EmptyPyObj()            
-            else:            
-                utils_torch.AddWarning("Instance of class %s has not loaded data."%self.__class__)
+            if IsLoad:
+                if hasattr(self.__class__, "HasData") and self.__class__.HasData is True:
+                    raise Exception()
+                #utils_torch.AddWarning("Instance of class %s has not loaded data."%self.__class__)
+            self.data = utils_torch.EmptyPyObj()
 
         #assert hasattr(self, "param")
         if hasattr(self, "param"):
             param = self.param
         else:
-            utils_torch.AddWarning("Instance of class %s has not loaded param."%self.__class__)
-            self.param = utils_torch.PyObj()
+            #utils_torch.AddWarning("Instance of class %s has not loaded param."%self.__class__)
+            param = self.param = utils_torch.PyObj()
             
         if not hasattr(param, "FullName"):
             if hasattr(self.__class__, "FullNameDefault"):
@@ -90,17 +94,22 @@ class AbstractModuleWithParam(AbstractModule):
             else:
                 param.FullName = "DefaultFullName"
 
-        if hasattr(param, "Modules"):
-            self.Modules = cache.Modules = utils_torch.EmptyPyObj()
-            param.Modules.SetResolveBase()
-        if hasattr(param, "Dynamics"):
-            self.Dynamics = cache.Dynamics = utils_torch.EmptyPyObj()
-            param.Dynamics.SetResolveBase()
+        if not hasattr(param, "Modules"):
+            param.Modules = utils_torch.EmptyPyObj()
+        #param.Modules.SetResolveBase()
+        self.Modules = cache.Modules = utils_torch.EmptyPyObj()
+        
+        if not hasattr(param, "Dynamics"):
+            param.Dynamics = utils_torch.EmptyPyObj()
+        param.Dynamics.SetResolveBase()
+        self.Dynamics = cache.Dynamics = cache.Dynamics = utils_torch.EmptyPyObj()
 
+        param.SetResolveBaseRecur()
         if ParseParam:
             utils_torch.parse.ParsePyObjStatic(param, ObjCurrent=param)
 
         self.HasBeforeBuild = True
+        
         return self
     def ParseRouters(self):
         GlobalParam = utils_torch.GetGlobalParam()
@@ -144,9 +153,11 @@ class AbstractModuleWithParam(AbstractModule):
 
         param.cache.__object__ = self
         if hasattr(param, "Modules"):
-            param.Modules.SetResolveBase()
+            #param.Modules.SetResolveBase()
+            pass
         if hasattr(param, "Dynamics"):
-            param.Dynamics.SetResolveBase()
+            pass
+            #param.Dynamics.SetResolveBase()
 
         if data is None:
             if LoadDir is not None:
@@ -206,29 +217,43 @@ class AbstractModuleWithParam(AbstractModule):
     def ParseParam(self, **kw):
         GlobalParam = utils_torch.GetGlobalParam()
         utils_torch.parse.ParsePyObjStatic(self.param, ObjCurrent=self.param, ObjRoot=GlobalParam)
-    def ToFile(self, SaveName=None, SaveDir=None):
+    def ToFile(self, SaveDir=None, SaveName=None):
         param = self.param
         data = self.data
         if SaveName is None:
             SaveName = self.param.FullName
         if not data.IsEmpty():
             utils_torch.file.PyObj2DataFile(data,  SaveDir + SaveName + ".data")
-            
         utils_torch.file.PyObj2JsonFile(param, SaveDir + SaveName + ".jsonc")
         return self
-    def FromFile(self, SaveDir, SaveName, LoadParam=False, IsRoot=False):
-        if IsRoot:
+    def FromFile(self, SaveDir, SaveName, LoadParam=True, IsRoot=None):
+        if IsRoot is False:
             LoadParam = True
-        self.data  = utils_torch.file.DataFile2PyObj(SaveDir + SaveName + ".data")
+        elif IsRoot is True:
+            LoadParam = False
+        if utils_torch.file.ExistsFile(SaveDir + SaveName + ".data"):
+            self.data  = utils_torch.file.DataFile2PyObj(SaveDir + SaveName + ".data")
+        else:
+            if hasattr(self.__class__, "HasData") and self.__class__.HasData is True:
+                raise Exception()
         if LoadParam:
             self.param = utils_torch.file.JsonFile2PyObj(SaveDir + SaveName + ".jsonc")
-        param = self.param
-        self.cache = utils_torch.EmptyPyObj()
-        if hasattr(param, "Modules"):
-            for ModuleName, ModuleParam in param.Modules.Items():
-                utils_torch.module.BuildModule(ModuleParam).FromFile(
-                    SaveDir, SaveName + "." + ModuleName, LoadParam=False
-                )
+        # param = self.param
+        # cache = self.cache = utils_torch.EmptyPyObj()
+
+        # This shoud be done in Build.
+        # if hasattr(param, "Modules"):
+        #     for ModuleName, ModuleParam in param.Modules.ListAttrsAndValues():
+        #         if isinstance(ModuleParam, str) and ModuleParam in ["ClassMethod", "Internal", "External"]:
+        #             continue
+        #         if hasattr(ModuleParam, "Type") and ModuleParam.Type in ["Internal", "External"]: 
+        #             continue
+        #         module = utils_torch.module.BuildModule(ModuleParam).LoadParam(ModuleParam)
+        #         if hasattr(module, "FromFile"):
+        #             module.FromFile(
+        #                 SaveDir, SaveName + "." + ModuleName, LoadParam=False
+        #             ).Build(IsLoad=True)
+        #         setattr(cache.Modules, "ModuleName", module)
         return self
     def OverwriteParam(self, ParamPath, Value):
         SetAttrs(self.param, ParamPath, value=Value)
@@ -302,10 +327,11 @@ class AbstractModuleWithoutParam(AbstractModule):
             FilePath += ".data"
         utils_torch.file.PyObj2DataFile(self.data, FilePath)
         return self
-    def FromFile(self, FilePath):
+    def FromFile(self, SaveDir, SaveName):
         if self.HasData:
             assert FilePath.endswith(".data")
             self.data = utils_torch.file.DataFile2PyObj(FilePath)
+        e
         return self
     def BeforeBuild(self, IsLoad=False):
         if hasattr(self, "HasBeforeBuild") and self.HasBeforeBuild is True:

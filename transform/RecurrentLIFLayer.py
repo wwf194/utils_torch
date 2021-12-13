@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 DefaultRoutings = [
     "&GetBias |--> bias",
@@ -90,20 +90,20 @@ class RecurrentLIFLayer(AbstractTransformWithTensor):
             Modules.ProcessTotalInput = lambda TotalInput: TimeConst * TotalInput
             Modules.ProcessMembranePotentialAndTotalInput = lambda MembranePotential, TotalInput: \
                 MembranePotential + Modules.ProcessTotalInput(TotalInput)
-    def forward(self, MembranePotential, RecurrentInput, Input):
-        cache = self.cache
-        return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])
+    # def forward(self, MembranePotential, RecurrentInput, Input):
+    #     cache = self.cache
+    #     return utils_torch.CallGraph(cache.Dynamics.Main, [MembranePotential, RecurrentInput, Input])
     def Run(self, recurrentInput, membranePotential, input, log=None):
         Modules = self.Modules
         bias = Modules.GetBias()
-        noise = Modules.GenerateNoise()
+        noise = Modules.GenerateNoise(input)
         inputTotal = recurrentInput + input + bias + noise
-        membranePotential = self.ProcessMembranePotentialAndTotalInput(inputTotal, membranePotential)
+        membranePotential = Modules.ProcessMembranePotentialAndTotalInput(inputTotal, membranePotential)
         firingRate = Modules.NonLinear(membranePotential)
         output = Modules.FiringRate2Output(firingRate)
         recurrentInputNext = Modules.FiringRate2RecurrentInput(firingRate)
         membranePotentialNext = Modules.MembranePotentialDecay(membranePotential)
-        return recurrentInputNext, membranePotentialNext, firingRate, output
+        return recurrentInputNext, membranePotentialNext, output, firingRate
         # "Main":{
         #     "In": ["recurrentInput", "membranePotential", "input"],
         #     "Out": ["recurrentInputNext", "membranePotentialNext", "firingRate", "output"],

@@ -5,7 +5,7 @@ import numpy as np
 import scipy
 import utils_torch
 
-from utils_torch.attrs import GetAttrs
+from utils_torch.attr import GetAttrs
 
 def NpArrayStatistics(data, verbose=False, ReturnType="PyObj"):
     DataStats = {

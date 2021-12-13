@@ -1,6 +1,6 @@
 import torch
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 from collections import defaultdict
 
@@ -51,7 +51,7 @@ class GradientDescend(utils_torch.module.AbstractModuleWithParam):
             # if Name in ["Recurrent.FiringRate2RecurrentInput.Weight"]:
             #     print("aaa")
             if Weight.grad is None:
-                if WarnNoneGrad:
+                if WarnNoneGrad and Update:
                     utils_torch.AddWarning("%s.grad is None."%Name)
                 continue
             WeightChange = Weight.grad.data

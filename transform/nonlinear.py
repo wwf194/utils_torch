@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 def Build(param):
     model = NonLinearLayer()
@@ -56,7 +56,7 @@ def GetNonLinearMethod(param, **kw):
         else:
             return lambda x:param.Coefficient * F.tanh(x)         
     else:
-        raise Exception("GetNonLinearMethod: Invalid nonlinear function Type: %s"%param.Type)
+        raise Exception("GetNonLinearMethod: Invalid nonlinear function Type: %s"%Type)
 GetActivationFunction = GetNonLinearMethod
 
 from utils_torch.transform.SingleLayer import SingleLayer

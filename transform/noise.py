@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils_torch.attrs import *
+from utils_torch.attr import *
 from utils_torch.module.AbstractModules import AbstractModule
 
 class NoiseFromDistribution(utils_torch.module.AbstractModuleWithParam):
@@ -30,7 +30,6 @@ class NoiseFromDistribution(utils_torch.module.AbstractModuleWithParam):
                         ).to(self.GetTensorLocation())
                 elif param.Distribution in ["Laplacian"]:
                     # to be implemented
-
                     pass
                 else:
                     raise Exception(param.Distribution)
@@ -38,7 +37,8 @@ class NoiseFromDistribution(utils_torch.module.AbstractModuleWithParam):
                 raise Exception(param.SubMethod)
         else:
             raise Exception(param.Method)
-
+    def __call__(self, *Args, **Kw):
+        return self.forward(*Args, **Kw)
 class GaussianNoise(NoiseFromDistribution):
     def Build(self, IsLoad=False):
         super().BeforeBuild()

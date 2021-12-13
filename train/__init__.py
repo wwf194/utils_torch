@@ -7,7 +7,7 @@ import os
 import re
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 import torch
 import torch.nn as nn

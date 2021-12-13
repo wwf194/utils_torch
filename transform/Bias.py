@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 from utils_torch.transform import AbstractTransformWithTensor
 class Bias(AbstractTransformWithTensor):

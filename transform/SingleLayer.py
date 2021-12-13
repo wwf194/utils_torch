@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 from utils_torch.transform import AbstractTransformWithTensor
 class SingleLayer(AbstractTransformWithTensor):
     def __init__(self, **kw):
@@ -149,6 +149,7 @@ class SingleLayer(AbstractTransformWithTensor):
 
         return cache.PlotWeight
     def __call__(self, Input):
-        return self.forward(Input)
+        Output = self.forward(Input)
+        return Output
 __MainClass__ = SingleLayer
 # utils_torch.transform.SetMethodForTransformModule(__MainClass__)

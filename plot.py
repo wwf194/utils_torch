@@ -13,7 +13,7 @@ sns.set_style("white")
 default_res=60
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 ColorPlt = utils_torch.EmptyPyObj().FromDict({
     "White": (1.0, 1.0, 1.0),

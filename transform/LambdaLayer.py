@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 from utils_torch.transform import AbstractTransform
 class LambdaLayer(AbstractTransform):

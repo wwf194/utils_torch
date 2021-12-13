@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 from collections import defaultdict
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 def AnalyzeTimeVaryingActivitiesEpochBatch(Logs, PlotIndex=0, SaveDir=None, ContextObj=None):
     PlotIndex = 0

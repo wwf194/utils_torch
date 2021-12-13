@@ -2,7 +2,7 @@ import sys
 import numpy as np
 import torch
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 DatasetConfigFile = utils_torch.file.GetFileDir(__file__) + "cifar10.jsonc"
 DatasetConfig = utils_torch.json.JsonFile2PyObj(DatasetConfigFile)

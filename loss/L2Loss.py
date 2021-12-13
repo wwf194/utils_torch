@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 class L2Loss(utils_torch.module.AbstractModuleWithParam):
     #def __init__(self, param=None, data=None, **kw):

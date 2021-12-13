@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 import utils_torch
-from utils_torch.attrs import GetAttrs, SetAttrs, HasAttrs, EnsureAttrs
+from utils_torch.attr import GetAttrs, SetAttrs, HasAttrs, EnsureAttrs
 
 def Build(param):
     # to be implemented

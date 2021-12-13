@@ -1,4 +1,4 @@
-from utils_torch.attrs import *
+from utils_torch.attr import *
 from utils_torch.json import *
 from collections import defaultdict
 
@@ -410,9 +410,7 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
         pass
 
 def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
-    if Obj in ["$~Loss.Prediction"]:
-        print("aaa")
-    # if Obj in ["$Batch.Size"]:
+    # if Obj in ["$~~Neurons.Recurrent.NonLinear"]:
     #     print("aaa")
     kw["RecurDepth"] += 1
     WithinJson = kw["WithinJson"]
@@ -482,7 +480,7 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
             sentence = sentence.replace("&*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("&", "ObjCurrent.")
             while "~" in sentence or "*" in sentence:
-                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("~", "cache.__ParentRef__.")
                 sentence = sentence.replace("*", "cache.__object__.")
     else:
         while "$" in sentence:
@@ -492,12 +490,15 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
             sentence = sentence.replace("$*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("$", "ObjCurrent.")
             while "~" in sentence or "*" in sentence:
-                sentence = sentence.replace("~", "__ParentRef__.")
+                sentence = sentence.replace("~", "cache.__ParentRef__.")
                 sentence = sentence.replace("*", "cache.__object__.")
     success = False
     try:
         Str = eval(sentence)
         if Str in ["__ToBeSet__"]:
+            success = False
+            raise Exception()
+        elif isinstance(Str, utils_torch.PyObj) and Str.IsCreateFromGetAttr():
             success = False
             raise Exception()
         else:

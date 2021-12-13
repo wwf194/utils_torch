@@ -14,7 +14,7 @@ import json5
 from inspect import getframeinfo, stack
 
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 import utils_torch.log.AbstractLog as AbstractLog
 from utils_torch.log.AbstractLog import \
@@ -203,7 +203,7 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
             Log[key].append(value)
         Log["Epoch"].append(self.GetEpochIndex())
         Log["Batch"].append(self.GetBatchIndex())
-    def AddLogCache(self, Name, Data, Type="Cache"):
+    def LogCache(self, Name, Data, Type="Cache"):
         cache = self.cache
         data = self.data
         data.logType[Name] = Type
@@ -258,6 +258,28 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
         plt.tight_layout()
         utils_torch.plot.SaveFigForPlt(SavePath=SaveDir + "%s.png"%Name)
         utils_torch.file.Table2TextFileDict(Log, SavePath=SaveDir + "%s-Epoch"%Name)
+    def ListLog(self):
+        return list(self.data.log.keys())
+    def ReportLog(self):
+        Report = []
+        log = self.data.log
+        for Name, Log in self.data.log.items():
+            if isinstance(Log, list):
+                Report.append(
+                    "%s: listlog length=%d type=%s"%(Name, len(Log), type(Log[0]["Value"]))
+                )
+            elif isinstance(Log, dict):
+                ExampleKey = Log.keys()[0]
+                Report.append(
+                    "%s: dictlog length=%d example=%s"%(Name, len(Log[ExampleKey]), type(Log[ExampleKey]["Value"]))
+                )
+            else:
+                ExampleKey = Log.keys()[0]
+                Report.append(
+                    "%s: cachelog length=%d type=%s"%(Name, type(Log["Value"]))
+                )
+    def GetCache(self, Name):
+        return self.data.log[Name]["Value"]
     def GetLogValueByName(self, Name):
         Log = self.GetLogByName(Name)
         if isinstance(Log, dict) and "Value" in Log:
@@ -278,6 +300,13 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
             utils_torch.AddWarning("No such log: %s"%Name)
             return None
         return data.log[Name]["Value"]
+    def GetLogValueOfType(self, Type):
+        data = self.data
+        Logs = {}
+        for Name, Log in data.log.items():
+            if data.logType[Name] == Type:
+                Logs[Name] = Log["Value"]
+        return Logs
     def GetLogOfType(self, Type):
         data = self.data
         Logs = {}
@@ -296,6 +325,7 @@ class LogAlongEpochBatchTrain(AbstractLogAlongEpochBatchTrain):
             else:
                 continue
 #utils_torch.transform.SetEpochBatchMethodForModule(LogForEpochBatchTrain)
+LogAlongEpochBatchTrain.AddLogCache = LogAlongEpochBatchTrain.LogCache
 
 class Log:
     def __init__(self, Name, **kw):
@@ -411,7 +441,7 @@ def GetDatasetDir(Type):
     else:
         return GetAttrs(GlobalParam, Attrs)
     
-def SetMainSaveDir(SaveDir=None, Name=None, GlobalParam=None, Method="FromIndex"):
+def CreateMainSaveDir(SaveDir=None, Name=None, GlobalParam=None, Method="FromIndex"):
     if GlobalParam is None:
         GlobalParam = utils_torch.GetGlobalParam()
     if SaveDir is None:
@@ -427,6 +457,29 @@ def SetMainSaveDir(SaveDir=None, Name=None, GlobalParam=None, Method="FromIndex"
     SetAttrs(utils_torch.GetGlobalParam(), "SaveDir.Main", value=SaveDir)
     return SaveDir
 
+def GetMainSaveDir(GlobalParam=None):
+    if GlobalParam is None:
+        GlobalParam = utils_torch.GetGlobalParam()
+    return GlobalParam.SaveDir.Main
+
+def SetMainSaveDir(SaveDir, GlobalParam=None):
+    if GlobalParam is None:
+        GlobalParam = utils_torch.GetGlobalParam()
+    if not SaveDir.endswith("/"):
+        SaveDir += "/"
+    assert not utils_torch.file.ExistsFile(SaveDir.rstrip("/"))
+    SetAttrs(GlobalParam, "SaveDir.Main", value=SaveDir)
+    return
+    
+def ChangeMainSaveDir(SaveDir, GlobalParam=None):
+    if GlobalParam is None:
+        GlobalParam = utils_torch.GetGlobalParam()
+    assert HasAttrs(GlobalParam, "SaveDir.Main")
+    SaveDirOld = GlobalParam.SaveDir.Main
+    utils_torch.file.RenameDir(SaveDirOld, SaveDir)
+    SetMainSaveDir(SaveDir, GlobalParam)
+    utils_torch.AddLog("utils_torch.GlobalParam.SaveDir.Main %s -> %s"%(SaveDirOld, SaveDir))
+
 def SetSubSaveDir(SaveDir=None, Name="Experiment", GlobalParam=None):
     if GlobalParam is None:
         GlobalParam = utils_torch.GetGlobalParam()
@@ -438,10 +491,6 @@ def GetSubSaveDir(Type):
         setattr(utils_torch.GetGlobalParam().SaveDir, Type, utils_torch.GetMainSaveDir() + Type + "/")
     return getattr(utils_torch.GetGlobalParam().SaveDir, Type)        
 
-def GetMainSaveDir(GlobalParam=None):
-    if GlobalParam is None:
-        GlobalParam = utils_torch.GetGlobalParam()
-    return GlobalParam.SaveDir.Main
 
 def SetSubSaveDirEpochBatch(Name, EpochIndex, BatchIndex, BatchInternalIndex=None, GlobalParam=None):
     if GlobalParam is None:

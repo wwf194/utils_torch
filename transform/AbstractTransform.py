@@ -5,7 +5,7 @@ import torch.nn.functional as F
 
 # from utils_torch.module import AbstractModule, AbstractModuleWithParam, AbstractModuleWithoutParam
 import utils_torch
-from utils_torch.attrs import *
+from utils_torch.attr import *
 
 def ProcessLogData(data):
     if isinstance(data, torch.Tensor):
@@ -14,7 +14,7 @@ def ProcessLogData(data):
 
 class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
     def __init__(self, **kw):
-        kw.setdefault("DataOnly", False)
+        # kw.setdefault("DataOnly", False)
         super().__init__(**kw)
     def InitModules(self):
         cache = self.cache
@@ -32,8 +32,7 @@ class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
                     )
                 if module is None:
                     raise Exception(name)
-
-    def LogCache(self, data, Name, Type=None, log=None):
+    def LogCache(self, Name, data, Type=None, log=None):
         #log = utils_torch.ParseLog(log)
         data = ProcessLogData(data)
         param = self.param
@@ -56,43 +55,54 @@ class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
         if not Name.endswith("Stat"):
             Name += "-Stat"
         log.AddLogDict(Name, stat, Type)
-    def LogActivityStat(self, data, Name, Type="Activity-Stat", log="Data"):
-        self.LogStat(self, data, Name, Type=Type, log=log)
-    def LogWeightStat(self, weights, Name, Type="Weight-Stat", log="Data"):
-        log = utils_torch.ParseLog(log)
+    def LogActivityStat(self, Name, data, Type="Activity-Stat", log=None):
+        self.LogStat(data, Name, Type=Type, log=log)
+    def LogWeightStat(self, Name, WeightDict, Type="Weight-Stat", log=None):
+        #log = utils_torch.ParseLog(log)
         param = self.param
-        for Name, Weight in weights.items():
+        for Name, Weight in WeightDict.items():
             WeightStat = utils_torch.math.TorchTensorStat(Weight, ReturnType="Dict")
-            log.AddLogDict(Name, WeightStat, Type)
-    def LogActivityAlongTime(self, data, Name, Type="ActivityAlongTime", log="Data"):
+            log.AddLogDict(Name + "-Stat", WeightStat, Type)
+    def LogActivityAlongTime(self, Name, data, Type="ActivityAlongTime", log="Data"):
         log = utils_torch.ParseLog(log)
         param = self.param
         data = utils_torch.ToNpArray(data)
         if hasattr(param, "FullName"):
             Name = param.FullName + "." + Name
         log.AddLogCache(Name, data, Type)
-    def LogActivity(self, data, Name, Type="Activity", log="Data"):
+    def LogTensor(self, Name, data, Type="None", log="Data"):
         log = utils_torch.ParseLog(log)
         param = self.param
         data = utils_torch.ToNpArray(data)
         if hasattr(param, "FullName"):
             Name = param.FullName + "." + Name
         log.AddLogCache(Name, data, Type)
-    def Log(self, data, Name, Type=None, log="Data"):
+    def LogActivity(self, Name, data, Type="Activity", log="Data"):
+        log = utils_torch.ParseLog(log)
+        param = self.param
+        data = utils_torch.ToNpArray(data)
+        if hasattr(param, "FullName"):
+            Name = param.FullName + "." + Name
+        log.AddLogCache(Name, data, Type)
+    def Log(self, Name, data, Type=None, log="Data"):
         log = utils_torch.ParseLog(log)
         param = self.param
         if hasattr(param, "FullName"):
             Name = param.FullName + "." + Name
         data = ProcessLogData(data)
         log.AddLog(Name, data, Type)
-    def LogWeight(self, weights, Name="Weight", Type="Weight", log="Data"):
-        log = utils_torch.ParseLog(log)
+    def LogWeight(self, Name="Weight", WeightDict=None, Type="Weight", log=None):
+        self.LogTensorDict(Name, WeightDict, Type, log)
+    def LogGrad(self, Name="Grad", WeightDict=None, Type="Grad", log=None):
+        self.LogTensorDict(Name, WeightDict, Type, log)  
+    def LogTensorDict(self, Name="None", TensorDict=None, Type="None", log=None):
+        #log = utils_torch.ParseLog(log)
         param = self.param
         _weights = {}
-        for name, weight in weights.items():
+        for name, weight in TensorDict.items():
             _weights[name] = utils_torch.ToNpArray(weight)
-        log.AddLogCache(Name, _weights, Type)
-    def LogFloat(self, data, Name, Type="Float", log="Data"):
+        log.AddLogCache(param.FullName + "." + Name, _weights, Type)
+    def LogFloat(self, Name, data, Type="Float", log="Data"):
         log = utils_torch.ParseLog(log)
         param = self.param
         if isinstance(data, torch.Tensor):
@@ -100,12 +110,19 @@ class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
         if hasattr(param, "FullName"):
             Name = param.FullName + "." + Name
         log.AddLog(Name, data, Type)
-    def LogLoss(self, loss, Name, Type="Loss", log="Data"):
+    def LogLoss(self, Name, loss, Type="Loss", log="Data"):
         log = utils_torch.ParseLog(log)
         if isinstance(loss, torch.Tensor):
             data = loss.item()
         log.AddLog(Name, data, Type)
-
+    def LogLossDict(self, Name, LossDict, Type="Loss", log=None):
+        # #log = utils_torch.ParseLog(log)
+        # for Name, Loss in LossDict.items():
+        #     if isinstance(Loss, torch.Tensor):
+        #         LossDict[Name] = Loss.item()
+        # log.AddLogDict(Name, LossDict, Type)
+        for Name, Loss in LossDict.items():
+            self.LogLoss(Name, Loss, Type, log)
 class AbstractTransformWithTensor(AbstractTransform):
     def __init__(self, **kw):
         super().__init__(**kw)
