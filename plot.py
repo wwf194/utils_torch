@@ -1,5 +1,3 @@
-from os import EX_CANTCREAT
-from re import L, X
 import numpy as np
 import scipy
 import cv2 as cv

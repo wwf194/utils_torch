@@ -24,6 +24,18 @@ def GetSystemType():
         SystemType = 'unknown'
     return SystemType
 
+import platform
+ 
+def GetSystemType2():
+    SystemType = platform.system().lower()
+    if SystemType == 'windows':
+        return "windows"
+    elif SystemType == 'linux':
+        return "linux"
+    else:
+        raise Exception(SystemType)
+    return SystemType
+
 def GetBytesInMemory(Obj):
     return sys.getsizeof(Obj)
 

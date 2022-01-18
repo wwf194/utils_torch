@@ -139,7 +139,11 @@ EnsureFileDir = EnsureFileDirectory
 
 def GetFileDir(FilePath):
     assert utils_torch.file.IsFile(FilePath)
-    return os.path.dirname(FilePath) + "/"
+    
+    if utils_torch.SystemType == "windows":
+        return os.path.dirname(FilePath) + "\\"
+    else:
+        return os.path.dirname(FilePath) + "/"
 
 def EnsurePath(path, isFolder=False): # check if given path exists. if not, create it.
     if isFolder: # caller of this function makes sure that path is a directory/folder.
@@ -260,6 +264,11 @@ def ParseNameSuffix(FilePath):
         return FilePath, ""
     else:
         return MatchResult.group(1), MatchResult.group(2)
+
+def RenameFile(DirPath, FileName, FileNameNew):
+    DirPath = CheckDir(DirPath)
+    assert ExistsFile(DirPath + FileName)
+    os.rename(DirPath + FileName, DirPath + FileNameNew)
 
 def RenameFileIfExists(FilePath):
     if FilePath.endswith("/"):
@@ -527,11 +536,13 @@ def GetRelativePath(PathTarget, PathRef):
     return PathRef2Target
 
 
-def CheckDirPath(DirPath):
+def CheckDir(DirPath):
     if not DirPath.endswith("/"):
         DirPath += "/"
     assert IsDir(DirPath)
     return DirPath
+
+CheckDirPath = CheckDir
 
 def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
     DirPath = CheckDirPath(DirPath)

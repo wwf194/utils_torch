@@ -1303,4 +1303,6 @@ GetDefaultDict = CreateDefaultDict
 
 from utils_torch.format import *
 
-from utils_torch.str import RStrip
+# SystemType = utils_torch.system.GetSystemType()
+# def GetSystemType():
+#     return SystemType

@@ -1,5 +1,9 @@
 
 #from utils_torch.PyObj import *
+
+from utils_torch.system import GetSystemType
+SystemType = GetSystemType()
+
 from utils_torch.json import IsJsonObj, PyObj, EmptyPyObj, IsPyObj, IsDictLikePyObj, IsListLikePyObj, CheckIsLegalPyName
 
 import utils_torch.attr as attrs
