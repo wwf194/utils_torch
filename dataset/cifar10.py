@@ -151,10 +151,12 @@ class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
         return getattr(self.cache.flows, Name)
     def CreateFlow(self, Name, BatchParam, Type="Train", IsRandom=False):
         cache = self.cache
-        if self.HasFlow(Name):
-            utils_torch.AddWarning("Overwriting existing flow: %s"%Name)
+        # if self.HasFlow(Name):
+        #     utils_torch.AddWarning("Overwriting existing flow: %s"%Name)
         #self.ClearFlow(Type=Type)
-        flow = SetAttr(cache.flows, Name, utils_torch.EmptyPyObj())
+        #flow = cache.flows.SetAttr(Name, utils_torch.EmptyPyObj())
+        flow = utils_torch.EmptyPyObj()
+        flow.Name = Name
         flow.IndexCurrent = 0
         flow.BatchSize = BatchParam.Batch.Size
         Data = getattr(cache.Data, Type)
@@ -174,7 +176,6 @@ class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
             flow.RandomBatchIndex = 0
         else:
             flow.IsRandom = False
-        
         self.ResetFlow(flow)
         return flow
     def CreateFlowRandom(self, BatchParam, Name, Type):
@@ -235,7 +236,7 @@ class DataManagerForEpochBatchTrain(utils_torch.module.AbstractModuleWithParam):
             flow.RandomBatchIndex = 0
         return DataBatch
     def ResetFlowFromName(self, Name):
-        flow = self.GetFlow(Name)
+        #flow = self.GetFlow(Name)
         self.ResetFlow(Name)
     def ResetFlow(self, flow):
         flow.IndexCurrent = 0

@@ -6,6 +6,7 @@ import utils_torch
 from utils_torch.attr import *
 from utils_torch.transform import AbstractTransformWithTensor
 class SingleLayer(AbstractTransformWithTensor):
+    DataIsNotEmpty = True
     def __init__(self, **kw):
         super().__init__(**kw)
         return

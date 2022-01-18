@@ -16,11 +16,11 @@ class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
     def __init__(self, **kw):
         # kw.setdefault("DataOnly", False)
         super().__init__(**kw)
-    def InitModules(self):
+    def InitModules(self, IsLoad=False):
         cache = self.cache
-        for name, module in ListAttrsAndValues(cache.Modules):
+        for name, module in ListAttrsAndValues(cache.Modules, Exceptions=["__ResolveBase__"]):
             if hasattr(module, "Build"):
-                module.Build(IsLoad=cache.IsLoad)
+                module.Build(IsLoad=IsLoad)
             else:
                 if HasAttrs(module, "param.ClassPath"):
                     Class = module.param.ClassPath
@@ -32,6 +32,8 @@ class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
                     )
                 if module is None:
                     raise Exception(name)
+        for name, module in ListAttrsAndValues(cache.Dynamics, Exceptions=["__ResolveBase__"]):
+            continue
     def LogCache(self, Name, data, Type=None, log=None):
         #log = utils_torch.ParseLog(log)
         data = ProcessLogData(data)
@@ -77,8 +79,11 @@ class AbstractTransform(utils_torch.module.AbstractModuleWithParam):
         if hasattr(param, "FullName"):
             Name = param.FullName + "." + Name
         log.AddLogCache(Name, data, Type)
-    def LogActivity(self, Name, data, Type="Activity", log="Data"):
-        log = utils_torch.ParseLog(log)
+    def LogActivityStat(self, log: utils_torch.log.LogAlongEpochBatchTrain):
+        for Name, Activity in log.GetLogValueOfType("ActivityAlongTime").items():
+            self.LogActivityStat(Name + "-Stat", Activity, "Activity-Stat", log)
+    def LogActivity(self, Name, data, Type="Activity", log=None):
+        #log = utils_torch.ParseLog(log)
         param = self.param
         data = utils_torch.ToNpArray(data)
         if hasattr(param, "FullName"):

@@ -117,9 +117,6 @@ def CallGraph(Router, *InList, **InDict):
     else:
         States = utils_torch.EmptyPyObj()
     
-    # for Key, Value in InDict.items():
-    #     States[Key] = Value
-
     Index = 0
     for Key in Router.In:
         if Key in InDict:

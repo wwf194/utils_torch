@@ -262,11 +262,101 @@ class PyObj(object):
         HasAttr = Name in self.__dict__ or Name=="__dict__"
         return HasAttr
     def __getattr__(self, Name):
-        return PyObj().SetCreateFromGetAttr(True)
+        Obj = PyObj().SetCreateFromGetAttr(True).SetParentAndAttr(self, Name)
+        setattr(self, Name, Obj)
+        return Obj
+    def SetParentAndAttr(self, parent, attr):
+        self.cache.parent = parent
+        self.cache.parentAttr = attr
+        return self
+    def HasParent(self):
+        return "parent" in self.cache.__dict__ and "parentAttr" in self.cache.__dict__
+    def GetParent(self):
+        return self.cache.parent
+    def GetParentAttr(self):
+        return self.cache.parentAttr
+    def SetDefault(self, Value):
+        assert hasattr(self.cache, "parent")
+        if self.IsCreateFromGetAttr() and self.IsEmpty():
+            self.ResetParentAttr(Value)
+        return self
+    def SetValue(self, Value):
+        self.__value__ = Value
+        if len(self.__dict__)==2 and self.HasParent(): #['cache', '__value__']
+            self.ResetParentAttr(Value)
+        return self
+    def HasValue(self):
+        return "__value__" in self.__dict__
+    def ResetParentAttr(self, Value):
+        self.GetParent().SetAttr(self.GetParentAttr(), Value)
+    def SetAttr(self, Name, Value):
+        setattr(self, Name, Value)
+        return getattr(self, Name)
+    def RemoveAttr(self, Attr):
+        self.__dict__.pop(Attr)
+    def EnsureAttrs(self, AttrList, DefaultValue):
+        if len(AttrList)==1:
+            Attr = AttrList[0]
+            if hasattr(self, Attr):
+                Child = getattr(self, Attr)
+                if isinstance(Child, PyObj):
+                    # 2 special cases
+                    if isinstance(DefaultValue, dict):
+                        Child.FromDict(DefaultValue)
+                        return
+                    elif isinstance(DefaultValue, PyObj):
+                        Child.FromPyObj(DefaultValue)
+                        return
+
+                    if Child.HasValue():
+                        pass
+                    else:
+                        Child.SetValue(DefaultValue)
+                else:
+                    #setattr(self, Attr, DefaultValue)
+                    pass
+            else:
+                setattr(self, Attr, DefaultValue)
+        elif len(AttrList)>1:
+            Child = getattr(self, AttrList[0])
+            if not isinstance(Child, PyObj):
+                setattr(self, AttrList[0], PyObj().SetValue(Child))
+            Child = getattr(self, AttrList[0])
+            Child.EnsureAttrs(AttrList[1:], DefaultValue)
+        else:
+            raise Exception(len(AttrList))
+    def SetAttrs(self, AttrList, DefaultValue):
+        if len(AttrList)==1:
+            Attr = AttrList[0]
+            if hasattr(self, Attr):
+                Child = getattr(self, Attr)
+                if isinstance(Child, PyObj):
+                    # 2 special cases
+                    if isinstance(DefaultValue, dict):
+                        Child.FromDict(DefaultValue)
+                        return
+                    elif isinstance(DefaultValue, PyObj):
+                        Child.FromPyObj(DefaultValue)
+                        return
+
+                    Child.SetValue(DefaultValue)
+                else:
+                    setattr(self, Attr, DefaultValue)
+            else:
+                setattr(self, Attr, DefaultValue)
+        elif len(AttrList)>1:
+            Child = getattr(self, AttrList[0])
+            if not isinstance(Child, PyObj):
+                setattr(self, AttrList[0], PyObj().SetValue(Child))
+            Child = getattr(self, AttrList[0])
+            Child.SetAttrs(AttrList[1:], DefaultValue)
+        else:
+            raise Exception(len(AttrList))
     def SetCreateFromGetAttr(self, value=True):
         self.cache.CreateFromGetAttr = value
+        return self
     def IsCreateFromGetAttr(self):
-        if hasattr(self.cache, "CreateFromAttr") and self.cache.CreateFromAttr is True:
+        if hasattr(self.cache, "CreateFromGetAttr") and self.cache.CreateFromGetAttr is True:
             return True
         else:
             return False
@@ -331,10 +421,10 @@ class PyObj(object):
         # Dict keys in form of "A.B.C" are supported.
         # {"A.B": "C"} will be understood as {"A": {"B": "C"}}
         for key, value in Dict.items():
-            if key in ["__ResolveRef__"]:
-                if not hasattr(self, "__ResolveRef__"):
-                    setattr(self.cache, key, value)
-                continue
+            # if key in ["__ResolveRef__"]:
+            #     if not hasattr(self, "__ResolveRef__"):
+            #         setattr(self.cache, key, value)
+            #     continue
             if "." in key: # and "|-->" not in key:
                 keys = key.split(".")
             else:

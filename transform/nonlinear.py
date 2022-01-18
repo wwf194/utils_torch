@@ -61,6 +61,7 @@ GetActivationFunction = GetNonLinearMethod
 
 from utils_torch.transform.SingleLayer import SingleLayer
 class NonLinearLayer(SingleLayer):
+    DataIsNotEmpty = True
     # def __init__(self, param=None, data=None, **kw):
     #     super().__init__()
     #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.NonLinearLayer", **kw)
@@ -74,7 +75,7 @@ class NonLinearLayer(SingleLayer):
         cache = self.cache
 
         SetAttrs(param, "Type", value="NonLinearLayer")
-        EnsureAttrs(param, "Subtype", default="f(Wx+b)")     
+        EnsureAttr(param.Subtype, "f(Wx+b)")     
 
         if param.Subtype in ["f(Wx+b)"]:
             if cache.IsInit:

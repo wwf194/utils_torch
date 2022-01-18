@@ -2,8 +2,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+import numpy as np
+
 import utils_torch
-from utils_torch.attr import GetAttrs, SetAttrs, HasAttrs, EnsureAttrs
+from utils_torch.attr import *
 
 def Build(param):
     # to be implemented
@@ -20,72 +22,85 @@ class MLP(AbstractTransformWithTensor):
     def __init__(self, **kw):
         super().__init__(**kw)
         return
-    def Build(self, IsLoad=False):
-        self.BeforeBuild(IsLoad)
+    def Build(self, IsLoad=False, LoadDir=None):
+        self.BeforeBuild(IsLoad=IsLoad)
         param = self.param
         data = self.data
         cache = self.cache
 
-        cache.Modules = utils_torch.EmptyPyObj()
         if cache.IsInit:
-            EnsureAttrs(param, "Init.Method", default="FromNeuronNum")
-            EnsureAttrs(param, "NonLinear", default="ReLU")
-            EnsureAttrs(param.Layers, "Bias", default="True")
-            EnsureAttrs(param.Layers, "Type", default="f(Wx+b)")
-        
+            EnsureAttr(param.Neurons.NonLinear, "ReLU")
+
         cache.LayerNum = param.Layers.Num
         if cache.IsInit:
-            if param.Init.Method in ["FromNeuronNum"]:
-                EnsureAttrs(param.Layers, "Num", default=len(param.Neurons.Num) - 1)
-                EnsureAttrs(param.Layers, "LinearOnLastLayer", default=True)
-                EnsureAttrs(param.Layers, "SubType", default="f(Wx+b)")
-                EnsureAttrs(param.Layers, "Type", default="NonLinearLayer")
+            EnsureAttr(param.Layers.Bias, True)
+            EnsureAttr(param.Layers.Type, "NonLinearLayer")
+            EnsureAttr(param.Layers.Subtype, "f(Wx+b)")
+            EnsureAttr(param.Layers.LinearOnLastLayer, True)
+            if not HasAttr(param.Layers.Num):
+                param.Layers.Num = len(param.Layers.Neurons.Num) - 1
+            EnsureAttr(param.Layers.Num, len(param.Neurons.Num) - 1)
 
-                for LayerIndex in range(param.Layers.Num):
-                    LayerParam = utils_torch.EmptyPyObj()
-                    SetAttrs(LayerParam, "Type", param.Layers.Type)
-                    SetAttrs(LayerParam, "SubType", param.Layers.SubType)
-                    #SetAttrs(LayerParam, "Bias", param.Layers.Bias)
-                    SetAttrs(LayerParam, "Input.Num", value=param.Neurons.Num[LayerIndex])
-                    SetAttrs(LayerParam, "Output.Num", value=param.Neurons.Num[LayerIndex + 1])
-                    SetAttrs(LayerParam, "NonLinear", value=param.NonLinear)
-                    SetAttrs(LayerParam, "FullName", value=param.FullName + "." + "Layer%d"%LayerIndex)
-                    
-                    if LayerIndex == cache.LayerNum - 1:
-                        if param.Layers.LinearOnLastLayer:
-                            SetAttrs(LayerParam, "Type", "LinearLayer")
-                            if param.Layers.SubType in ["f(Wx+b)"]:
-                                LayerParam.SubType = "Wx+b"
-                            elif param.Layers.SubType in ["f(Wx)"]:
-                                LayerParam.SubType = "Wx"
+            self.SetNeuronsNum()
+            for LayerIndex in range(param.Layers.Num):
+                LayerParam = eval("param.Modules.Layer%d"%LayerIndex)
+                #LayerParam = utils_torch.EmptyPyObj()
+                EnsureAttr(LayerParam.Type,      param.Layers.Type)
+                EnsureAttr(LayerParam.Subtype,   param.Layers.Subtype)
+                EnsureAttr(LayerParam.NonLinear, param.Neurons.NonLinear)
+                SetAttr(LayerParam.FullName,     param.FullName + "." + "Layer%d"%LayerIndex)
+                SetAttr(LayerParam.Input.Num,    param.Layers.Neurons.Num[LayerIndex])
+                SetAttr(LayerParam.Output.Num,   param.Layers.Neurons.Num[LayerIndex + 1])
 
-                    if HasAttrs(param, "Layers.Weight.Init"):
-                        SetAttrs(LayerParam, "Weight.Init", param.Layers.Weight.Init)
-                    SetAttrs(param, "Modules.Layer%d"%LayerIndex, value=LayerParam)
-            else:
-                raise Exception()
-        
+                if LayerParam.Subtype in ["NonLinear"]:
+                    LayerParam.Subtype = "NonLinearLayer" # To avoid confusion between a nonlinear layer and a nonlinear function                                                                                                                                                                                                                                                                                                  
+                if LayerIndex == cache.LayerNum - 1:
+                    if param.Layers.LinearOnLastLayer:
+                        LayerParam.Type = "LinearLayer"
+                        if param.Layers.Subtype in ["f(Wx+b)"]:
+                            LayerParam.Subtype = "Wx+b"
+                        elif param.Layers.Subtype in ["f(Wx)"]:
+                            LayerParam.Subtype = "Wx"
+
+                if HasAttrs(param, "Layers.Weight.Init"):
+                    SetAttrs(LayerParam, "Weight.Init", param.Layers.Weight.Init)
+                #SetAttrs(param, "Modules.Layer%d"%LayerIndex, value=LayerParam)
+
+        self.BuildModules(IsLoad=IsLoad, LoadDir=LoadDir)
+        self.InitModules(IsLoad=IsLoad)
+        self.ParseRouters(IsLoad=IsLoad)
+
         cache.Layers = []
         for LayerIndex in range(param.Layers.Num):
-            LayerParam = GetAttrs(param, "Modules.Layer%d"%LayerIndex)
-            Layer = utils_torch.transform.BuildModule(LayerParam, LoadDir=cache.LoadDir)
-            SetAttrs(cache, "Modules.Layer%d"%LayerIndex, Layer)
-            cache.Layers.append(Layer)             
-            self.add_module("Layer%d"%LayerIndex, Layer)
-        for Layer in cache.Layers:
-            Layer.Build(IsLoad=cache.IsLoad)
-        
+            #LayerParam = GetAttrs(param, "Modules.Layer%d"%LayerIndex)
+            #Layer = utils_torch.module.BuildModule(LayerParam, LoadDir=cache.LoadDir)
+            #SetAttrs(cache, "Modules.Layer%d"%LayerIndex, Layer)
+            cache.Layers.append(getattr(cache.Modules, "Layer%d"%LayerIndex))             
+            #self.add_module("Layer%d"%LayerIndex, Layer)
+        # for Layer in cache.Layers:
+        #     Layer.Build(IsLoad=cache.IsLoad)
         return self
-    def forward(self, Input):
-        cache = self.cache
-        States = {}
-        States["0"] = Input
-        for LayerIndex, Layer in enumerate(cache.Layers):
-            Output = Layer.forward(States[str(LayerIndex)])
-            States[str(LayerIndex + 1)] =Output
-        return [
-            States[str(cache.LayerNum)]
-        ]
+    def SetNeuronsNum(self):
+        param = self.param
+        NeuronsNum = param.Layers.Neurons.Num
+        NeuronsNum[0] = param.Neurons.Input.Num
+        NeuronsNum[-1] = param.Neurons.Output.Num
+        Index = 0
+        while Index < len(NeuronsNum):
+            #if NeuronsNum[Index] in ["Auto", "auto"]:
+            if not isinstance(NeuronsNum, int):
+                Index2 = Index
+                while not isinstance(NeuronsNum[Index2], int):
+                    Index2 += 1
+                NeuronsNumFloat = np.linspace(NeuronsNum[Index - 1], NeuronsNum[Index2], Index2 - Index + 1)[1:]
+                Index0 = Index
+                while Index < Index2:
+                    NeuronsNum[Index] = round(NeuronsNumFloat[Index - Index0])
+                    Index += 1
+                Index += 1
+            else:
+                Index += 1 
+
 
 __MainClass__ = MLP
 # utils_torch.transform.SetMethodForTransformModule(__MainClass__)

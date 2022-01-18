@@ -595,6 +595,8 @@ def ToTorchTensor(data):
         return NpArray2Tensor(data)
     elif isinstance(data, list):
         return NpArray2Tensor(List2NpArray(data))
+    elif isinstance(data, torch.Tensor):
+        return data
     else:
         raise Exception(type(data))
 

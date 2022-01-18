@@ -157,7 +157,7 @@ def CreateWeight2D(param, DataType=torch.float32):
             EnsureAttrs(Init, "Distribution", default="Uniform")
         EnsureAttrs(Init, "Mode", default="In")
         EnsureAttrs(Init, "Coefficient", default=1.0)
-        if Init.Mode in ["In"]:
+        if Init.Mode in ["BasedOnInputNum", "BasedOnInput", "In"]:
             if Init.Distribution in ["Uniform"]:
                 Init.Range = [
                     - Init.Coefficient * (6.0 / param.Size[0]) ** 0.5,

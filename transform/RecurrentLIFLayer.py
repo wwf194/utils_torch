@@ -30,8 +30,8 @@ class RecurrentLIFLayer(AbstractTransformWithTensor):
         cache = self.cache
         EnsureAttrs(param, "IsExciInhi", default=False)
         
-        self.BuildModules()
-        self.InitModules()
+        self.BuildModules(IsLoad=IsLoad)
+        self.InitModules(IsLoad=IsLoad)
         self.SetInternalMethods()
         self.ParseRouters()
 

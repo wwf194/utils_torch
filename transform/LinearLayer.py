@@ -9,6 +9,7 @@ class LinearLayer(SingleLayer):
     # def __init__(self, param=None, data=None, **kw):
     #     super().__init__()
     #     self.InitModule(self, param, data, ClassPath="utils_torch.transform.LinearLayer", **kw)
+    DataIsNotEmpty = True
     def __init__(self, **kw):
         super().__init__(**kw)
     def Build(self, param=None, IsLoad=False):
