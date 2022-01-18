@@ -1,3 +1,4 @@
+from ast import Is
 import os
 import re
 import pandas as pd
@@ -525,31 +526,38 @@ def GetRelativePath(PathTarget, PathRef):
     # To be implemented: support forms such as '../../a/b/c'
     return PathRef2Target
 
-def VisitTreeAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
-    if func is None:
-        func = args.func   
-    if path is None:
-        path = args.path
-    else:
-        func = None
-        warnings.warn('visit_dir: func is None.')
+
+def CheckDirPath(DirPath):
+    if not DirPath.endswith("/"):
+        DirPath += "/"
+    assert IsDir(DirPath)
+    return DirPath
+
+def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
+    DirPath = CheckDirPath(DirPath)
+    
+    if Method is None:
+        Method = lambda Context:0
+        utils_torch.AddWarning('Method is None.')
+
     filepaths=[]
-    abspath = os.path.abspath(path) # relative path also works well
+    abspath = os.path.abspath(DirPath) # relative path also works well
 
     Files = utils_torch.file.ListAllFiles(DirPath)
     for File in Files:
         Method(DirPath + File, **kw)
     
+    FileList, DirList = ListAllFilesAndDirs(DirPath)
+
+    for FileName in FileList:
+        Method(utils_torch.PyObj({
+            "DirPath": DirPath,
+            "FileName": FileName
+        }))
+
     if Recur:
-        Dirs = utils_torch.file.ListAllDirs(DirPath)
-    for name in os.listdir(abspath):
-        FilePath = os.path.join(abspath, name)
-        if os.path.isdir(FilePath):
-            if Recur:
-                VisitTreeAndApplyMethodOnFiles(FilePath, Method, Recur, **kw)
-        else:
-            Method(FilePath)
-    return filepaths
+        for DirName in DirList:
+            VisitDirAndApplyMethodOnFiles(DirPath + DirName + "/", Method, Recur, **kw)
 
 def CopyFiles2DestDir(FileNameList, SourceDir, DestDir):
     for FileName in FileNameList:
