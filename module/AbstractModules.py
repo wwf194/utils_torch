@@ -19,10 +19,16 @@ class AbstractModule:
     def LoadData(self, data):
         self.data = data
         return self
-    def LoadDataFromFile(self, FilePath):
-        self.LoadData(
-            utils_torch.file.DataFile2PyObj(FilePath)
-        )
+    def LoadDataFromFile(self, FileDir):
+        FilePath = FileDir + self.param.FullName + ".data"
+        if utils_torch.ExistsFile(FilePath):
+            self.LoadData(
+                utils_torch.file.DataFile2PyObj(FilePath)
+            )
+        else:
+            if hasattr(self.__class__, "DataIsNotEmpty") and self.__class__.DataIsNotEmpty is True:
+                raise Exception()
+            self.LoadData(utils_torch.EmptyPyObj())
         return self
     def LoadDataFromDir(self, LoadDir):
         FilePath = LoadDir = self.param.FullName + ".data"
@@ -111,7 +117,7 @@ class AbstractModuleWithParam(AbstractModule):
         self.HasBeforeBuild = True
         
         return self
-    def ParseRouters(self):
+    def ParseRouters(self, **kw):
         GlobalParam = utils_torch.GetGlobalParam()
         param = self.param
         cache = self.cache
@@ -177,8 +183,10 @@ class AbstractModuleWithParam(AbstractModule):
         if ClassPath is not None:
             param.ClassPath = ClassPath
         
-        cache.Modules = utils_torch.EmptyPyObj()
-        cache.Dynamics = utils_torch.EmptyPyObj()
+        if not hasattr(cache, "Modules"):
+            self.Modules = cache.Modules = utils_torch.EmptyPyObj()
+        if not hasattr(cache, "Modules"):
+            self.Dynamics = cache.Dynamics = utils_torch.EmptyPyObj()
 
         if HasTensor:
             cache.Tensors = []
@@ -186,9 +194,6 @@ class AbstractModuleWithParam(AbstractModule):
         self.param = param
         self.data = data
         self.cache = cache
-        self.Modules = cache.Modules
-        self.Dynamics = cache.Dynamics
-
     def SetFullName(self, FullName):
         cache = self.cache
         param = self.param
@@ -220,11 +225,17 @@ class AbstractModuleWithParam(AbstractModule):
     def ToFile(self, SaveDir=None, SaveName=None):
         param = self.param
         data = self.data
+        cache = self.cache
         if SaveName is None:
             SaveName = self.param.FullName
         if not data.IsEmpty():
             utils_torch.file.PyObj2DataFile(data,  SaveDir + SaveName + ".data")
         utils_torch.file.PyObj2JsonFile(param, SaveDir + SaveName + ".jsonc")
+        
+        if hasattr(cache, "Modules"):
+            for Name, Module in cache.Modules.Items():
+                if hasattr(Module, "ToFile"):
+                    Module.ToFile(SaveDir)        
         return self
     def FromFile(self, SaveDir, SaveName, LoadParam=True, IsRoot=None):
         if IsRoot is False:
@@ -293,9 +304,9 @@ class AbstractModuleWithParam(AbstractModule):
             # if isinstance(module, nn.Module) and isinstance(self, nn.Module):
             #     self.add_module(Name, Module)
             setattr(cache.Modules, Name, module)
-    # def BuildModules(self):
-    #     # initialize modules
-    #     # for module in ListAttrs(param.modules):
+    # def BuildModules(self):                                                                                
+    #     # initialize modules                                                                         
+    #     # for module in ListAttrs(param.modules):                                                        
     #     param = self.param
     #     cache = self.cache
     #     for Name, ModuleParam in ListAttrsAndValues(param.Modules, Exceptions=["__IsResolveBase__"]):
@@ -328,10 +339,8 @@ class AbstractModuleWithoutParam(AbstractModule):
         utils_torch.file.PyObj2DataFile(self.data, FilePath)
         return self
     def FromFile(self, SaveDir, SaveName):
-        if self.HasData:
-            assert FilePath.endswith(".data")
-            self.data = utils_torch.file.DataFile2PyObj(FilePath)
-        e
+        SavePath = SaveDir + SaveName + ".data"
+        self.data = utils_torch.file.DataFile2PyObj(SavePath)
         return self
     def BeforeBuild(self, IsLoad=False):
         if hasattr(self, "HasBeforeBuild") and self.HasBeforeBuild is True:

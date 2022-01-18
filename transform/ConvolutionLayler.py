@@ -5,16 +5,15 @@ import torch.nn.functional as F
 import utils_torch
 from utils_torch.attr import *
 
-class ConvolutionLayer(nn.Module):
+from utils_torch.transform import AbstractTransformWithTensor
+class ConvolutionLayer(AbstractTransformWithTensor):
     def __init__(self):
         super(ConvolutionLayer, self).__init__()
     def Build(self, IsLoad=False):
         self.BeforeBuild(IsLoad)
         param = self.param
         cache = self.cache
-        
         EnsureAttrs(param, "IsExciInhi", default=False)
-
         if cache.IsInit:
             if not HasAttrs(param, "Output.Num") or not HasAttrs(param, "Input.Num"):
                 if HasAttrs(param, "Weight.Size"):

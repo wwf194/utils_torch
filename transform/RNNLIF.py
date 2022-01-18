@@ -39,8 +39,8 @@ class RNNLIF(AbstractTransformWithTensor):
         cache.NeuronNum = Neurons.Recurrent.Num
 
         self.SetIterationTime()
-        self.BuildModules()
-        self.InitModules()
+        self.BuildModules(IsLoad=IsLoad)
+        self.InitModules(IsLoad=IsLoad)
         self.DoInitTasks()
         self.ParseRouters()
 
@@ -82,11 +82,11 @@ class RNNLIF(AbstractTransformWithTensor):
         # IterationTime = input.IterationTime
         outputs = Dynamics.Run(input)
 
-        log.recurrentInput = outputs.recurrentInputSeries
+        log.recurrentInput    = outputs.recurrentInputSeries
         log.membranePotential = outputs.membranePotentialSeries
-        log.firingRates = outputs.firingRateSeries
-        log.output = outputs.outputSeries
-        log.outputTarget = outputTarget
+        log.firingRates       = outputs.firingRateSeries
+        log.output            = outputs.outputSeries
+        log.outputTarget      = outputTarget
 
         Dynamics.Optimize(outputTarget, outputs.output, OptimizeParam, log=log)
         return
@@ -108,8 +108,6 @@ class RNNLIF(AbstractTransformWithTensor):
         #          "firingRateSeries,  Name=FiringRates, logger=DataTrain |-->   &LogSpatialActivity",
         #     ]
         # },
-
-
 
 __MainClass__ = RNNLIF
 #utils_torch.transform.SetMethodForTransformModule(__MainClass__)

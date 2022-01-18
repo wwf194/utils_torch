@@ -366,9 +366,7 @@ def ParsePyObjStatic(Obj, **kw):
     ObjRoot = kw.setdefault("ObjRoot", utils_torch.GetGlobalParam())
     _ParseResolveBaseInPlace(Obj, None, None, ParsedObj=defaultdict(lambda:None), **kw)
     if InPlace:
-        _ParsePyObjStaticInPlace(
-            Obj, None, None, 
-            **kw
+        _ParsePyObjStaticInPlace(Obj, None, None, **kw
             #ParsedObj=defaultdict(lambda:None)
         )
         return Obj
@@ -378,6 +376,10 @@ def ParsePyObjStatic(Obj, **kw):
 def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
     kw.setdefault("RecurDepth", 1)
     kw["RecurDepth"] += 1
+    # if kw['RecurDepth'] > 100:
+    #     print("aaa")
+    # if hasattr(Obj, "FullName") and Obj.FullName in ['agent.model.Layer0']:
+    #     print("aaa")
 
     kw.setdefault("Attrs", [])
     kw["Attrs"].append(Attr)
@@ -385,9 +387,7 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
     ObjCurrent = kw.get("ObjCurrent")
     if isinstance(Obj, list):
         if parent is not None and Attr not in ["__value__"]:
-            SetAttr(parent, Attr, utils_torch.PyObj({
-                "__value__": Obj,
-            }))
+            setattr(parent, Attr, utils_torch.PyObj().SetValue(Obj))
             Obj = GetAttr(parent, Attr)
             setattr(Obj.cache, "__ResolveRef__", parent)
             Obj = Obj.__value__
@@ -405,35 +405,45 @@ def _ParseResolveBaseInPlace(Obj, parent, Attr, WithinJson=True, **kw):
                 setattr(Obj.cache, "__ParentRef__", ObjCurrent.cache.__ParentRef__)
         setattr(Obj.cache, "__ResolveRef__", ObjCurrent)
         for _Attr, Value in ListAttrsAndValues(Obj):
+            #print(_Attr)
             _ParseResolveBaseInPlace(Value, Obj, _Attr, WithinJson=WithinJson, **kw)
     else:
         pass
 
-def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
-    # if Obj in ["$~~Neurons.Recurrent.NonLinear"]:
+def _ParsePyObjStaticInPlace(Obj, parent, attr, **kw):
+    # if Obj in ["$Neurons.NonLinear"]:
     #     print("aaa")
     kw["RecurDepth"] += 1
-    WithinJson = kw["WithinJson"]
+    # if kw['RecurDepth'] > 100:
+    #     print("aaa")
+
     if isinstance(Obj, list):
         for Index, Item in enumerate(Obj):
             _ParsePyObjStaticInPlace(Item, Obj, Index, **kw)
     elif isinstance(Obj, dict):
         Obj = utils_torch.PyObj(Obj)
-        parent[Attr] = Obj
+        parent[attr] = Obj
         for Key, Value in Obj.Items():
             _ParsePyObjStaticInPlace(Value, Obj, Key, **kw)
-    elif utils_torch.IsPyObj(Obj):
+    elif isinstance(Obj, utils_torch.PyObj):
         if Obj.IsResolveBase():
             kw["ObjCurrent"] = Obj   
-        Sig = True
-        while Sig:
-            for _Attr, Value in ListAttrsAndValues(Obj):
-                _ParsePyObjStaticInPlace(Value, Obj, _Attr, **kw)
-                if _Attr in ["__value__"] and isinstance(getattr(Obj, _Attr), utils_torch.PyObj):
-                    Obj.FromPyObj(getattr(Obj, _Attr))
-                    delattr(Obj, "__value__")
-                    break
-            Sig = False
+        
+        if hasattr(Obj, "__value__") and isinstance(getattr(Obj, "__value__"), utils_torch.PyObj):
+            Obj.FromPyObj(getattr(Obj, "__value__"))
+            delattr(Obj, "__value__")
+
+        for _Attr, Value in ListAttrsAndValues(Obj):
+            _ParsePyObjStaticInPlace(Value, Obj, _Attr, **kw)
+        # Sig = True
+        # while Sig:
+        #     for _Attr, Value in ListAttrsAndValues(Obj):
+        #         _ParsePyObjStaticInPlace(Value, Obj, _Attr, **kw)
+        #         if _Attr in ["__value__"] and isinstance(getattr(Obj, _Attr), utils_torch.PyObj):
+        #             Obj.FromPyObj(getattr(Obj, _Attr))
+        #             delattr(Obj, "__value__")
+        #             break
+        #     Sig = False
     elif isinstance(Obj, str):
         if type(Obj) is str and ("$" in Obj) and ("&" not in Obj):
             Obj = Obj.lstrip("#")
@@ -445,18 +455,19 @@ def _ParsePyObjStaticInPlace(Obj, parent, Attr, **kw):
                 if success:
                     continue
                 break
-            parent[Attr] = Obj
+            parent[attr] = Obj
         elif Obj.startswith("#"):
-            _Obj = Obj
+            ObjBackup = Obj
             try:
-                sentence = utils_torch.RemoveHeadTailWhiteChars(Obj.lstrip("#"))
-                Obj = eval(sentence)
+                Obj = utils_torch.RemoveHeadTailWhiteChars(Obj.lstrip("#"))
+                Obj = eval(Obj)
             except Exception:
-                Obj = _Obj
-            if not IsJsonObj(Obj) and WithinJson:
+                Obj = ObjBackup
+            
+            if not IsJsonObj(Obj) and kw.setdefault("WithinJson", True):
                 utils_torch.AddLog("_ParsePyObjStaticInPlace: Not a Json Obj: %s of type %s ."%(Obj, type(Obj)))
             else:
-                parent[Attr] = Obj
+                parent[attr] = Obj
         else:
             pass
     else:
@@ -471,7 +482,7 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
     ObjRoot = kw.get("ObjRoot")
     parent = kw.get("parent")
 
-    _Str = Str
+    StrBackup = Str
     sentence = Str
     if Dynamic:
         while "&" in sentence:
@@ -504,7 +515,7 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
         else:
             success = True
     except Exception:
-        Str = _Str
+        Str = StrBackup
         success = False
         # if Verbose:
         #     utils_torch.AddLog("ParseStr: Failed to run %s"%sentence)
@@ -514,7 +525,7 @@ def ParseStr(Str, Dynamic=False, Verbose=True, **kw):
                 # if Verbose:
                 #     utils_torch.AddLog("ParseStr: Not a Json Obj: %s of type %s ."%(Str, type(Str)))
                 success = False
-                Str = _Str
+                Str = StrBackup
     return Str, success
 
 def ParseStrWithWell(Str, Dynamic=True, **kw):
@@ -588,8 +599,6 @@ def ParseStrLocal(Str, Dynamic=False, **kw):
     return Str, success 
 
 def _ParsePyObjStatic(Obj, parent, Attr, **kw):
-
-
     if isinstance(Obj, list):
         ObjParsed = []
         for Index, Item in enumerate(Obj):
@@ -623,8 +632,6 @@ def _ParsePyObjStatic(Obj, parent, Attr, **kw):
             sentence = sentence.replace("$*", "ObjCurrent.cache.__object__.")
             sentence = sentence.replace("$", "ObjCurrent.")
             try:
-                # if sentence in ["ObjRoot.param.model"]:
-                #     print("aaa")
                 sentence = eval(sentence)
             except Exception:
                utils_torch.AddLog("_ParsePyObjStatic: Exception when running %s"%sentence)
@@ -637,17 +644,16 @@ def _ParsePyObjStatic(Obj, parent, Attr, **kw):
         ObjParsed = Obj
     return ObjParsed
 
-_ParsePyObj = _ParsePyObjStatic
+#_ParsePyObj = _ParsePyObjStatic
 
-def ParseJsonObj(JsonObj): # Obj can either be dict or list.
-    PyObj = JsonObj2PyObj(JsonObj)
-    return ParsePyObjStatic(PyObj)
+# def ParseJsonObj(JsonObj): # Obj can either be dict or list.
+#     PyObj = JsonObj2PyObj(JsonObj)
+#     return ParsePyObjStatic(PyObj)
     
-JsonObj2ParsedJsonObj = ParseJsonObj
+# JsonObj2ParsedJsonObj = ParseJsonObj
 
-def JsonObj2ParsedPyObj(JsonObj):
-    return JsonObj2PyObj(JsonObj2ParsedJsonObj(JsonObj))
-
+# def JsonObj2ParsedPyObj(JsonObj):
+#     return JsonObj2PyObj(JsonObj2ParsedJsonObj(JsonObj))
 
 def FilterFromPyObj(PyObj, Keys):
     List = []
