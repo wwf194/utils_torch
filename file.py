@@ -551,12 +551,6 @@ def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
         Method = lambda Context:0
         utils_torch.AddWarning('Method is None.')
 
-    filepaths=[]
-    abspath = os.path.abspath(DirPath) # relative path also works well
-
-    Files = utils_torch.file.ListAllFiles(DirPath)
-    for File in Files:
-        Method(DirPath + File, **kw)
     
     FileList, DirList = ListAllFilesAndDirs(DirPath)
 
@@ -564,6 +558,25 @@ def VisitDirAndApplyMethodOnFiles(DirPath=None, Method=None, Recur=False, **kw):
         Method(utils_torch.PyObj({
             "DirPath": DirPath,
             "FileName": FileName
+        }))
+
+    if Recur:
+        for DirName in DirList:
+            VisitDirAndApplyMethodOnFiles(DirPath + DirName + "/", Method, Recur, **kw)
+
+def VisitDirAndApplyMethodOnDirs(DirPath=None, Method=None, Recur=False, **kw):
+    DirPath = CheckDirPath(DirPath)
+    
+    if Method is None:
+        Method = lambda Context:0
+        utils_torch.AddWarning('Method is None.')
+
+    DirList = ListAllDirs(DirPath)
+
+    for DirName in DirList:
+        Method(utils_torch.PyObj({
+            "ParentDirPath": DirPath,
+            "DirName": DirName
         }))
 
     if Recur:
