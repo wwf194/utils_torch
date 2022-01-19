@@ -579,6 +579,9 @@ def VisitDirAndApplyMethodOnDirs(DirPath=None, Method=None, Recur=False, **kw):
             "DirName": DirName
         }))
 
+    # In case DirName is changed in Method.
+    DirList = ListAllDirs(DirPath)
+
     if Recur:
         for DirName in DirList:
             VisitDirAndApplyMethodOnFiles(DirPath + DirName + "/", Method, Recur, **kw)
