@@ -962,6 +962,8 @@ def PlotMultiLineChart(ax=None, Xs=None, Ys=None,
         Color="Black", LineWidth=2.0, XTicks=None, YTicks=None,
         Save=False, SavePath=None,
     ):
+    if ax is None:
+        fig, ax = CreateFigurePlt()
     Index = 0
     LineNum = len(Xs)
     Colors = GenerateColors(LineNum)
